@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <WinDef.h>
 #include <WinBase.h>
 
 typedef struct MUTEX

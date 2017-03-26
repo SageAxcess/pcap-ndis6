@@ -91,7 +91,6 @@ typedef struct _QUEUE_HEADER
             NdisReleaseSpinLock(_pLock);                        \
         }                                                       \
     }
-#endif //DBG_SPIN_LOCK
 
 
 #define NET_BUFFER_LIST_LINK_TO_ENTRY(_pNBL)    ((PQUEUE_ENTRY)(NET_BUFFER_LIST_NEXT_NBL(_pNBL)))

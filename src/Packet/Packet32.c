@@ -55,21 +55,9 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <WpcapNames.h>
 
-//
-// Current packet.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
-//
-char PacketLibraryVersion[64]; 
-
-//
-// Current NPF.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
-//
-char PacketDriverVersion[64]; 
-
-//
-// WinPcap global registry key
-//
-//WCHAR g_WinPcapKeyBuffer[MAX_WINPCAP_KEY_CHARS];
-//HKEY g_WinpcapKey = NULL;
+char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
+char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
+char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
 
 //
 // Global adapters list related variables
@@ -128,6 +116,7 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 		}
 
 		strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
+		strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
 
 		//
 		// Retrieve driver version information from the file. 
@@ -551,6 +540,13 @@ PCHAR PacketGetVersion()
 PCHAR PacketGetDriverVersion()
 {
 	return PacketDriverVersion;
+}
+
+PCHAR PacketGetDriverName()
+{
+	TRACE_ENTER();
+	TRACE_EXIT();
+	return PacketDriverName;
 }
 
 BOOL PacketStopDriver()

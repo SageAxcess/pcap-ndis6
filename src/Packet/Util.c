@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include "Util.h"
 
-MUTEX* PacketCreateLock()
+MUTEX* PacketCreateMutex()
 {
 	MUTEX* mutex = (MUTEX*)malloc(sizeof(MUTEX));
 	memset(&mutex->cs, 0, sizeof(CRITICAL_SECTION));
