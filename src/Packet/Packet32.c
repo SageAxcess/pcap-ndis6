@@ -59,20 +59,6 @@ char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be r
 char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
 char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
 
-//
-// Global adapters list related variables
-//
-extern PADAPTER_INFO g_AdaptersInfoList;
-extern HANDLE g_AdaptersInfoMutex;
-
-//
-// Dynamic dependencies variables and declarations
-//
-volatile LONG g_DynamicLibrariesLoaded = 0;
-HANDLE g_DynamicLibrariesMutex;
-
-BOOLEAN PacketAddAdapterDag(PCHAR name, PCHAR description, BOOLEAN IsAFile);
-
 //---------------------------------------------------------------------------
 
 BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
@@ -101,12 +87,6 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 			"services.reg");
 
 #endif
-
-		// Create the mutex that will protect the adapter information list
-		g_AdaptersInfoMutex = CreateMutex(NULL, FALSE, NULL);		
-		// Create the mutex that will protect the PacketLoadLibrariesDynamically() function		
-		g_DynamicLibrariesMutex = CreateMutex(NULL, FALSE, NULL);
-
 		//
 		// Retrieve packet.dll version information from the file
 		//
@@ -127,30 +107,6 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 		break;
 		
 	case DLL_PROCESS_DETACH:
-		CloseHandle(g_AdaptersInfoMutex);
-		
-		g_AdaptersInfoList;
-		
-		//TODO: Move to function
-		while(g_AdaptersInfoList != NULL)
-		{
-			PNPF_IF_ADDRESS_ITEM pCursor, pNext;
-
-			NewAdInfo = g_AdaptersInfoList->Next;
-
-			pCursor = g_AdaptersInfoList->pNetworkAddresses;
-
-			while(pCursor != NULL)
-			{
-				pNext = pCursor->Next;
-				GlobalFreePtr(pCursor);
-				pCursor = pNext;
-			}
-
-			GlobalFreePtr(g_AdaptersInfoList);
-			
-			g_AdaptersInfoList = NewAdInfo;
-		}
 
 #ifdef WPCAP_OEM_UNLOAD_H 
 		if(g_WoemLeaveDllH)
@@ -900,91 +856,82 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 
 	TRACE_PRINT1("PacketGetAdapterNames: BufferSize=%u", *BufferSize);
 
-	//
-	// Create the adapter information list
-	//
-	TRACE_PRINT("Populating the adapter list...");
 
-	PacketPopulateAdaptersInfoList();
-
-	WaitForSingleObject(g_AdaptersInfoMutex, INFINITE);
-
-	if(!g_AdaptersInfoList) 
+	if(!ndis)
 	{
-		ReleaseMutex(g_AdaptersInfoMutex);
-		*BufferSize = 0;
-
-		TRACE_PRINT("No adapters found in the system. Failing.");
-		
-		SetLastError(ERROR_INSUFFICIENT_BUFFER);
- 	
- 		TRACE_EXIT("PacketGetAdapterNames");
-		return FALSE;		// No adapters to return
-	}
-
-	// 
-	// First scan of the list to calculate the offsets and check the sizes
-	//
-	for(TAdInfo = g_AdaptersInfoList; TAdInfo != NULL; TAdInfo = TAdInfo->Next)
-	{
-		if(TAdInfo->Flags != INFO_FLAG_DONT_EXPORT)
-		{
-			// Update the size variables
-			SizeNeeded += (ULONG)strlen(TAdInfo->Name) + (ULONG)strlen(TAdInfo->Description) + 2;
-			SizeNames += (ULONG)strlen(TAdInfo->Name) + 1;
-		}
-	}
-
-	// Check that we don't overflow the buffer.
-	// Note: 2 is the number of additional separators needed inside the list
-	if(SizeNeeded + 2 > *BufferSize || pStr == NULL)
-	{
-		ReleaseMutex(g_AdaptersInfoMutex);
-
- 		TRACE_PRINT1("PacketGetAdapterNames: input buffer too small, we need %u bytes", *BufferSize);
- 
-		*BufferSize = SizeNeeded + 2;  // Report the required size
-
- 		TRACE_EXIT("PacketGetAdapterNames");
-		SetLastError(ERROR_INSUFFICIENT_BUFFER);
 		return FALSE;
 	}
 
-	OffDescriptions = SizeNames + 1;
-
-	// 
-	// Second scan of the list to copy the information
 	//
-	for(TAdInfo = g_AdaptersInfoList, SizeNames = 0, SizeDesc = 0; TAdInfo != NULL; TAdInfo = TAdInfo->Next)
-	{
-		if(TAdInfo->Flags != INFO_FLAG_DONT_EXPORT)
+	// Create the adapter information list
+	//
+	PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
+
+	if (list) {
+		// 
+		// First scan of the list to calculate the offsets and check the sizes
+		//
+		for (int i = 0; i < list->count;i++)
+		{
+			// Update the size variables
+			SizeNeeded += (ULONG)strlen(list->adapters[i].DeviceName) + (ULONG)strlen(list->adapters[i].FriendlyName) + 2;
+			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
+		}
+
+		// Check that we don't overflow the buffer.
+		// Note: 2 is the number of additional separators needed inside the list
+		if (SizeNeeded + 2 > *BufferSize || pStr == NULL)
+		{
+			NdisDriverFreeAdapterList(list);
+
+			TRACE_PRINT1("PacketGetAdapterNames: input buffer too small, we need %u bytes", *BufferSize);
+
+			*BufferSize = SizeNeeded + 2;  // Report the required size
+
+			TRACE_EXIT("PacketGetAdapterNames");
+			SetLastError(ERROR_INSUFFICIENT_BUFFER);
+			return FALSE;
+		}
+
+		OffDescriptions = SizeNames + 1;
+
+		// 
+		// Second scan of the list to copy the information
+		//
+		SizeNames = 0;
+		SizeDesc = 0;
+
+		for (int i = 0; i < list->count; i++)
 		{
 			// Copy the data
 			StringCchCopyA(
-				((PCHAR)pStr) + SizeNames, 
-				*BufferSize - SizeNames, 
-				TAdInfo->Name);
+				((PCHAR)pStr) + SizeNames,
+				*BufferSize - SizeNames,
+				list->adapters[i].DeviceName);
+
 			StringCchCopyA(
-				((PCHAR)pStr) + OffDescriptions + SizeDesc, 
+				((PCHAR)pStr) + OffDescriptions + SizeDesc,
 				*BufferSize - OffDescriptions - SizeDesc,
-				TAdInfo->Description);
+				list->adapters[i].FriendlyName);
 
 			// Update the size variables
-			SizeNames += (ULONG)strlen(TAdInfo->Name) + 1;
-			SizeDesc += (ULONG)strlen(TAdInfo->Description) + 1;
+			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
+			SizeDesc += (ULONG)strlen(list->adapters[i].FriendlyName) + 1;
 		}
+
+		NdisDriverFreeAdapterList(list);
+
+		// Separate the two lists
+		((PCHAR)pStr)[SizeNames] = 0;
+
+		// End the list with a further \0
+		((PCHAR)pStr)[SizeNeeded + 1] = 0;
+
+		TRACE_EXIT("PacketGetAdapterNames");
+		return TRUE;
 	}
 
-	// Separate the two lists
-	((PCHAR)pStr)[SizeNames] = 0;
-
-	// End the list with a further \0
-	((PCHAR)pStr)[SizeNeeded + 1] = 0;
-
-
-	ReleaseMutex(g_AdaptersInfoMutex);
-	TRACE_EXIT("PacketGetAdapterNames");
-	return TRUE;
+	return FALSE;
 }
 
 /*!
@@ -1002,127 +949,18 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 */
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries)
 {
-	PADAPTER_INFO TAdInfo;
-	PCHAR Tname;
-	BOOLEAN Res, FreeBuff;
-
-	TRACE_ENTER("PacketGetNetInfoEx");
-
-	// Provide conversion for backward compatibility
-	if(AdapterName[1] != 0)
-	{ //ASCII
-		Tname = AdapterName;
-		FreeBuff = FALSE;
-	}
-	else
-	{
-		Tname = WChar2SChar((PWCHAR)AdapterName);
-		FreeBuff = TRUE;
-	}
-
-	//
-	// Update the information about this adapter
-	//
-	if(!PacketUpdateAdInfo(Tname))
-	{
-		TRACE_PRINT("PacketGetNetInfoEx. Failed updating the adapter list. Failing.");
-		if(FreeBuff)
-			GlobalFreePtr(Tname);
-
-		TRACE_EXIT("PacketGetNetInfoEx");
-		
-		return FALSE;
-	}
-	
-	WaitForSingleObject(g_AdaptersInfoMutex, INFINITE);
-	// Find the PADAPTER_INFO structure associated with this adapter 
-	TAdInfo = PacketFindAdInfo(Tname);
-
-	if(TAdInfo != NULL)
-	{
-		LONG numEntries = 0, i;
-		PNPF_IF_ADDRESS_ITEM pCursor;
-		TRACE_PRINT("Adapter found.");
-
-		pCursor = TAdInfo->pNetworkAddresses;
-
-		while(pCursor != NULL)
-		{
-			numEntries ++;
-			pCursor = pCursor->Next;
-		}
-
-		if (numEntries < *NEntries)
-		{
-			*NEntries = numEntries;
-		}
-
-		pCursor = TAdInfo->pNetworkAddresses;
-		for (i = 0; (i < *NEntries) && (pCursor != NULL); i++)
-		{
-			buffer[i] = pCursor->Addr;
-			pCursor = pCursor->Next;
-		}
-
-		Res = TRUE;
-	}
-	else
-	{
-		TRACE_PRINT("PacketGetNetInfoEx: Adapter not found");
-		Res = FALSE;
-	}
-	
-	ReleaseMutex(g_AdaptersInfoMutex);
-	
-	if(FreeBuff)GlobalFreePtr(Tname);
-	
-	TRACE_EXIT("PacketGetNetInfoEx");
-	return Res;
+	TRACE_PRINT("PacketGetNetInfoEx not supported in this verison"); //TODO: Add support!
+	return FALSE;
 }
 
-/*! 
-  \brief Returns information about the MAC type of an adapter.
-  \param AdapterObject The adapter on which information is needed.
-  \param type Pointer to a NetType structure that will be filled by the function.
-  \return If the function succeeds, the return value is nonzero, otherwise the return value is zero.
-
-  This function return the link layer and the speed (in bps) of an opened adapter.
-  The LinkType field of the type parameter can have one of the following values:
-
-  - NdisMedium802_3: Ethernet (802.3) 
-  - NdisMediumWan: WAN 
-  - NdisMedium802_5: Token Ring (802.5) 
-  - NdisMediumFddi: FDDI 
-  - NdisMediumAtm: ATM 
-  - NdisMediumArcnet878_2: ARCNET (878.2) 
-*/
 BOOLEAN PacketGetNetType(LPADAPTER AdapterObject, NetType *type)
 {
-	PADAPTER_INFO TAdInfo;
-	BOOLEAN ret;	
-	TRACE_ENTER("PacketGetNetType");
+	TRACE_PRINT("PacketGetNetType not supported in this version")
 
-	WaitForSingleObject(g_AdaptersInfoMutex, INFINITE);
-	// Find the PADAPTER_INFO structure associated with this adapter 
-	TAdInfo = PacketFindAdInfo(AdapterObject->Name);
+	type->LinkSpeed = 100 * 1024 * 1024;
+	type->LinkType = 0; //TODO: get speed and link type
 
-	if(TAdInfo != NULL)
-	{
-		TRACE_PRINT("Adapter found");
-		// Copy the data
-		memcpy(type, &(TAdInfo->LinkLayer), sizeof(struct NetType));
-		ret = TRUE;
-	}
-	else
-	{
-		TRACE_PRINT("PacketGetNetType: Adapter not found");
-		ret =  FALSE;
-	}
-
-	ReleaseMutex(g_AdaptersInfoMutex);
-
-	TRACE_EXIT("PacketGetNetType");
-	return ret;
+	return TRUE;
 }
 
 

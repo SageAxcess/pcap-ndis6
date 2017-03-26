@@ -69,10 +69,7 @@ ADAPTER_INFO, *PADAPTER_INFO;
 //
 // Internal functions
 //
-void PacketPopulateAdaptersInfoList();
 BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLen);
-PADAPTER_INFO PacketFindAdInfo(PCHAR AdapterName);
-BOOLEAN PacketUpdateAdInfo(PCHAR AdapterName);
 BOOLEAN IsFireWire(TCHAR *AdapterDesc);
 LPADAPTER PacketOpenAdapterNPF(PCHAR AdapterName);
 
