@@ -28,6 +28,8 @@
 #define FILTER_FRIENDLY_NAME        L"WinPCAP NDIS 6.x Filter Driver"
 #define FILTER_UNIQUE_NAME          L"{37195A99-7BC5-4C82-B00A-553C75C0AA1A}" //unique name, quid name
 #define FILTER_SERVICE_NAME         L"PcapNdis6"
+#define FILTER_PROTOCOL_NAME		L"PcapNdis6"
+
 //
 // The filter needs to handle IOCTLs
 //

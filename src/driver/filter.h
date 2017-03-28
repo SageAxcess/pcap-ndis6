@@ -27,6 +27,10 @@
 #pragma warning(disable:28930) // Unused assignment of pointer, by design in samples
 #pragma warning(disable:28931) // Unused assignment of variable, by design in samples
 
+#define FILTER_REQUEST_ID          'cpLF'
+#define FILTER_ALLOC_TAG           'cplf'
+#define FILTER_TAG                 'CpLf'
+
 #define FILTER_MAJOR_NDIS_VERSION   NDIS_FILTER_MAJOR_VERSION
 #define FILTER_MINOR_NDIS_VERSION   NDIS_FILTER_MINOR_VERSION
 
@@ -232,41 +236,9 @@ typedef struct _NDIS_OID_REQUEST *FILTER_REQUEST_CONTEXT,**PFILTER_REQUEST_CONTE
 // function prototypes
 //
 
-FILTER_SET_OPTIONS FilterRegisterOptions;
+void DriverUnload(DRIVER_OBJECT *driver_object)
 
-FILTER_ATTACH FilterAttach;
-
-FILTER_DETACH FilterDetach;
-
-DRIVER_UNLOAD FilterUnload;
-
-FILTER_RESTART FilterRestart;
-
-FILTER_PAUSE FilterPause;
-
-FILTER_OID_REQUEST FilterOidRequest;
-
-FILTER_CANCEL_OID_REQUEST FilterCancelOidRequest;
-
-FILTER_STATUS FilterStatus;
-
-FILTER_DEVICE_PNP_EVENT_NOTIFY FilterDevicePnPEventNotify;
-
-FILTER_NET_PNP_EVENT FilterNetPnPEvent;
-
-FILTER_OID_REQUEST_COMPLETE FilterOidRequestComplete;
-
-FILTER_SEND_NET_BUFFER_LISTS FilterSendNetBufferLists;
-
-FILTER_RETURN_NET_BUFFER_LISTS FilterReturnNetBufferLists;
-
-FILTER_SEND_NET_BUFFER_LISTS_COMPLETE FilterSendNetBufferListsComplete;
-
-FILTER_RECEIVE_NET_BUFFER_LISTS FilterReceiveNetBufferLists;
-
-FILTER_CANCEL_SEND_NET_BUFFER_LISTS FilterCancelSendNetBufferLists;
-
-FILTER_SET_MODULE_OPTIONS FilterSetModuleOptions;
+// TODO: check what's used
 
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -282,37 +254,7 @@ FilterDeregisterDevice(
     );
 
 DRIVER_DISPATCH FilterDispatch;
-
 DRIVER_DISPATCH FilterDeviceIoControl;
-
-_IRQL_requires_max_(DISPATCH_LEVEL)
-PMS_FILTER
-filterFindFilterModule(
-    _In_reads_bytes_(BufferLength)
-         PUCHAR                   Buffer,
-    _In_ ULONG                    BufferLength
-    );
-
-_IRQL_requires_max_(DISPATCH_LEVEL)
-NDIS_STATUS
-filterDoInternalRequest(
-    _In_ PMS_FILTER                   FilterModuleContext,
-    _In_ NDIS_REQUEST_TYPE            RequestType,
-    _In_ NDIS_OID                     Oid,
-    _Inout_updates_bytes_to_(InformationBufferLength, *pBytesProcessed)
-         PVOID                        InformationBuffer,
-    _In_ ULONG                        InformationBufferLength,
-    _In_opt_ ULONG                    OutputBufferLength,
-    _In_ ULONG                        MethodId,
-    _Out_ PULONG                      pBytesProcessed
-    );
-
-VOID
-filterInternalRequestComplete(
-    _In_ NDIS_HANDLE                  FilterModuleContext,
-    _In_ PNDIS_OID_REQUEST            NdisRequest,
-    _In_ NDIS_STATUS                  Status
-    );
 
 
 #endif  //_FILT_H

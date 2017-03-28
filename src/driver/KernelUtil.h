@@ -17,10 +17,27 @@
 // Copyrithg(C) 2015 Microsoft
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
+#pragma once
 
-#pragma warning(disable:4201)  //nonstandard extension used : nameless struct/union
 #include <ndis.h>
-#include <filteruser.h>
-#include <stdio.h>
-#include "flt_dbg.h"
-#include "filter.h"
+
+///////////////////////////////////////////////////
+// Lock helper functions
+///////////////////////////////////////////////////
+
+NDIS_SPIN_LOCK *CreateSpinLock();
+void ReleaseSpinLock(PNDIS_SPIN_LOCK lock);
+
+///////////////////////////////////////////////////
+// String helper functions
+///////////////////////////////////////////////////
+
+UNICODE_STRING* CreateString(const char* str);
+UNICODE_STRING* CopyString(PUNICODE_STRING string);
+void FreeString(UNICODE_STRING* string);
+
+///////////////////////////////////////////////////
+// Other helper functions
+///////////////////////////////////////////////////
+
+void DriverSleep(long msec);
