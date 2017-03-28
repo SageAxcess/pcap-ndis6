@@ -23,11 +23,9 @@
 #include "filter.h"
 #include "KernelUtil.h"
 
-void DriverSleep(long msec)
-{
-	LARGE_INTEGER interval = (__int64)msec * 10000;
-	KeDelayExecutionThread(KernelMode, FALSE, &interval);
-}
+///////////////////////////////////////////////////
+// Lock helper functions
+///////////////////////////////////////////////////
 
 NDIS_SPIN_LOCK *CreateSpinLock()
 {
@@ -41,6 +39,11 @@ void ReleaseSpinLock(PNDIS_SPIN_LOCK lock)
 	FILTER_FREE_LOCK(lock);
 	FILTER_FREE_MEM(lock);
 }
+
+
+///////////////////////////////////////////////////
+// String helper functions
+///////////////////////////////////////////////////
 
 UNICODE_STRING* CreateString(const char* str)
 {
@@ -62,4 +65,16 @@ void FreeString(UNICODE_STRING* string)
 {
 	NdisFreeString(*string);
 	FILTER_FREE_MEM(string);
+}
+
+///////////////////////////////////////////////////
+// Other helper functions
+///////////////////////////////////////////////////
+
+void DriverSleep(long msec)
+{
+	LARGE_INTEGER interval;
+	interval.QuadPart = (__int64)msec * 10000;
+
+	KeDelayExecutionThread(KernelMode, FALSE, &interval);
 }
