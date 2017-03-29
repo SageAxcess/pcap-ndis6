@@ -31,7 +31,9 @@
 extern PLIST AdapterList;
 
 typedef struct ADAPTER {
+	char AdapterId[1024];
 	PNDIS_STRING Name;
+	char DisplayName[1024];
 	UCHAR MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
 	ULONG MtuSize;
 	NDIS_HANDLE AdapterHandle;

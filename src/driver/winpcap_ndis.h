@@ -25,8 +25,8 @@
 
 #define SIGNATURE "PCAPNDIS"
 
-#define FILTER_FRIENDLY_NAME        L"WinPCAP NDIS 6.x Filter Driver"
-#define FILTER_UNIQUE_NAME          L"{37195A99-7BC5-4C82-B00A-553C75C0AA1A}" //unique name, quid name
+#define FILTER_DISPLAY_NAME         L"WinPCAP NDIS 6.x Filter Driver"
+#define FILTER_UNIQUE_NAME          L"{37195A99-7BC5-4C82-B00A-553C75C0AA1A}"
 #define FILTER_SERVICE_NAME         L"PcapNdis6"
 #define FILTER_PROTOCOL_NAME		L"PcapNdis6"
 
@@ -37,7 +37,7 @@
 #define NTDEVICE_STRING             L"\\Device\\PCAPNDIS6"
 #define NTDEVICE_FILE_STRING        "\\.\\PCAPNDIS6"
 
-#define	ADAPTER_ID_PREFIX			"PCAPNDIS_A_"
+#define	ADAPTER_ID_PREFIX			"PCAPNDIS6_A_"
 
 #define ADAPTER_NAME_FORLIST		"{00000000-0000-0000-0000-000000000000}"
 
@@ -55,7 +55,7 @@ typedef struct PCAP_NDIS_ADAPTER_INFO
 	UCHAR MacAddress[6];				// MAC address
 	UCHAR Padding1[2];
 	UINT MtuSize;						// MTU size
-	char FriendlyName[MAX_PATH];		// Display name
+	char DisplayName[MAX_PATH];		// Display name
 } PCAP_NDIS_ADAPTER_INFO;
 
 typedef struct PCAP_NDIS_ADAPTER_LIST_HDR

@@ -55,5 +55,13 @@ EVENT* CreateEvent()
 
 BOOL FreeEvent(PEVENT event)
 {
-	
+	if(!event)
+	{
+		return FALSE;
+	}
+
+	ZwClose(event->EventHandle);
+
+	FILTER_FREE_MEM(event);
+	return TRUE;
 }

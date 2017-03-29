@@ -121,7 +121,7 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 			if (!ReadFile(ndis->handle, &list->adapters[i], sizeof(PCAP_NDIS_ADAPTER_INFO), &dwBytesRead, NULL))
 			{
 				memset(list->adapters[i].AdapterId, 0, sizeof(list->adapters[i].AdapterId));
-				memset(list->adapters[i].FriendlyName, 0, sizeof(list->adapters[i].FriendlyName));
+				memset(list->adapters[i].DisplayName, 0, sizeof(list->adapters[i].DisplayName));
 				memset(list->adapters[i].MacAddress, 0, sizeof(list->adapters[i].MacAddress));
 				list->adapters[i].MtuSize = 0;
 

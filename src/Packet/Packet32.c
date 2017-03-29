@@ -874,7 +874,7 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 		for (int i = 0; i < list->count;i++)
 		{
 			// Update the size variables
-			SizeNeeded += (ULONG)strlen(list->adapters[i].DeviceName) + (ULONG)strlen(list->adapters[i].FriendlyName) + 2;
+			SizeNeeded += (ULONG)strlen(list->adapters[i].DeviceName) + (ULONG)strlen(list->adapters[i].DisplayName) + 2;
 			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
 		}
 
@@ -912,11 +912,11 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 			StringCchCopyA(
 				((PCHAR)pStr) + OffDescriptions + SizeDesc,
 				*BufferSize - OffDescriptions - SizeDesc,
-				list->adapters[i].FriendlyName);
+				list->adapters[i].DisplayName);
 
 			// Update the size variables
 			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
-			SizeDesc += (ULONG)strlen(list->adapters[i].FriendlyName) + 1;
+			SizeDesc += (ULONG)strlen(list->adapters[i].DisplayName) + 1;
 		}
 
 		NdisDriverFreeAdapterList(list);
