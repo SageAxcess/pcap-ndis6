@@ -34,16 +34,16 @@ typedef struct DEVICE {
 	struct ADAPTER* Adapter;
 
 	PNDIS_SPIN_LOCK OpenCloseLock;
-	PLIST ConnectionList;
+	PLIST ClientList;
 
-	BOOL ForDriver;
+	BOOL IsAdaptersList;
 } DEVICE;
 typedef struct DEVICE* PDEVICE;
 
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
-DEVICE *CreateDevice(char* name, char* symName);
+DEVICE *CreateDevice(char* name);
 BOOL FreeDevice(PDEVICE device);
 
 //////////////////////////////////////////////////////////////////////

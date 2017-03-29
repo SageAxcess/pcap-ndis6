@@ -22,10 +22,13 @@
 
 #include <ndis.h>
 #include <minwindef.h>
+#include "List.h"
 
 //////////////////////////////////////////////////////////////////////
 // Adapter definitions
 //////////////////////////////////////////////////////////////////////
+
+extern PLIST AdapterList;
 
 typedef struct ADAPTER {
 	PNDIS_STRING Name;
@@ -51,7 +54,8 @@ typedef const ADAPTER *PADAPTER;
 //////////////////////////////////////////////////////////////////////
 
 BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size);
-BOOL ReleaseAdapter(ADAPTER* adapter);
+BOOL FreeAdapter(ADAPTER* adapter);
+BOOL FreeAdapterList(PLIST list);
 
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks

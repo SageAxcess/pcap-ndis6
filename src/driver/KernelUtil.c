@@ -34,7 +34,7 @@ NDIS_SPIN_LOCK *CreateSpinLock()
 	return lock;
 }
 
-void ReleaseSpinLock(PNDIS_SPIN_LOCK lock)
+void FreeSpinLock(PNDIS_SPIN_LOCK lock)
 {
 	FILTER_FREE_LOCK(lock);
 	FILTER_FREE_MEM(lock);

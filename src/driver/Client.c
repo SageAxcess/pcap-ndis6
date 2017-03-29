@@ -53,7 +53,7 @@ PCLIENT CreateClient(PDEVICE device, PFILE_OBJECT fileObject)
 
 	client->NetBufferListPool = NdisAllocateNetBufferListPool(NULL, &parameters);
 
-	AddToList(device->ConnectionList, client);
+	AddToList(device->ClientList, client);
 
 	return client;
 }
@@ -65,10 +65,25 @@ BOOL FreeClient(PCLIENT client)
 		return FALSE;
 	}
 
-	RemoveFromListByData(client->Device->ConnectionList, client);
+	// Release the receive queue
+	if (true)
+	{
+		SL_PACKET *p = f->RecvPacketHead;
+
+		while (p != NULL)
+		{
+			SL_PACKET *p_next = p->Next;
+
+			SlFree(p);
+
+			p = p_next;
+		}
+	}
+
+	RemoveFromListByData(client->Device->ClientList, client);
 
 	FreeEvent(client->Event);
-	ReleaseSpinLock(client->ReadLock);
+	FreeSpinLock(client->ReadLock);
 	NdisFreeNetBufferListPool(client->NetBufferListPool);
 
 	FILTER_FREE_MEM(client);

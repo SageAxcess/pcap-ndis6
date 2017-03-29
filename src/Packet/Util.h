@@ -27,6 +27,6 @@ typedef struct MUTEX
 } MUTEX;
 
 MUTEX* PacketCreateMutex();
-void PacketReleaseMutex(MUTEX* lock);
+void PacketFreeMutex(MUTEX* lock);
 void PacketLockMutex(MUTEX* lock);
 void PacketUnlockMutex(MUTEX* lock);

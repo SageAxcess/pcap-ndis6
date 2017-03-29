@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////
 
 NDIS_SPIN_LOCK *CreateSpinLock();
-void ReleaseSpinLock(PNDIS_SPIN_LOCK lock);
+void FreeSpinLock(PNDIS_SPIN_LOCK lock);
 
 ///////////////////////////////////////////////////
 // String helper functions

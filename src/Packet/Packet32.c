@@ -578,7 +578,7 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
 		PacketUnlockMutex(lpAdapter->FilterLock);
 	}
 
-	PacketReleaseMutex(lpAdapter->FilterLock);
+	PacketFreeMutex(lpAdapter->FilterLock);
 
 	GlobalFreePtr(lpAdapter);
 }
@@ -762,7 +762,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 
 		AdapterObject->Filter = filter;
 	}
-	PacketReleaseMutex(AdapterObject->FilterLock);
+	PacketFreeMutex(AdapterObject->FilterLock);
 
 	TRACE_EXIT("PacketSetBpf");
 		

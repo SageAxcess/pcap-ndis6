@@ -27,7 +27,7 @@ MUTEX* PacketCreateMutex()
 	return mutex;
 }
 
-void PacketReleaseMutex(MUTEX* lock)
+void PacketFreeMutex(MUTEX* lock)
 {
 	if(lock)
 	{

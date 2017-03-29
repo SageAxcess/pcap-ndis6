@@ -32,7 +32,8 @@ typedef struct CLIENT {
 	PFILE_OBJECT FileObject;
 	struct EVENT* Event;
 	NDIS_HANDLE NetBufferListPool;
-	PNDIS_SPIN_LOCK ReadLock;	
+	PLIST PacketList;
+	PNDIS_SPIN_LOCK ReadLock;
 }CLIENT;
 typedef struct CLIENT* PCLIENT;
 

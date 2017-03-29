@@ -45,7 +45,7 @@ void FreeList(LIST* list) //TODO: possible memory leak if you don't release data
 
 	NdisReleaseSpinLock(list->Lock);
 
-	ReleaseSpinLock(list->Lock);
+	FreeSpinLock(list->Lock);
 	FILTER_FREE_MEM(list);
 }
 

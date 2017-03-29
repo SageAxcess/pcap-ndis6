@@ -22,7 +22,6 @@
 #include "KernelUtil.h"
 #include "Device.h"
 #include "Adapter.h"
-#include "Events.h"
 
 // This directive puts the DriverEntry function into the INIT segment of the
 // driver.  To conserve memory, the code will be discarded when the driver's
@@ -33,6 +32,7 @@
 //
 // Global variables
 //
+//TODO: check which are used, write description in comments, rename so it's readable!
 PDRIVER_OBJECT      FilterDriverObject;
 NDIS_HANDLE         FilterProtocolHandle;
 NDIS_HANDLE         FilterProtocolObject;
@@ -41,6 +41,8 @@ PDEVICE_OBJECT      NdisDeviceObject = NULL;
 
 FILTER_LOCK         FilterListLock;
 LIST_ENTRY          FilterModuleList;
+
+PDEVICE             ListAdaptersDevice = NULL;
 
 _Use_decl_annotations_
 NTSTATUS
@@ -94,6 +96,9 @@ DriverEntry(
 	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Device_IoControlHandler;
 	
 	DriverObject->DriverUnload = DriverUnload;
+	AdapterList = CreateList();
+	ListAdaptersDevice = CreateDevice(ADAPTER_NAME_FORLIST);
+	ListAdaptersDevice->IsAdaptersList = TRUE;
 
 	Status = NdisRegisterProtocolDriver(NULL, &pChars, &FilterProtocolHandle);
 
@@ -111,8 +116,8 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 		FilterProtocolHandle = NULL;
 	}
 
-	FreeDevice(BasicDevice);
-	FreeList(AdapterList);
+	FreeDevice(ListAdaptersDevice);
+	FreeAdapterList(AdapterList);
 }
 
 
