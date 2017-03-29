@@ -40,9 +40,12 @@
 #define	ADAPTER_ID_PREFIX			"PCAPNDIS_A_"
 #define	ADAPTER_ID_PREFIX_W			L"PCAPNDIS_A_"
 
+#define	EVENT_NAME_FMT				"\\BaseNamedObjects\\EVT_PCAP_NDIS_%u_%llu"
+
 // Adapter data
 
 #define MAX_ADAPTERS 256
+#define MAX_PACKET_SIZE 65535
 
 typedef struct PCAP_NDIS_ADAPTER_INFO
 {

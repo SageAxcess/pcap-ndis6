@@ -33,7 +33,8 @@
 //
 // Global variables
 //
-NDIS_HANDLE         FilterProtocolHandle; // NDIS handle for filter driver
+PDRIVER_OBJECT      FilterDriverObject;
+NDIS_HANDLE         FilterProtocolHandle;
 NDIS_HANDLE         FilterProtocolObject;
 NDIS_HANDLE         NdisFilterDeviceHandle = NULL;
 PDEVICE_OBJECT      NdisDeviceObject = NULL;

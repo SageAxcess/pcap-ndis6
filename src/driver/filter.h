@@ -36,33 +36,18 @@
 
 DRIVER_INITIALIZE DriverEntry;
 
-
 //
 // Global variables
 //
 extern NDIS_HANDLE         FilterDriverHandle; // NDIS handle for filter driver
-extern NDIS_HANDLE         FilterDriverObject;
+extern NDIS_HANDLE         FilterProtocolHandle;
+
+extern PDRIVER_OBJECT      FilterDriverObject;
 extern NDIS_HANDLE         NdisFilterDeviceHandle;
 extern PDEVICE_OBJECT      NdisDeviceObject;
 
 extern FILTER_LOCK         FilterListLock;
 extern LIST_ENTRY          FilterModuleList;
-
-
-//
-// Types and macros to manipulate packet queue
-//
-typedef struct _QUEUE_ENTRY
-{
-    struct _QUEUE_ENTRY * Next;
-}QUEUE_ENTRY, *PQUEUE_ENTRY;
-
-typedef struct _QUEUE_HEADER
-{
-    PQUEUE_ENTRY     Head;
-    PQUEUE_ENTRY     Tail;
-} QUEUE_HEADER, PQUEUE_HEADER;
-
 
 #define   FILTER_LOG_RCV_REF(_O, _Instance, _NetBufferList, _Ref)
 #define   FILTER_LOG_SEND_REF(_O, _Instance, _NetBufferList, _Ref)
@@ -95,50 +80,6 @@ typedef struct _QUEUE_HEADER
             NdisReleaseSpinLock(_pLock);                        \
         }                                                       \
     }
-
-
-#define NET_BUFFER_LIST_LINK_TO_ENTRY(_pNBL)    ((PQUEUE_ENTRY)(NET_BUFFER_LIST_NEXT_NBL(_pNBL)))
-#define ENTRY_TO_NET_BUFFER_LIST(_pEnt)         (CONTAINING_RECORD((_pEnt), NET_BUFFER_LIST, Next))
-
-#define InitializeQueueHeader(_QueueHeader)             \
-{                                                       \
-    (_QueueHeader)->Head = (_QueueHeader)->Tail = NULL; \
-}
-
-//
-// Macros for queue operations
-//
-#define IsQueueEmpty(_QueueHeader)      ((_QueueHeader)->Head == NULL)
-
-#define RemoveHeadQueue(_QueueHeader)                   \
-    (_QueueHeader)->Head;                               \
-    {                                                   \
-        PQUEUE_ENTRY pNext;                             \
-        ASSERT((_QueueHeader)->Head);                   \
-        pNext = (_QueueHeader)->Head->Next;             \
-        (_QueueHeader)->Head = pNext;                   \
-        if (pNext == NULL)                              \
-            (_QueueHeader)->Tail = NULL;                \
-    }
-
-#define InsertHeadQueue(_QueueHeader, _QueueEntry)                  \
-    {                                                               \
-        ((PQUEUE_ENTRY)(_QueueEntry))->Next = (_QueueHeader)->Head; \
-        (_QueueHeader)->Head = (PQUEUE_ENTRY)(_QueueEntry);         \
-        if ((_QueueHeader)->Tail == NULL)                           \
-            (_QueueHeader)->Tail = (PQUEUE_ENTRY)(_QueueEntry);     \
-    }
-
-#define InsertTailQueue(_QueueHeader, _QueueEntry)                      \
-    {                                                                   \
-        ((PQUEUE_ENTRY)(_QueueEntry))->Next = NULL;                     \
-        if ((_QueueHeader)->Tail)                                       \
-            (_QueueHeader)->Tail->Next = (PQUEUE_ENTRY)(_QueueEntry);   \
-        else                                                            \
-            (_QueueHeader)->Head = (PQUEUE_ENTRY)(_QueueEntry);         \
-        (_QueueHeader)->Tail = (PQUEUE_ENTRY)(_QueueEntry);             \
-    }
-
 
 //
 // Enum of filter's states
@@ -227,34 +168,10 @@ typedef struct _FL_NDIS_FILTER_LIST
 } FL_NDIS_FILTER_LIST, *PFL_NDIS_FILTER_LIST;
 
 //
-// The context inside a cloned request
-//
-typedef struct _NDIS_OID_REQUEST *FILTER_REQUEST_CONTEXT,**PFILTER_REQUEST_CONTEXT;
-
-
-//
 // function prototypes
 //
 
 void DriverUnload(DRIVER_OBJECT *driver_object)
-
-// TODO: check what's used
-
-
-_IRQL_requires_max_(PASSIVE_LEVEL)
-NDIS_STATUS
-FilterRegisterDevice(
-    VOID
-    );
-
-_IRQL_requires_max_(PASSIVE_LEVEL)
-VOID
-FilterDeregisterDevice(
-    VOID
-    );
-
-DRIVER_DISPATCH FilterDispatch;
-DRIVER_DISPATCH FilterDeviceIoControl;
 
 
 #endif  //_FILT_H

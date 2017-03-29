@@ -21,23 +21,25 @@
 #pragma once
 
 #include <ndis.h>
-#include <minwindef.h>
+#include "List.h"
 
 //////////////////////////////////////////////////////////////////////
-// Event definitions
+// Client definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct EVENT
-{
-	PUNICODE_STRING Name;
-	PKEVENT Event;
-	NDIS_HANDLE EventHandle;
-} EVENT;
-typedef struct EVENT* PEVENT;
+typedef struct CLIENT {
+	struct DEVICE* Device;
+	PFILE_OBJECT FileObject;
+	struct EVENT* Event;
+	NDIS_HANDLE NetBufferListPool;
+	PNDIS_SPIN_LOCK ReadLock;	
+}CLIENT;
+typedef struct CLIENT* PCLIENT;
 
 //////////////////////////////////////////////////////////////////////
-// Event functions
+// Client methods
 //////////////////////////////////////////////////////////////////////
 
-EVENT* CreateEvent();
-BOOL FreeEvent(PEVENT event);
+PCLIENT CreateClient(struct DEVICE* device, PFILE_OBJECT fileObject);
+BOOL FreeClient(PCLIENT client);
+void FreeClientList(PLIST list);

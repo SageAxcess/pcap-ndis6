@@ -17,27 +17,36 @@
 // Copyrithg(C) 2015 Microsoft
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 #include <ndis.h>
-#include <minwindef.h>
 
 //////////////////////////////////////////////////////////////////////
-// Event definitions
+// List definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct EVENT
-{
-	PUNICODE_STRING Name;
-	PKEVENT Event;
-	NDIS_HANDLE EventHandle;
-} EVENT;
-typedef struct EVENT* PEVENT;
+typedef struct LIST_ITEM {
+	void* Data;
+	LIST_ITEM* Prev;
+	LIST_ITEM* Next;
+} LIST_ITEM;
+typedef struct LIST_ITEM* PLIST_ITEM;
+
+typedef struct LIST {
+	PNDIS_SPIN_LOCK Lock;
+	PLIST_ITEM First;
+	PLIST_ITEM Last;
+
+	ULONG Size;
+} LIST;
+typedef struct LIST* PLIST;
 
 //////////////////////////////////////////////////////////////////////
-// Event functions
+// List functions
 //////////////////////////////////////////////////////////////////////
 
-EVENT* CreateEvent();
-BOOL FreeEvent(PEVENT event);
+LIST* CreateList();
+void FreeList(LIST* list);
+PLIST_ITEM AddToList(LIST* list, void* data);
+BOOL RemoveFromList(LIST* list, PLIST_ITEM item);
+BOOL RemoveFromListByData(LIST* list, PVOID data);

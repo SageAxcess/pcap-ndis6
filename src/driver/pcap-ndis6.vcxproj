@@ -243,6 +243,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
+    <ClCompile Include="Client.c" />
     <ClCompile Include="Device.c" />
     <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c">
@@ -258,6 +259,7 @@
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
+    <ClCompile Include="List.c" />
     <ClCompile Include="precompsrc.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>
@@ -276,11 +278,13 @@
     <None Exclude="@(None)" Include="*.def;*.bat;*.hpj;*.asmx" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Exclude="@(ClInclude)" Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd" />
+    <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Device.h" />
+    <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
+    <ClInclude Include="List.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

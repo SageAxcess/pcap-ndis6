@@ -29,11 +29,17 @@
 
 typedef struct ADAPTER {
 	PNDIS_STRING Name;
-	UINT MtuSize;
+	UCHAR MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+	ULONG MtuSize;
 	NDIS_HANDLE AdapterHandle;
 	PNDIS_SPIN_LOCK Lock;
 
+	struct DEVICE* Device;
+
+	NDIS_HANDLE BindContext;   // To complete Bind request if necessary
 	NDIS_HANDLE UnbindContext; // To complete Unbind request if necessary
+
+	BOOL Ready;
 
 	volatile ULONG PendingOidRequests;
 	volatile ULONG PendingSendPackets;
