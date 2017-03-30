@@ -41,6 +41,8 @@ typedef struct ADAPTER {
 
 	struct DEVICE* Device;
 
+	LARGE_INTEGER BindTimestamp;
+
 	NDIS_HANDLE BindContext;   // To complete Bind request if necessary
 	NDIS_HANDLE UnbindContext; // To complete Unbind request if necessary
 
@@ -58,6 +60,7 @@ typedef const ADAPTER *PADAPTER;
 BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size);
 BOOL FreeAdapter(ADAPTER* adapter);
 BOOL FreeAdapterList(PLIST list);
+LARGE_INTEGER GetAdapterTime(ADAPTER* adapter); // returns time in milliseconds since adapter was bound
 
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks

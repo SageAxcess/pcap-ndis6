@@ -30,23 +30,15 @@
 #define FILTER_SERVICE_NAME         L"PcapNdis6"
 #define FILTER_PROTOCOL_NAME		L"PcapNdis6"
 
-//
-// The filter needs to handle IOCTLs
-//
-#define LINKNAME_STRING             L"\\DosDevices\\PCAPNDIS6"
-#define NTDEVICE_STRING             L"\\Device\\PCAPNDIS6"
-#define NTDEVICE_FILE_STRING        "\\.\\PCAPNDIS6"
-
 #define	ADAPTER_ID_PREFIX			"PCAPNDIS6_A_"
-
 #define ADAPTER_NAME_FORLIST		"{00000000-0000-0000-0000-000000000000}"
-
-#define	EVENT_NAME_FMT				"\\BaseNamedObjects\\EVT_PCAP_NDIS_%u_%llu"
+#define	EVENT_NAME_FMT				"EVT_PCAP_NDIS_%u_%llu"
 
 // Adapter data
 
 #define MAX_ADAPTERS 256
-#define MAX_PACKET_SIZE 65535
+#define MAX_PACKET_SIZE 32767
+#define MAX_PACKET_QUEUE_SIZE 1000
 
 typedef struct PCAP_NDIS_ADAPTER_INFO
 {
@@ -64,3 +56,10 @@ typedef struct PCAP_NDIS_ADAPTER_LIST_HDR
 	UINT count;
 } PCAP_NDIS_ADAPTER_LIST_HDR;
 
+typedef struct PACKET
+{
+	UCHAR Data[MAX_PACKET_SIZE];
+	UINT Size;
+	LARGE_INTEGER Timestamp;
+} PACKET;
+typedef struct PACKET* PPACKET;

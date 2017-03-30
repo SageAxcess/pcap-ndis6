@@ -133,7 +133,6 @@ typedef struct _MS_FILTER
     QUEUE_HEADER                    SendNBLQueue;
     QUEUE_HEADER                    RcvNBLQueue;
 
-
     NDIS_STRING                     FilterName;
     ULONG                           CallsRestart;
     BOOLEAN                         TrackReceives;
@@ -171,7 +170,7 @@ typedef struct _FL_NDIS_FILTER_LIST
 // function prototypes
 //
 
-void DriverUnload(DRIVER_OBJECT *driver_object)
+void DriverUnload(DRIVER_OBJECT *driver_object);
 
 
 #endif  //_FILT_H

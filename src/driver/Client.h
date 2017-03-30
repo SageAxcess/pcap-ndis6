@@ -34,6 +34,7 @@ typedef struct CLIENT {
 	NDIS_HANDLE NetBufferListPool;
 	PLIST PacketList;
 	PNDIS_SPIN_LOCK ReadLock;
+	volatile ULONG PendingSendPackets;
 }CLIENT;
 typedef struct CLIENT* PCLIENT;
 
@@ -44,3 +45,4 @@ typedef struct CLIENT* PCLIENT;
 PCLIENT CreateClient(struct DEVICE* device, PFILE_OBJECT fileObject);
 BOOL FreeClient(PCLIENT client);
 void FreeClientList(PLIST list);
+void FreePacketList(PLIST list); //TODO: move to Packet.c?

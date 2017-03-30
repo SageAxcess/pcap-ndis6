@@ -65,21 +65,7 @@ BOOL FreeClient(PCLIENT client)
 		return FALSE;
 	}
 
-	// Release the receive queue
-	if (true)
-	{
-		SL_PACKET *p = f->RecvPacketHead;
-
-		while (p != NULL)
-		{
-			SL_PACKET *p_next = p->Next;
-
-			SlFree(p);
-
-			p = p_next;
-		}
-	}
-
+	FreePacketList(client->PacketList);
 	RemoveFromListByData(client->Device->ClientList, client);
 
 	FreeEvent(client->Event);
@@ -101,6 +87,28 @@ void FreeClientList(PLIST list)
 		if(client)
 		{
 			FreeClient(client);
+		}
+		item->Data = NULL;
+
+		item = item->Next;
+	}
+
+	NdisReleaseSpinLock(list->Lock);
+
+	//TODO: possible memory leak if something is added to the list before it's released
+	FreeList(list);
+}
+
+void FreePacketList(PLIST list)
+{
+	NdisAcquireSpinLock(list->Lock);
+	PLIST_ITEM item = list->First;
+	while (item)
+	{
+		PPACKET packet = (PPACKET)item->Data;
+		if (packet)
+		{
+			FILTER_FREE_MEM(packet); // No pointers inside, so it's safe
 		}
 		item->Data = NULL;
 
