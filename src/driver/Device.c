@@ -168,7 +168,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 		if (stack->Parameters.Read.Length >= requiredSize)
 		{
-			void* dst = Irp->UserBuffer;
+			UCHAR* dst = (UCHAR*)Irp->UserBuffer;
 
 			if (dst != NULL)
 			{
@@ -195,6 +195,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					PADAPTER adapter = (PADAPTER)item->Data;
 
 					PCAP_NDIS_ADAPTER_INFO info;
+					info.MtuSize = adapter->MtuSize;
+					//TODO: copy other data!
 
 					RtlCopyBytes(dst, &info, sizeof(PCAP_NDIS_ADAPTER_INFO));
 					dst += sizeof(PCAP_NDIS_ADAPTER_INFO);
@@ -221,7 +223,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 		UCHAR *buf = Irp->UserBuffer;
 
-		int total = 0;
+		UINT total = 0;
 		NdisAcquireSpinLock(client->ReadLock);
 
 		PLIST_ITEM item = client->PacketList->First;
@@ -310,6 +312,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
+	_CRT_UNUSED(DeviceObject);
 	//TODO: Support for packet injection!
 
 	Irp->IoStatus.Information = 0;

@@ -27,8 +27,8 @@
 
 typedef struct LIST_ITEM {
 	void* Data;
-	LIST_ITEM* Prev;
-	LIST_ITEM* Next;
+	struct LIST_ITEM* Prev;
+	struct LIST_ITEM* Next;
 } LIST_ITEM;
 typedef struct LIST_ITEM* PLIST_ITEM;
 

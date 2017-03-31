@@ -41,7 +41,7 @@ EVENT* CreateEvent()
 
 	PUNICODE_STRING name_u = CreateString(name);
 
-	event->Event = IoCreateNotificationEvent(event->Name, &event->EventHandle);
+	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
 
 	FreeString(name_u);
 

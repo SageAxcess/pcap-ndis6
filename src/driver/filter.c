@@ -34,6 +34,7 @@
 //
 //TODO: check which are used, write description in comments, rename so it's readable!
 PDRIVER_OBJECT      FilterDriverObject;
+NDIS_HANDLE         FilterDriverHandle;
 NDIS_HANDLE         FilterProtocolHandle;
 NDIS_HANDLE         FilterProtocolObject;
 NDIS_HANDLE         NdisFilterDeviceHandle = NULL;
@@ -52,10 +53,10 @@ DriverEntry(
     )
 {
     NDIS_STATUS Status;
-    NDIS_FILTER_DRIVER_CHARACTERISTICS      FChars;
-    NDIS_STRING ServiceName  = RTL_CONSTANT_STRING(FILTER_SERVICE_NAME);
-    NDIS_STRING UniqueName   = RTL_CONSTANT_STRING(FILTER_UNIQUE_NAME);
-    NDIS_STRING DisplayName = RTL_CONSTANT_STRING(FILTER_DISPLAY_NAME);
+//    NDIS_FILTER_DRIVER_CHARACTERISTICS      FChars;
+//    NDIS_STRING ServiceName  = RTL_CONSTANT_STRING(FILTER_SERVICE_NAME);
+//    NDIS_STRING UniqueName   = RTL_CONSTANT_STRING(FILTER_UNIQUE_NAME);
+//    NDIS_STRING DisplayName = RTL_CONSTANT_STRING(FILTER_DISPLAY_NAME);
     NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
 
     UNREFERENCED_PARAMETER(RegistryPath);

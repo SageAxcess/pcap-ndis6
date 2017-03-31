@@ -27,9 +27,9 @@
 
 PACKET* CreatePacket(UCHAR* Data, UINT Size, LARGE_INTEGER Timestamp)
 {
-	PACKET* packet = FILTER_ALLOC_MEM(FilterDriverHandle, sizeof(PACKET));
+	PACKET* packet = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(PACKET));
 
-	packet->Data = FILTER_ALLOC_MEM(FilterDriverHandle, Size);
+	packet->Data = FILTER_ALLOC_MEM(FilterDriverObject, Size);
 	RtlCopyBytes(packet->Data, Data, Size); 	//TODO: support for IEEE802.1Q?
 	packet->Size = Size;
 	packet->Timestamp = Timestamp;

@@ -46,7 +46,6 @@ extern PDRIVER_OBJECT      FilterDriverObject;
 extern NDIS_HANDLE         NdisFilterDeviceHandle;
 extern PDEVICE_OBJECT      NdisDeviceObject;
 
-extern FILTER_LOCK         FilterListLock;
 extern LIST_ENTRY          FilterModuleList;
 
 #define   FILTER_LOG_RCV_REF(_O, _Instance, _NetBufferList, _Ref)
@@ -97,74 +96,8 @@ typedef enum _FILTER_STATE
 } FILTER_STATE;
 
 
-typedef struct _FILTER_REQUEST
-{
-    NDIS_OID_REQUEST       Request;
-    NDIS_EVENT             ReqEvent;
-    NDIS_STATUS            Status;
-} FILTER_REQUEST, *PFILTER_REQUEST;
-
-//
-// Define the filter struct
-//
-typedef struct _MS_FILTER
-{
-    LIST_ENTRY                     FilterModuleLink;
-    //Reference to this filter
-    ULONG                           RefCount;
-
-    NDIS_HANDLE                     FilterHandle;
-    NDIS_STRING                     FilterModuleName;
-    NDIS_STRING                     MiniportFriendlyName;
-    NDIS_STRING                     MiniportName;
-    NET_IFINDEX                     MiniportIfIndex;
-
-    NDIS_STATUS                     Status;
-    NDIS_EVENT                      Event;
-    ULONG                           BackFillSize;
-    FILTER_LOCK                     Lock;    // Lock for protection of state and outstanding sends and recvs
-
-    FILTER_STATE                    State;   // Which state the filter is in
-    ULONG                           OutstandingSends;
-    ULONG                           OutstandingRequest;
-    ULONG                           OutstandingRcvs;
-    FILTER_LOCK                     SendLock;
-    FILTER_LOCK                     RcvLock;
-    QUEUE_HEADER                    SendNBLQueue;
-    QUEUE_HEADER                    RcvNBLQueue;
-
-    NDIS_STRING                     FilterName;
-    ULONG                           CallsRestart;
-    BOOLEAN                         TrackReceives;
-    BOOLEAN                         TrackSends;
-#if DBG
-    BOOLEAN                         bIndicating;
-#endif
-
-    PNDIS_OID_REQUEST               PendingOidRequest;
-
-}MS_FILTER, * PMS_FILTER;
-
-
-typedef struct _FILTER_DEVICE_EXTENSION
-{
-    ULONG            Signature;
-    NDIS_HANDLE      Handle;
-} FILTER_DEVICE_EXTENSION, *PFILTER_DEVICE_EXTENSION;
-
-
 #define FILTER_READY_TO_PAUSE(_Filter)      \
     ((_Filter)->State == FilterPausing)
-
-//
-// The driver should maintain a list of NDIS filter handles
-//
-typedef struct _FL_NDIS_FILTER_LIST
-{
-    LIST_ENTRY              Link;
-    NDIS_HANDLE             ContextHandle;
-    NDIS_STRING             FilterInstanceName;
-} FL_NDIS_FILTER_LIST, *PFL_NDIS_FILTER_LIST;
 
 //
 // function prototypes

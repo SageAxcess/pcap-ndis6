@@ -18,6 +18,7 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
+#include <ntstatus.h>
 #include <ntstrsafe.h>
 
 #include "filter.h"

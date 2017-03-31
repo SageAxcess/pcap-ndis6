@@ -109,17 +109,41 @@ BOOL FreeAdapter(ADAPTER* adapter)
 	return TRUE;
 }
 
+BOOL FreeAdapterList(PLIST list)
+{
+	NdisAcquireSpinLock(list->Lock);
+	PLIST_ITEM item = list->First;
+	while (item)
+	{
+		ADAPTER* adapter = (ADAPTER*)item->Data;
+		if (adapter)
+		{
+			FreeAdapter(adapter);
+		}
+		item->Data = NULL;
+
+		item = item->Next;
+	}
+
+	NdisReleaseSpinLock(list->Lock);
+
+	//TODO: possible memory leak if something is added to the list before it's released
+	FreeList(list);
+	return TRUE;
+}
+
 LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
 {
+	LARGE_INTEGER Result = { 0 };
+
 	if (!adapter)
 	{
-		return{ 0 };
+		return Result;
 	}
 
 	LARGE_INTEGER Freq;
 	LARGE_INTEGER Ticks = KeQueryPerformanceCounter(&Freq);
-
-	LARGE_INTEGER Result = {0};
+	
 	Result.QuadPart = Ticks.QuadPart - adapter->BindTimestamp.QuadPart;
 
 	Result.QuadPart *= 1000;
@@ -134,7 +158,9 @@ LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
 
 NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDIS_HANDLE BindContext, PNDIS_BIND_PARAMETERS BindParameters)
 {
-	NDIS_STATUS ret = NDIS_STATUS_FAILURE;
+	_CRT_UNUSED(ProtocolDriverContext);
+
+	NDIS_STATUS ret = NDIS_STATUS_FAILURE;	
 
 	// Check the attributes of the adapter, and process only adapter which should be bound to
 	if (BindParameters->MediaType == NdisMedium802_3 &&
@@ -285,6 +311,8 @@ void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 
 void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS_OID_REQUEST *OidRequest, NDIS_STATUS Status)
 {
+	_CRT_UNUSED(Status);
+
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 	BOOL canRelease = TRUE;
 
@@ -309,6 +337,8 @@ void Protocol_ReceiveNetBufferListsHandler(
 	ULONG                   NumberOfNetBufferLists,
 	ULONG                   ReceiveFlags)
 {
+	_CRT_UNUSED(PortNumber);
+
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
 	if (NetBufferLists == NULL || NumberOfNetBufferLists == 0)
@@ -404,6 +434,9 @@ void Protocol_ReceiveNetBufferListsHandler(
 
 void Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNET_BUFFER_LIST NetBufferList, ULONG SendCompleteFlags)
 {
+	_CRT_UNUSED(ProtocolBindingContext);
+	_CRT_UNUSED(SendCompleteFlags);
+
 	NET_BUFFER_LIST* first = NetBufferList;
 
 	while (first)
