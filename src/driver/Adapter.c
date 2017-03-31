@@ -367,14 +367,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 
 						if (client->PacketList->Size<MAX_PACKET_QUEUE_SIZE) //TODO: it seems we lose packets here
 						{
-							PACKET* packet = FILTER_ALLOC_MEM(FilterDriverHandle, sizeof(PACKET));
-
-							//TODO: support for IEEE802.1Q?
-							RtlCopyBytes(packet->Data, ptr, size);
-							packet->Size = size;
-							packet->Timestamp = timestamp;
-
-							AddToList(client->PacketList, packet);
+							AddToList(client->PacketList, CreatePacket(ptr, size, timestamp));
 						}
 
 						item = item->Next;

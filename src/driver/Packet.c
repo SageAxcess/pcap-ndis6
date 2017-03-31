@@ -25,3 +25,42 @@
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
+PACKET* CreatePacket(UCHAR* Data, UINT Size, LARGE_INTEGER Timestamp)
+{
+	PACKET* packet = FILTER_ALLOC_MEM(FilterDriverHandle, sizeof(PACKET));
+
+	packet->Data = FILTER_ALLOC_MEM(FilterDriverHandle, Size);
+	RtlCopyBytes(packet->Data, Data, Size); 	//TODO: support for IEEE802.1Q?
+	packet->Size = Size;
+	packet->Timestamp = Timestamp;
+
+	return packet;
+}
+
+void FreePacket(PACKET* packet)
+{
+	FILTER_FREE_MEM(packet->Data);
+	FILTER_FREE_MEM(packet);
+}
+
+void FreePacketList(PLIST list)
+{
+	NdisAcquireSpinLock(list->Lock);
+	PLIST_ITEM item = list->First;
+	while (item)
+	{
+		PPACKET packet = (PPACKET)item->Data;
+		if (packet)
+		{
+			FreePacket(packet);
+		}
+		item->Data = NULL;
+
+		item = item->Next;
+	}
+
+	NdisReleaseSpinLock(list->Lock);
+
+	//TODO: possible memory leak if something is added to the list before it's released
+	FreeList(list);
+}

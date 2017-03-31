@@ -230,12 +230,12 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		{
 			PPACKET packet = (PPACKET)item->Data;
 
-			if((total+packet->Size) > stack->Parameters.Read.Length)
+			if((total + packet->Size + sizeof(PACKET_HDR)) > stack->Parameters.Read.Length)
 			{
 				break;
 			}
 
-			total += packet->Size;
+			total += packet->Size + sizeof(PACKET_HDR);
 			item = item->Next;
 		}
 
@@ -257,15 +257,27 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 			{
 				PPACKET packet = (PPACKET)item->Data;
 
-				if ((total + packet->Size) > stack->Parameters.Read.Length)
+				if ((total + packet->Size + sizeof(PACKET_HDR)) > stack->Parameters.Read.Length)
 				{
 					break;
 				}
 
+				PACKET_HDR hdr;
+				hdr.Size = packet->Size;
+				hdr.Timestamp = packet->Timestamp;
 
+				RtlCopyBytes(buf, &hdr, sizeof(PACKET_HDR));
+				buf += sizeof(PACKET_HDR);
 
-				total += packet->Size;
+				RtlCopyBytes(buf, packet->Data, packet->Size);
+				buf += packet->Size;
+
+				total += packet->Size + sizeof(PACKET_HDR);
+
 				item = item->Next;
+
+				RemoveFromList(client->PacketList, item->Prev);
+				FreePacket(packet);
 			}
 
 			if (mdl != NULL)
@@ -275,9 +287,15 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 			}
 		}
 
-		NdisReleaseSpinLock(client->ReadLock);
+		if(client->PacketList->Size>0)
+		{
+			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+		} else
+		{
+			KeResetEvent(client->Event->Event);
+		}
 
-		//TODO Set or reset event based on queue empty or not
+		NdisReleaseSpinLock(client->ReadLock);
 
 		ret = STATUS_SUCCESS;
 		responseSize = total;

@@ -23,6 +23,7 @@
 #include "Client.h"
 #include "Device.h"
 #include "Events.h"
+#include "Packet.h"
 #include "KernelUtil.h"
 
 //////////////////////////////////////////////////////////////////////
@@ -87,28 +88,6 @@ void FreeClientList(PLIST list)
 		if(client)
 		{
 			FreeClient(client);
-		}
-		item->Data = NULL;
-
-		item = item->Next;
-	}
-
-	NdisReleaseSpinLock(list->Lock);
-
-	//TODO: possible memory leak if something is added to the list before it's released
-	FreeList(list);
-}
-
-void FreePacketList(PLIST list)
-{
-	NdisAcquireSpinLock(list->Lock);
-	PLIST_ITEM item = list->First;
-	while (item)
-	{
-		PPACKET packet = (PPACKET)item->Data;
-		if (packet)
-		{
-			FILTER_FREE_MEM(packet); // No pointers inside, so it's safe
 		}
 		item->Data = NULL;
 

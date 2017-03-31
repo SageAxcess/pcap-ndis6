@@ -40,6 +40,6 @@ typedef struct PACKET* PPACKET;
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(UCHAR* Data, UINT Size);
+PACKET* CreatePacket(UCHAR* Data, UINT Size, LARGE_INTEGER Timestamp);
 void FreePacket(PACKET* packet);
 void FreePacketList(PLIST list);
