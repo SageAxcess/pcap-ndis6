@@ -33,15 +33,21 @@ EVENT* CreateEvent()
 
 	InterlockedIncrement((volatile long*)&_curEventId);
 	LARGE_INTEGER timestamp = KeQueryPerformanceCounter(NULL);
-	char name[1024];
-	sprintf(name, EVENT_NAME_FMT, _curEventId, timestamp.QuadPart); //TODO: use prefixes here instead of full names !!!
+	
+	sprintf(event->Name, EVENT_NAME_FMT, _curEventId, timestamp.QuadPart);
 
-	event->Name = CreateString(name);
+	char name[1024];
+	sprintf(name, "\\BaseNamedObjects\\%s", event->Name);
+
+	PUNICODE_STRING name_u = CreateString(name);
+
 	event->Event = IoCreateNotificationEvent(event->Name, &event->EventHandle);
+
+	FreeString(name_u);
 
 	if (!event->Event)
 	{
-		FreeString(event->Name);
+		
 		FILTER_FREE_MEM(event);
 		
 		return NULL;

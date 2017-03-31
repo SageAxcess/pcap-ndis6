@@ -23,6 +23,7 @@
 #include "Client.h"
 #include "Device.h"
 #include "Events.h"
+#include "Packet.h"
 #include "KernelUtil.h"
 
 //////////////////////////////////////////////////////////////////////

@@ -18,30 +18,10 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#pragma once
-
-#include <ndis.h>
-#include "List.h"
+#include "filter.h"
+#include "Packet.h"
 
 //////////////////////////////////////////////////////////////////////
-// Client definitions
+// Packet methods
 //////////////////////////////////////////////////////////////////////
 
-typedef struct CLIENT {
-	struct DEVICE* Device;
-	PFILE_OBJECT FileObject;
-	struct EVENT* Event;
-	NDIS_HANDLE NetBufferListPool;
-	PLIST PacketList;
-	PNDIS_SPIN_LOCK ReadLock;
-	volatile ULONG PendingSendPackets;
-}CLIENT;
-typedef struct CLIENT* PCLIENT;
-
-//////////////////////////////////////////////////////////////////////
-// Client methods
-//////////////////////////////////////////////////////////////////////
-
-PCLIENT CreateClient(struct DEVICE* device, PFILE_OBJECT fileObject);
-BOOL FreeClient(PCLIENT client);
-void FreeClientList(PLIST list);

@@ -29,7 +29,7 @@
 
 typedef struct EVENT
 {
-	PUNICODE_STRING Name;
+	char Name[1024];
 	PKEVENT Event;
 	NDIS_HANDLE EventHandle;
 } EVENT;

@@ -20,28 +20,26 @@
 
 #pragma once
 
-#include <ndis.h>
+#include <minwindef.h>
+#include <ntdef.h>
 #include "List.h"
 
 //////////////////////////////////////////////////////////////////////
-// Client definitions
+// Packet definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct CLIENT {
-	struct DEVICE* Device;
-	PFILE_OBJECT FileObject;
-	struct EVENT* Event;
-	NDIS_HANDLE NetBufferListPool;
-	PLIST PacketList;
-	PNDIS_SPIN_LOCK ReadLock;
-	volatile ULONG PendingSendPackets;
-}CLIENT;
-typedef struct CLIENT* PCLIENT;
+typedef struct PACKET
+{
+	UCHAR* Data;
+	UINT Size;
+	LARGE_INTEGER Timestamp;
+} PACKET;
+typedef struct PACKET* PPACKET;
 
 //////////////////////////////////////////////////////////////////////
-// Client methods
+// Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PCLIENT CreateClient(struct DEVICE* device, PFILE_OBJECT fileObject);
-BOOL FreeClient(PCLIENT client);
-void FreeClientList(PLIST list);
+PACKET* CreatePacket(UCHAR* Data, UINT Size);
+void FreePacket(PACKET* packet);
+void FreePacketList(PLIST list);
