@@ -18,6 +18,8 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+
 #include "filter.h"
 #include "Adapter.h"
 #include "Client.h"
@@ -32,11 +34,28 @@
 
 DEVICE *CreateDevice(char* name)
 {
-	NDIS_STRING* name_u = CreateString(name);
+	char deviceName[1024];
+	sprintf_s(deviceName, 1024, "\\Device\\" ADAPTER_ID_PREFIX "_%s", name);
+
+	char symlinkName[1024];
+	sprintf_s(symlinkName, 1024, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "_%s", name);
+
+	NDIS_STRING* name_u = CreateString(deviceName);
+	
 	DEVICE_OBJECT *deviceObject = NULL;
 
 	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &deviceObject);
 	if(ret !=STATUS_SUCCESS)
+	{
+		FreeString(name_u);
+		return NULL;
+	}
+
+	NDIS_STRING* symlink_name_u = CreateString(symlinkName);
+	ret = IoCreateSymbolicLink(symlink_name_u, name_u);
+	FreeString(symlink_name_u);
+
+	if (ret != STATUS_SUCCESS)
 	{
 		FreeString(name_u);
 		return NULL;
@@ -195,6 +214,10 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					PADAPTER adapter = (PADAPTER)item->Data;
 
 					PCAP_NDIS_ADAPTER_INFO info;
+					RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
+					RtlCopyBytes(info.AdapterId, adapter->AdapterId, 1024);
+					RtlCopyBytes(info.DisplayName, adapter->DisplayName, 1024);
+
 					info.MtuSize = adapter->MtuSize;
 					//TODO: copy other data!
 

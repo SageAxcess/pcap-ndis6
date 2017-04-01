@@ -106,13 +106,13 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 
 	if(ReadFile(ndis->handle, &hdr, sizeof(PCAP_NDIS_ADAPTER_LIST_HDR), &dwBytesRead, NULL))
 	{
-		if(!memcmp(hdr.signature, SIGNATURE, 8))
+		if(!memcmp(hdr.Signature, SIGNATURE, 8))
 		{
 			NdisDriverFreeAdapterList(list);
 			return NULL;
 		}
 
-		list->count = hdr.count > MAX_ADAPTERS ? MAX_ADAPTERS : hdr.count;
+		list->count = hdr.Count > MAX_ADAPTERS ? MAX_ADAPTERS : hdr.Count;
 		
 		list->adapters = (PCAP_NDIS_ADAPTER_INFO*)malloc(sizeof(PCAP_NDIS_ADAPTER_INFO) * list->count);
 
@@ -124,8 +124,6 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 				memset(list->adapters[i].DisplayName, 0, sizeof(list->adapters[i].DisplayName));
 				memset(list->adapters[i].MacAddress, 0, sizeof(list->adapters[i].MacAddress));
 				list->adapters[i].MtuSize = 0;
-
-				//TODO: this is a bug
 			}
 		}
 	} else

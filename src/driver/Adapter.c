@@ -192,6 +192,11 @@ NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDI
 		adapter->Lock = CreateSpinLock();
 		adapter->Name = CopyString(BindParameters->AdapterName);
 		adapter->Ready = FALSE;
+		memset(adapter->AdapterId, 0, 1024);
+
+		ANSI_STRING adapterIdStr;
+		RtlUnicodeStringToAnsiString(&adapterIdStr, adapter->Name, TRUE);
+		RtlCopyBytes(adapter->AdapterId, adapterIdStr.Buffer, adapterIdStr.Length > 1023 ? 1023 : adapterIdStr.Length);		
 
 		RtlCopyBytes(adapter->MacAddress, BindParameters->CurrentMacAddress, 6);
 
@@ -238,13 +243,10 @@ NDIS_STATUS Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HAND
 
 void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, NDIS_STATUS Status)
 {
-	ADAPTER* adapter = (ADAPTER *)ProtocolBindingContext;
+	ADAPTER* adapter = (ADAPTER*) ProtocolBindingContext;
 	if (Status == STATUS_SUCCESS)
 	{
-		char deviceName[1024];
-		sprintf_s(deviceName, 1024, "\\BaseNamedObjects\\" ADAPTER_ID_PREFIX "_%s", adapter->AdapterId);
-
-		DEVICE* device = CreateDevice(deviceName);
+		DEVICE* device = CreateDevice(adapter->AdapterId);
 
 		if (device != NULL)
 		{
