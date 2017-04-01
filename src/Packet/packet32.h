@@ -210,7 +210,6 @@ typedef WAN_ADAPTER *PWAN_ADAPTER; ///< Describes an opened wan (dialup, VPN...)
 */
 typedef struct _ADAPTER  { 
 	HANDLE hFile;				// this is actually a pointer to PCAP_NDIS_ADAPTER, not handle. However, for backward compatibility have to leave it HANDLE
-	CHAR  SymbolicLink[MAX_LINK_NAME_LENGTH];
 	int NumWrites;				
 								///< on the wire.
 	HANDLE ReadEvent;			///< A notification event associated with the read calls on the adapter.

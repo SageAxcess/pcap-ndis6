@@ -32,23 +32,23 @@
 // Device methods
 /////////////////////////////////////////////////////////////////////
 
-DEVICE *CreateDevice(char* name)
+DEVICE* CreateDevice(char* name)
 {
 	char deviceName[1024];
-	sprintf_s(deviceName, 1024, "\\Device\\" ADAPTER_ID_PREFIX "_%s", name);
+	sprintf_s(deviceName, 1024, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
 
 	char symlinkName[1024];
-	sprintf_s(symlinkName, 1024, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "_%s", name);
+	sprintf_s(symlinkName, 1024, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
 
 	NDIS_STRING* name_u = CreateString(deviceName);
 	
 	DEVICE_OBJECT *deviceObject = NULL;
 
 	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &deviceObject);
-	if(ret !=STATUS_SUCCESS)
+	if(ret !=STATUS_SUCCESS) //Nothing
 	{
-		FreeString(name_u);
-		return NULL;
+		//FreeString(name_u);
+		//return NULL; 		
 	}
 
 	NDIS_STRING* symlink_name_u = CreateString(symlinkName);
@@ -67,6 +67,7 @@ DEVICE *CreateDevice(char* name)
 	device->Name = name_u;
 	device->OpenCloseLock = CreateSpinLock();
 	device->ClientList = CreateList();
+	device->BytesSent = 0;
 
 	*((DEVICE **)deviceObject->DeviceExtension) = device;
 
@@ -171,7 +172,9 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	return ret;
 }
 
-// Read procedure of the device
+/**
+ * Device read callback
+ */
 NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
@@ -179,11 +182,19 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	UINT responseSize = 0;
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	UINT requiredSize = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR) + sizeof(PCAP_NDIS_ADAPTER_INFO) * AdapterList->Size;
+	UINT requiredSize;
 
 	if (device->IsAdaptersList)
 	{
 		NdisAcquireSpinLock(AdapterList->Lock);
+
+		if(device->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
+		{
+			requiredSize = sizeof(struct PCAP_NDIS_ADAPTER_INFO);
+		} else
+		{
+			requiredSize = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
+		}
 
 		if (stack->Parameters.Read.Length >= requiredSize)
 		{
@@ -193,7 +204,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 			{
 				MDL *mdl;
 
-				ProbeForWrite(Irp->UserBuffer, sizeof(PCAP_NDIS_ADAPTER_LIST_HDR), 1);
+				ProbeForWrite(Irp->UserBuffer, requiredSize, 1);
 
 				mdl = IoAllocateMdl(dst, requiredSize, FALSE, FALSE, NULL);
 				if (mdl != NULL)
@@ -201,33 +212,50 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
 				}
 
-				PCAP_NDIS_ADAPTER_LIST_HDR hdr;
-				memcpy(hdr.Signature, SIGNATURE, 8);
-				hdr.Count = AdapterList->Size;
-
-				RtlCopyBytes(dst, &hdr, sizeof(PCAP_NDIS_ADAPTER_LIST_HDR));
-				dst += sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
-
-				PLIST_ITEM item = AdapterList->First;
-				while(item)
+				if(device->BytesSent==0)
 				{
-					PADAPTER adapter = (PADAPTER)item->Data;
+					PCAP_NDIS_ADAPTER_LIST_HDR hdr;
+					memcpy(hdr.Signature, SIGNATURE, 8);
+					hdr.Count = AdapterList->Size;
 
-					PCAP_NDIS_ADAPTER_INFO info;
-					RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
-					RtlCopyBytes(info.AdapterId, adapter->AdapterId, 1024);
-					RtlCopyBytes(info.DisplayName, adapter->DisplayName, 1024);
+					RtlCopyBytes(dst, &hdr, requiredSize);
 
-					info.MtuSize = adapter->MtuSize;
-					//TODO: copy other data!
+					responseSize = requiredSize;
+				} else
+				{
+					ULONG size = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
 
-					RtlCopyBytes(dst, &info, sizeof(PCAP_NDIS_ADAPTER_INFO));
-					dst += sizeof(PCAP_NDIS_ADAPTER_INFO);
+					PLIST_ITEM item = AdapterList->First;
+					while (item)
+					{
+						if(size>=device->BytesSent)
+						{
+							PADAPTER adapter = (PADAPTER)item->Data;
 
-					item = item->Next;
+							PCAP_NDIS_ADAPTER_INFO info;
+							RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
+							RtlCopyBytes(info.AdapterId, adapter->AdapterId, 1024);
+							RtlCopyBytes(info.DisplayName, adapter->DisplayName, 1024);
+
+							info.MtuSize = adapter->MtuSize;
+
+							RtlCopyBytes(dst, &info, sizeof(PCAP_NDIS_ADAPTER_INFO));
+
+							responseSize = requiredSize;
+
+							break;
+						}
+						size += sizeof(PCAP_NDIS_ADAPTER_INFO);
+						item = item->Next;
+					}
 				}
 
-				responseSize = requiredSize;
+				device->BytesSent += responseSize;
+				if(responseSize ==0 && device->BytesSent>0)
+				{
+					device->BytesSent = 0;
+				}
+
 				ret = STATUS_SUCCESS;
 
 				if (mdl != NULL)

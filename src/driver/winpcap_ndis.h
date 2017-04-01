@@ -47,12 +47,11 @@
 
 typedef struct PCAP_NDIS_ADAPTER_INFO
 {
-	wchar_t AdapterId[MAX_PATH];		// Adapter ID
-	wchar_t DeviceName[MAX_PATH];		// device name
-	UCHAR MacAddress[6];				// MAC address
+	wchar_t AdapterId[1024];	// Adapter ID
+	char DisplayName[1024];		// Display name
+	UCHAR MacAddress[6];		// MAC address
 	UCHAR Padding1[2];
-	UINT MtuSize;						// MTU size
-	char DisplayName[MAX_PATH];		// Display name
+	UINT MtuSize;				// MTU size
 } PCAP_NDIS_ADAPTER_INFO;
 
 typedef struct PCAP_NDIS_ADAPTER_LIST_HDR

@@ -539,7 +539,6 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 			result->FilterLock = PacketCreateMutex();
 			result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
-			strcpy_s(result->SymbolicLink, sizeof(result->SymbolicLink), adapter->DeviceName);
 			strcpy_s(result->Name, sizeof(result->Name), adapter->AdapterId);
 		}
 
@@ -874,8 +873,8 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 		for (int i = 0; i < list->count;i++)
 		{
 			// Update the size variables
-			SizeNeeded += (ULONG)strlen(list->adapters[i].DeviceName) + (ULONG)strlen(list->adapters[i].DisplayName) + 2;
-			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
+			SizeNeeded += (ULONG)strlen(list->adapters[i].AdapterId) + (ULONG)strlen(list->adapters[i].DisplayName) + 2;
+			SizeNames += (ULONG)strlen(list->adapters[i].AdapterId) + 1;
 		}
 
 		// Check that we don't overflow the buffer.
@@ -907,7 +906,7 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 			StringCchCopyA(
 				((PCHAR)pStr) + SizeNames,
 				*BufferSize - SizeNames,
-				list->adapters[i].DeviceName);
+				list->adapters[i].AdapterId);
 
 			StringCchCopyA(
 				((PCHAR)pStr) + OffDescriptions + SizeDesc,
@@ -915,7 +914,7 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 				list->adapters[i].DisplayName);
 
 			// Update the size variables
-			SizeNames += (ULONG)strlen(list->adapters[i].DeviceName) + 1;
+			SizeNames += (ULONG)strlen(list->adapters[i].AdapterId) + 1;
 			SizeDesc += (ULONG)strlen(list->adapters[i].DisplayName) + 1;
 		}
 

@@ -24,11 +24,11 @@
 
 PCAP_NDIS* NdisDriverOpen()
 {
-	HANDLE hFile = CreateFileA(NTDEVICE_FILE_STRING, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+	HANDLE hFile = CreateFileA("\\\\.\\" ADAPTER_ID_PREFIX "" ADAPTER_NAME_FORLIST, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 
 	if(hFile == INVALID_HANDLE_VALUE)
 	{
-		return NULL; //TODO: install?
+		return NULL; //TODO: install pcap-ndis6.sys?
 	}
 
 	PCAP_NDIS* ndis = (PCAP_NDIS*)malloc(sizeof(PCAP_NDIS));
@@ -87,6 +87,7 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, ULONGLONG* time)
 {
 	
+
 	return FALSE;
 }
 
