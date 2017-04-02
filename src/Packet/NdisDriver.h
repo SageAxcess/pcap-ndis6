@@ -53,7 +53,7 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 // Close adapter
 void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter);
 // Extract packet from previously opened adapter
-BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, ULONGLONG* time);
+BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, DWORD* dwBytesReceived);
 // Get adapter list
 PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis);
 // Free adapter list

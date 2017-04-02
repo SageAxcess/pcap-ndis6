@@ -19,6 +19,7 @@
 #include <winsock2.h>
 #include <windows.h>
 
+#include "Packet32.h"
 #include "NdisDriver.h"
 #include <stdio.h>
 
@@ -66,7 +67,10 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 	}
 
 	PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)malloc(sizeof(struct PCAP_NDIS_ADAPTER));
-	adapter->handle = hFile;	
+	adapter->handle = hFile;
+	adapter->Stat.Captured = 0;
+	adapter->Stat.Dropped = 0;
+	adapter->Stat.Received = 0;
 
 	return adapter;
 }
@@ -84,11 +88,39 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 	free(adapter);
 }
 
-BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, ULONGLONG* time)
+BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, DWORD* dwBytesReceived)
 {
-	
+	if (!adapter || !adapter->handle) {
+		return FALSE;
+	}
 
-	return FALSE;
+	*dwBytesReceived = 0;
+
+	DWORD dwBytesRead = 0;
+	PACKET_HDR hdr;
+	if (!ReadFile(adapter->handle, &hdr, sizeof(PACKET_HDR), &dwBytesRead, NULL))
+	{		
+		return FALSE;
+	}
+	
+	struct bpf_hdr* bpf = ((struct bpf_hdr *)*buf);
+	bpf->bh_caplen = hdr.Size;
+	bpf->bh_datalen = hdr.Size;
+	bpf->bh_hdrlen = sizeof(struct bpf_hdr);
+	bpf->bh_tstamp.tv_sec = (long)(hdr.Timestamp.QuadPart / 1000); // Get seconds part
+	bpf->bh_tstamp.tv_usec = (long)(hdr.Timestamp.QuadPart - bpf->bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+
+	char* pdata = (char*)(*buf) + bpf->bh_hdrlen; //skip header
+	
+	if (!ReadFile(adapter->handle, pdata, hdr.Size, &dwBytesRead, NULL))
+	{
+		return FALSE;
+	}
+
+	bpf->bh_caplen = dwBytesRead;
+	*dwBytesReceived = dwBytesRead;
+
+	return TRUE;
 }
 
 // Get adapter list

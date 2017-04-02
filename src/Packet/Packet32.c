@@ -536,6 +536,9 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 			result = (ADAPTER*)malloc(sizeof(ADAPTER));
 
 			result->hFile = NdisDriverOpenAdapter(ndis, adapter->AdapterId);
+			
+			//TODO: set ReadEvent! 
+
 			result->FilterLock = PacketCreateMutex();
 			result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
@@ -620,21 +623,20 @@ VOID PacketInitPacket(LPPACKET lpPacket,PVOID Buffer,UINT Length)
 	TRACE_EXIT("PacketInitPacket");
 }
 
-BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync)
+BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN Sync)
 {
-	BOOLEAN res;
+	BOOLEAN res = FALSE;
 
 	if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
 	{
-		if((int)AdapterObject->ReadTimeOut != -1)
+		if((int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
 			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut==0)?INFINITE:AdapterObject->ReadTimeOut);
-	
-		res = (BOOLEAN)ReadFile(AdapterObject->hFile, lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived,NULL);
+
+		res = NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 	}
 	else
 	{
 		TRACE_PRINT1("Request to read on an unknown device type (%u)", AdapterObject->Flags);
-		res = FALSE;
 	}
 	
 	TRACE_EXIT("PacketReceivePacket");

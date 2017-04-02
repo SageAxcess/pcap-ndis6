@@ -132,6 +132,7 @@ BOOL FreeAdapterList(PLIST list)
 	return TRUE;
 }
 
+// Returns timestamp in milliseconds since adapter started
 LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
 {
 	LARGE_INTEGER Result = { 0 };
