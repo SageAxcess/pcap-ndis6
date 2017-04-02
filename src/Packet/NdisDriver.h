@@ -33,7 +33,7 @@ typedef struct PCAP_NDIS_ADAPTER_STAT {
 
 typedef struct PCAP_NDIS_ADAPTER
 {
-	void* handle;
+	void* Handle;
 	UINT ReadTimeout;
 	PCAP_NDIS_ADAPTER_STAT Stat;
 } PCAP_NDIS_ADAPTER;

@@ -67,7 +67,7 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 	}
 
 	PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)malloc(sizeof(struct PCAP_NDIS_ADAPTER));
-	adapter->handle = hFile;
+	adapter->Handle = hFile;
 	adapter->Stat.Captured = 0;
 	adapter->Stat.Dropped = 0;
 	adapter->Stat.Received = 0;
@@ -81,16 +81,16 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 	{
 		return;
 	}
-	if(adapter->handle)
+	if(adapter->Handle)
 	{
-		CloseHandle(adapter->handle);
+		CloseHandle(adapter->Handle);
 	}
 	free(adapter);
 }
 
 BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, DWORD* dwBytesReceived)
 {
-	if (!adapter || !adapter->handle) {
+	if (!adapter || !adapter->Handle) {
 		return FALSE;
 	}
 
@@ -103,7 +103,7 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 
 	DWORD dwBytesRead = 0;
 	PACKET_HDR hdr;
-	if (!ReadFile(adapter->handle, &hdr, sizeof(PACKET_HDR), &dwBytesRead, NULL))
+	if (!ReadFile(adapter->Handle, &hdr, sizeof(PACKET_HDR), &dwBytesRead, NULL))
 	{		
 		return FALSE;
 	}
@@ -122,7 +122,7 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 		return FALSE;
 	}
 	
-	if (!ReadFile(adapter->handle, pdata, hdr.Size, &dwBytesRead, NULL))
+	if (!ReadFile(adapter->Handle, pdata, hdr.Size, &dwBytesRead, NULL))
 	{
 		return FALSE;
 	}

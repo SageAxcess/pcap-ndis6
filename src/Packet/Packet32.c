@@ -513,7 +513,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 		//TODO: use mutex here!
 	}
 
-	PCAP_NDIS_ADAPTER_INFO *adapter = NULL;
+	PCAP_NDIS_ADAPTER_INFO *info = NULL;
 	ADAPTER *result = NULL;
 
 	PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
@@ -522,23 +522,33 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 		{
 			if (!strcmp(list->adapters[i].AdapterId, AdapterNameWA))
 			{
-				adapter = &list->adapters[i];
+				info = &list->adapters[i];
 				break;
 			}
 		}
 
-		if (adapter)
+		if (info)
 		{
 			result = (ADAPTER*)malloc(sizeof(ADAPTER));
 
-			result->hFile = NdisDriverOpenAdapter(ndis, adapter->AdapterId);
-			
-			//TODO: set ReadEvent! 
-
+			result->hFile = NdisDriverOpenAdapter(ndis, info->AdapterId);
 			result->FilterLock = PacketCreateMutex();
 			result->Flags = INFO_FLAG_NDIS_ADAPTER;
+			strcpy_s(result->Name, sizeof(result->Name), info->AdapterId);
 
-			strcpy_s(result->Name, sizeof(result->Name), adapter->AdapterId);
+			char eventName[1024];
+			char eventNameFull[1024];
+
+			PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)result->hFile;
+
+			DWORD dwBytesReturned = 0;
+			if (DeviceIoControl(adapter->Handle, IOCTL_GET_EVENT_NAME, &eventName, 1024, &eventName, 1024, &dwBytesReturned, NULL) == TRUE)
+			{
+				eventName[dwBytesReturned] = 0;
+				sprintf_s(eventNameFull, 1024, "Global\\%s", eventName);
+
+				result->ReadEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, eventNameFull);
+			}
 		}
 
 		NdisDriverFreeAdapterList(list);
@@ -577,6 +587,11 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
 	}
 
 	PacketFreeMutex(lpAdapter->FilterLock);
+
+	if(lpAdapter->ReadEvent!=NULL)
+	{
+		CloseHandle(lpAdapter->ReadEvent);
+	}
 
 	GlobalFreePtr(lpAdapter);
 }
@@ -892,9 +907,7 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 	TRACE_ENTER("PacketGetAdapterNames");
 
 	TRACE_PRINT_OS_INFO();
-
 	TRACE_PRINT2("Packet DLL version %s, Driver version %s", PacketLibraryVersion, PacketDriverVersion);
-
 	TRACE_PRINT1("PacketGetAdapterNames: BufferSize=%u", *BufferSize);
 
 
