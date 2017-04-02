@@ -96,6 +96,11 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 
 	*dwBytesReceived = 0;
 
+	if(size<sizeof(PACKET_HDR))
+	{
+		return FALSE;
+	}
+
 	DWORD dwBytesRead = 0;
 	PACKET_HDR hdr;
 	if (!ReadFile(adapter->handle, &hdr, sizeof(PACKET_HDR), &dwBytesRead, NULL))
@@ -111,6 +116,11 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 	bpf->bh_tstamp.tv_usec = (long)(hdr.Timestamp.QuadPart - bpf->bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
 
 	char* pdata = (char*)(*buf) + bpf->bh_hdrlen; //skip header
+
+	if(size<(hdr.Size + sizeof(PACKET_HDR)))
+	{
+		return FALSE;
+	}
 	
 	if (!ReadFile(adapter->handle, pdata, hdr.Size, &dwBytesRead, NULL))
 	{

@@ -47,7 +47,7 @@
 
 typedef struct PCAP_NDIS_ADAPTER_INFO
 {
-	wchar_t AdapterId[1024];	// Adapter ID
+	char AdapterId[1024];		// Adapter ID
 	char DisplayName[1024];		// Display name
 	UCHAR MacAddress[6];		// MAC address
 	UCHAR Padding1[2];

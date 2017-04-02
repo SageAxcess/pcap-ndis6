@@ -64,7 +64,6 @@ char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
 BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 {
     BOOLEAN Status=TRUE;
-	PADAPTER_INFO NewAdInfo;
 	TCHAR DllFileName[MAX_PATH];
 
 	UNUSED(lpReserved);
@@ -239,7 +238,6 @@ BOOLEAN PacketSetMaxLookaheadsize (LPADAPTER AdapterObject)
 
 BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
 {
-	DWORD BytesReturned;
 	HANDLE hEvent;
 
  	TRACE_ENTER("PacketSetReadEvt");
@@ -500,8 +498,6 @@ PCHAR PacketGetDriverVersion()
 
 PCHAR PacketGetDriverName()
 {
-	TRACE_ENTER();
-	TRACE_EXIT();
 	return PacketDriverName;
 }
 
@@ -625,6 +621,7 @@ VOID PacketInitPacket(LPPACKET lpPacket,PVOID Buffer,UINT Length)
 
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN Sync)
 {
+	_CRT_UNUSED(Sync);
 	BOOLEAN res = FALSE;
 
 	if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
@@ -632,7 +629,7 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 		if((int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
 			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut==0)?INFINITE:AdapterObject->ReadTimeOut);
 
-		res = NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 	}
 	else
 	{
@@ -645,18 +642,30 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
 BOOLEAN PacketSendPacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(lpPacket);
+	_CRT_UNUSED(Sync);
+
 	TRACE_PRINT("PacketSendPacket not supported in this version");
 	return FALSE; //TODO: Not supported at the moment
 }
 
 INT PacketSendPackets(LPADAPTER AdapterObject, PVOID PacketBuff, ULONG Size, BOOLEAN Sync)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(PacketBuff);
+	_CRT_UNUSED(Size);
+	_CRT_UNUSED(Sync);
+
 	TRACE_PRINT("PacketSendPackets not supported in this version");
 	return 0; //TODO: Not supported at the moment
 }
 
 BOOLEAN PacketSetMinToCopy(LPADAPTER AdapterObject,int nbytes)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(nbytes);
+
 	TRACE_PRINT("PacketSetMinToCopy not supported in this version");
 	return TRUE;
 }
@@ -664,6 +673,8 @@ BOOLEAN PacketSetMinToCopy(LPADAPTER AdapterObject,int nbytes)
 
 BOOLEAN PacketSetMode(LPADAPTER AdapterObject,int mode)
 {
+	_CRT_UNUSED(AdapterObject);
+
 	TRACE_PRINT("PacketSetMode not supported in this version");
 	if(mode==PACKET_MODE_CAPT)
 	{
@@ -675,18 +686,29 @@ BOOLEAN PacketSetMode(LPADAPTER AdapterObject,int mode)
 
 BOOLEAN PacketSetDumpName(LPADAPTER AdapterObject, void *name, int len)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(name);
+	_CRT_UNUSED(len);
+
 	TRACE_PRINT("PacketSetDumpName not supported in this version");
 	return FALSE;
 }
 
 BOOLEAN PacketSetDumpLimits(LPADAPTER AdapterObject, UINT maxfilesize, UINT maxnpacks)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(maxfilesize);
+	_CRT_UNUSED(maxnpacks);
+
 	TRACE_PRINT("PacketSetDumpLimits not supported in this version");
 	return FALSE;
 }
 
 BOOLEAN PacketIsDumpEnded(LPADAPTER AdapterObject, BOOLEAN sync)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(sync);
+
 	TRACE_PRINT("PacketIsDumpEnded not supported in this version");
 	return FALSE;
 }
@@ -698,13 +720,16 @@ HANDLE PacketGetReadEvent(LPADAPTER AdapterObject)
     return AdapterObject->ReadEvent;
 }
 
-BOOLEAN PacketSetNumWrites(LPADAPTER AdapterObject,int nwrites)
+BOOLEAN PacketSetNumWrites(LPADAPTER AdapterObject, int nwrites)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(nwrites);
+
 	TRACE_PRINT("PacketSetNumWrites not supported in this version");
 	return FALSE;
 }
 
-BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject,int timeout)
+BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject, int timeout)
 {
 	if(AdapterObject==NULL)
 	{
@@ -720,8 +745,11 @@ BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject,int timeout)
 	return TRUE;	
 }
 
-BOOLEAN PacketSetBuff(LPADAPTER AdapterObject,int dim)
+BOOLEAN PacketSetBuff(LPADAPTER AdapterObject, int dim)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(dim);
+
 	TRACE_PRINT("PacketSetBuff not supported in this version");
 	return TRUE;
 }
@@ -771,20 +799,26 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 }
 
 
-BOOLEAN PacketSetLoopbackBehavior(LPADAPTER  AdapterObject, UINT LoopbackBehavior)
+BOOLEAN PacketSetLoopbackBehavior(LPADAPTER AdapterObject, UINT LoopbackBehavior)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(LoopbackBehavior);
+
 	TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
 	return FALSE;
 }
 
 INT PacketSetSnapLen(LPADAPTER AdapterObject, int snaplen)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(snaplen);
+
 	TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
 	return 0;
 }
 
 
-BOOLEAN PacketGetStats(LPADAPTER AdapterObject,struct bpf_stat *s)
+BOOLEAN PacketGetStats(LPADAPTER AdapterObject, struct bpf_stat *s)
 {
 	PCAP_NDIS_ADAPTER *a;
 	if (AdapterObject == NULL)
@@ -810,12 +844,19 @@ BOOLEAN PacketGetStatsEx(LPADAPTER AdapterObject,struct bpf_stat *s)
 
 BOOLEAN PacketRequest(LPADAPTER AdapterObject, BOOLEAN Set, PPACKET_OID_DATA OidData)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(Set);
+	_CRT_UNUSED(OidData);
+
 	TRACE_PRINT("PacketRequest not supported in this version");
 	return FALSE;
 }
 
-BOOLEAN PacketSetHwFilter(LPADAPTER  AdapterObject,ULONG Filter)
+BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject, ULONG Filter)
 {
+	_CRT_UNUSED(AdapterObject);
+	_CRT_UNUSED(Filter);
+
 	TRACE_PRINT("PacketRequest not supported in this version");
 	return TRUE;
 }
@@ -843,7 +884,6 @@ BOOLEAN PacketSetHwFilter(LPADAPTER  AdapterObject,ULONG Filter)
 
 BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 {
-	PADAPTER_INFO	TAdInfo;
 	ULONG	SizeNeeded = 0;
 	ULONG	SizeNames = 0;
 	ULONG	SizeDesc;
@@ -950,16 +990,22 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 */
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries)
 {
+	_CRT_UNUSED(AdapterName);
+	_CRT_UNUSED(buffer);
+	_CRT_UNUSED(NEntries);
+
 	TRACE_PRINT("PacketGetNetInfoEx not supported in this verison"); //TODO: Add support!
 	return FALSE;
 }
 
 BOOLEAN PacketGetNetType(LPADAPTER AdapterObject, NetType *type)
 {
+	_CRT_UNUSED(AdapterObject);
+
 	TRACE_PRINT("PacketGetNetType not supported in this version")
 
 	type->LinkSpeed = 100 * 1024 * 1024;
-	type->LinkType = 0; //TODO: get speed and link type
+	type->LinkType = 0; //TODO: burilovmv: get speed and link type
 
 	return TRUE;
 }
@@ -967,6 +1013,8 @@ BOOLEAN PacketGetNetType(LPADAPTER AdapterObject, NetType *type)
 
 void* PacketGetAirPcapHandle(LPADAPTER AdapterObject)
 {
+	_CRT_UNUSED(AdapterObject);
+
 	TRACE_PRINT("PacketGetAirPcapHandle not supported in this version")
 	return NULL;
 }
