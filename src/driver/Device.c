@@ -274,11 +274,56 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 		UCHAR *buf = Irp->UserBuffer;
 
-		UINT total = 0;
+		UINT size = 0;
 		NdisAcquireSpinLock(client->ReadLock);
 
 		PLIST_ITEM item = client->PacketList->First;
 
+		if(item)
+		{
+			PPACKET packet = (PPACKET)item->Data;
+
+			BOOL header = stack->Parameters.Read.Length == sizeof(PACKET_HDR); //client wants to read header			
+
+			if(header)
+			{
+				size = sizeof(PACKET_HDR);
+			} else
+			{
+				size = packet->Size;
+			}
+
+			MDL *mdl;
+			ProbeForWrite(buf, size, 1);
+
+			mdl = IoAllocateMdl(buf, size, FALSE, FALSE, NULL);
+			if (mdl != NULL)
+			{
+				MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
+			}
+
+			if(header) 
+			{
+
+				PACKET_HDR hdr;
+				hdr.Size = packet->Size;
+				hdr.Timestamp = packet->Timestamp;
+
+				RtlCopyBytes(buf, &hdr, sizeof(PACKET_HDR));
+			} else
+			{
+				RtlCopyBytes(buf, packet->Data, packet->Size);
+
+				RemoveFromList(client->PacketList, item);
+				FreePacket(packet);
+
+				item = NULL;
+				packet = NULL;
+			}
+		}
+
+		//TODO: this is code to read multiple packets at once
+		/*
 		while(item && total<stack->Parameters.Read.Length)
 		{
 			PPACKET packet = (PPACKET)item->Data;
@@ -338,7 +383,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 				MmUnlockPages(mdl);
 				IoFreeMdl(mdl);
 			}
-		}
+		}*/
 
 		if(client->PacketList->Size>0)
 		{
@@ -351,7 +396,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		NdisReleaseSpinLock(client->ReadLock);
 
 		ret = STATUS_SUCCESS;
-		responseSize = total;
+		responseSize = size;
 	}
 
 	Irp->IoStatus.Status = ret;

@@ -614,7 +614,6 @@ LPPACKET PacketAllocatePacket(void)
 }
 
 VOID PacketFreePacket(LPPACKET lpPacket)
-
 {
 	TRACE_ENTER("PacketFreePacket");
     GlobalFreePtr(lpPacket);
