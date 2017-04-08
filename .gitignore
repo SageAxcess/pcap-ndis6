@@ -30,3 +30,5 @@
 /.vs/
 /build/
 /ipch/
+/Debug/
+/x64/

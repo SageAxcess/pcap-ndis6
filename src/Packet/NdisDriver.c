@@ -149,7 +149,7 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 
 	if(ReadFile(ndis->handle, &hdr, sizeof(PCAP_NDIS_ADAPTER_LIST_HDR), &dwBytesRead, NULL))
 	{
-		if(!memcmp(hdr.Signature, SIGNATURE, 8))
+		if(memcmp(hdr.Signature, SIGNATURE, 8))
 		{
 			NdisDriverFreeAdapterList(list);
 			return NULL;

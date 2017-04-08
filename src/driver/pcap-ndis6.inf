@@ -16,24 +16,24 @@ Provider        = %ProviderString%
 DriverVer       = 20/03/2017,1.0.0.0
 
 [Manufacturer]
-%ManufacturerName%=Standard,NTx86,NTamd64
+%ManufacturerName%=ChangeDynamix,NTx86,NTamd64
 
-[Standard.NTx86]
-%PcapNdis6_Desc%=Install, MS_PcapNdis6
+[ChangeDynamix.NTx86]
+%PcapNdis6_Desc%=PcapNdis6_Install, PcapNdis6
 
-[Standard.NTamd64]
-%PcapNdis6_Desc%=Install, MS_PcapNdis6
+[ChangeDynamix.NTamd64]
+%PcapNdis6_Desc%=PcapNdis6_Install, PcapNdis6
 
 ;-------------------------------------------------------------------------
 ; Installation Section
 ;-------------------------------------------------------------------------
-[Install]
+[PcapNdis6_Install]
 AddReg=Inst_Ndi
 ; All LWFs must include the 0x40000 bit (NCF_LW_FILTER). Unlike miniports, you
 ; don't usually need to customize this value.
 Characteristics=0x40000
 NetCfgInstanceId="{37195A99-7BC5-4C82-B00A-553C75C0AA1A}"
-Copyfiles = pcap-ndis6.copyfiles.sys
+Copyfiles = pcap_ndis6.copyfiles.sys
 
 [SourceDisksNames]
 1=%PcapNdis6_Desc%,"",,
@@ -42,10 +42,9 @@ Copyfiles = pcap-ndis6.copyfiles.sys
 pcap-ndis6.sys=1
 
 [DestinationDirs]
-DefaultDestDir=12
-pcap-ndis6.copyfiles.sys=12
+pcap_ndis6.copyfiles.sys=12
 
-[pcap-ndis6.copyfiles.sys]
+[pcap_ndis6.copyfiles.sys]
 pcap-ndis6.sys,,,2
 
 ;-------------------------------------------------------------------------
@@ -68,7 +67,7 @@ HKR, Ndi,FilterRunType,0x00010001, 2 ; Optional filter
 ;-------------------------------------------------------------------------
 ; Service installation support
 ;-------------------------------------------------------------------------
-[Install.Services]
+[PcapNdis6_Install.Services]
 AddService=PcapNdis6,,PcapNdis6_Service_Inst
 
 [PcapNdis6_Service_Inst]
@@ -81,11 +80,12 @@ LoadOrderGroup  = NDIS
 Description     = %PcapNdis6_Desc%
 AddReg          = NdisImPlatformBindingOptions.reg
 
-[Install.Remove.Services]
-DelService=PcapNdis6,0x200 ; SPSVCINST_STOPSERVICE
-
 [NdisImPlatformBindingOptions.reg]
 HKR, Parameters, NdisImPlatformBindingOptions,0x00010001,0 ; Subscribe to default behavior
+
+
+[PcapNdis6_Install.Remove.Services]
+DelService=PcapNdis6,0x200 ; SPSVCINST_STOPSERVICE
 
 [Strings]
 ProviderString = "ChangeDynamix LLC"

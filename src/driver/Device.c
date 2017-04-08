@@ -429,7 +429,7 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		CLIENT* client = stack->FileObject->FsContext;
 
-		UINT size = strlen(client->Event->Name) + 1;		
+		UINT size = (UINT)strlen(client->Event->Name) + 1;		
 		if (stack->Parameters.DeviceIoControl.IoControlCode == IOCTL_GET_EVENT_NAME)
 		{
 			if (stack->Parameters.DeviceIoControl.OutputBufferLength >=size)

@@ -102,18 +102,15 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
     	// TODO: check in x64, probably doesn't work well
 		//
 		PacketGetFileVersion(TEXT("drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"), PacketDriverVersion, sizeof(PacketDriverVersion));
-		
+
+		ndis = NdisDriverOpen();
 		break;
 		
 	case DLL_PROCESS_DETACH:
-
-#ifdef WPCAP_OEM_UNLOAD_H 
-		if(g_WoemLeaveDllH)
+		if(ndis)
 		{
-			g_WoemLeaveDllH();
+			NdisDriverClose(ndis);
 		}
-#endif // WPCAP_OEM_UNLOAD_H
-
 		break;
 		
 	default:

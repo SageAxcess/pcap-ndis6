@@ -1,4 +1,4 @@
-LIBRARY packet
+LIBRARY packet-ndis6
 
 EXPORTS
 		PacketLibraryVersion
