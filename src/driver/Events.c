@@ -29,6 +29,10 @@ volatile ULONG _curEventId = 0;
 EVENT* CreateEvent()
 {
 	EVENT *event = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(EVENT));
+	if(!event)
+	{
+		return NULL;
+	}
 	NdisZeroMemory(event, sizeof(EVENT));
 
 	InterlockedIncrement((volatile long*)&_curEventId);

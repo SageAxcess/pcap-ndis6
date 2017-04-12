@@ -35,6 +35,7 @@ typedef struct CLIENT {
 	PLIST PacketList;
 	PNDIS_SPIN_LOCK ReadLock;
 	volatile ULONG PendingSendPackets;
+	ULONG BytesSent;
 }CLIENT;
 typedef struct CLIENT* PCLIENT;
 

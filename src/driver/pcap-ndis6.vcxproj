@@ -24,7 +24,7 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <SampleGuid>{F40772D8-6882-4C62-8849-D5651CC7751C}</SampleGuid>
-    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
     <ProjectName>pcap-ndis6</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -43,7 +43,7 @@
     <UseDebugLibraries>True</UseDebugLibraries>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
     <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver8.1</PlatformToolset>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <OutDir>$(SolutionDir)build\$(Configuration)\x64\</OutDir>
     <ALLOW_DATE_TIME>1</ALLOW_DATE_TIME>
@@ -85,6 +85,24 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
   <ItemGroup Label="WrappedTaskItems" />
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)\build\$(Configuration)\x64\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)build\$(Configuration)\x64\</OutDir>
+    <SupportsPackaging>true</SupportsPackaging>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)\build\$(Configuration)\x86\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <CodeAnalysisRuleSet>..\..\..\..\..\..\Program Files (x86)\Windows Kits\8.1\CodeAnalysis\DriverRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableInf2cat>false</EnableInf2cat>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -221,13 +239,23 @@
     <ClCompile>
       <ExceptionHandling>
       </ExceptionHandling>
+      <EnablePREfast>false</EnablePREfast>
     </ClCompile>
     <PostBuildEvent>
       <Command>signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.sys
 Inf2Cat.exe /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64
 signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.cat 
-</Command>
+copy /y ..\..\cert\pcap-ndis6.cer $(OutDir)</Command>
     </PostBuildEvent>
+    <Inf>
+      <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
+    </Inf>
+    <MessageCompile>
+      <GenerateKernelModeLoggingMacros>true</GenerateKernelModeLoggingMacros>
+    </MessageCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
@@ -250,7 +278,10 @@ signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t h
       </ExceptionHandling>
     </ClCompile>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\x86\Inf2Cat.exe" /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64</Command>
+      <Command>signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.sys
+Inf2Cat.exe /driver:$(OutDir) /os:6_3_X86,8_X86,Server8_X86,Server2008R2_X86,7_X86,Server2008_X86
+signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.cat 
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -282,12 +313,6 @@ signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t h
     <ResourceCompile Include="filter.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Inf Exclude="@(Inf)" Include="*.inf">
-      <CatalogFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pcap-ndis6.cat</CatalogFileName>
-    </Inf>
-    <FilesToPackage Include="$(TargetPath)" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
-  </ItemGroup>
-  <ItemGroup>
     <None Exclude="@(None)" Include="*.txt;*.htm;*.html" />
     <None Exclude="@(None)" Include="*.ico;*.cur;*.bmp;*.dlg;*.rct;*.gif;*.jpg;*.jpeg;*.wav;*.jpe;*.tiff;*.tif;*.png;*.rc2" />
     <None Exclude="@(None)" Include="*.def;*.bat;*.hpj;*.asmx" />
@@ -301,6 +326,13 @@ signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t h
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="List.h" />
     <ClInclude Include="Packet.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FilesToPackage Include="$(TargetPath)" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      <PackageRelativeDirectory>
+      </PackageRelativeDirectory>
+    </FilesToPackage>
+    <Inf Exclude="@(Inf)" Include="*.inf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

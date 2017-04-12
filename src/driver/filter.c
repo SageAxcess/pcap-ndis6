@@ -109,6 +109,8 @@ DriverEntry(
 
 void DriverUnload(DRIVER_OBJECT* DriverObject)
 {
+	DEBUGP(DL_TRACE, "===>DriverUnload");
+
 	_CRT_UNUSED(DriverObject);
 
 	if (FilterProtocolHandle != NULL)
@@ -119,6 +121,7 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 
 	FreeDevice(ListAdaptersDevice);
 	FreeAdapterList(AdapterList);
+	DEBUGP(DL_TRACE, "<===DriverUnload");
 }
 
 

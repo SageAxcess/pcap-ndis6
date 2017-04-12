@@ -51,6 +51,10 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 	}
 
 	NDIS_OID_REQUEST* request = (NDIS_OID_REQUEST*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(NDIS_OID_REQUEST));
+	if(!request)
+	{
+		return FALSE;
+	}
 	NdisZeroMemory(request, sizeof(NDIS_OID_REQUEST));
 
 	request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
@@ -315,6 +319,10 @@ void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS_OID_REQUEST *OidRequest, NDIS_STATUS Status)
 {
 	_CRT_UNUSED(Status);
+	if(!OidRequest)
+	{
+		return;
+	}
 
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 	BOOL canRelease = TRUE;

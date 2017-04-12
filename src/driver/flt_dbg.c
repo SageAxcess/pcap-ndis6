@@ -24,7 +24,7 @@
 
 #if DBG
 
-INT                 filterDebugLevel = DL_WARN;
+INT                 filterDebugLevel = DL_LOUD;
 
 NDIS_SPIN_LOCK        filterDbgLogLock;
 

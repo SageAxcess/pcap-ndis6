@@ -37,7 +37,6 @@ typedef struct DEVICE {
 	PLIST ClientList;
 
 	BOOL IsAdaptersList;
-	ULONG BytesSent;
 } DEVICE;
 typedef struct DEVICE* PDEVICE;
 

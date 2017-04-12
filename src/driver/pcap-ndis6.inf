@@ -83,7 +83,6 @@ AddReg          = NdisImPlatformBindingOptions.reg
 [NdisImPlatformBindingOptions.reg]
 HKR, Parameters, NdisImPlatformBindingOptions,0x00010001,0 ; Subscribe to default behavior
 
-
 [PcapNdis6_Install.Remove.Services]
 DelService=PcapNdis6,0x200 ; SPSVCINST_STOPSERVICE
 

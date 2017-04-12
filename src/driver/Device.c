@@ -41,37 +41,42 @@ DEVICE* CreateDevice(char* name)
 	sprintf_s(symlinkName, 1024, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
 
 	NDIS_STRING* name_u = CreateString(deviceName);
-	
-	DEVICE_OBJECT *deviceObject = NULL;
-
-	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &deviceObject);
-	if(ret !=STATUS_SUCCESS) //Nothing
+	if(!name_u)
 	{
-		//FreeString(name_u);
-		//return NULL; 		
+		return NULL;
 	}
 
 	NDIS_STRING* symlink_name_u = CreateString(symlinkName);
-	ret = IoCreateSymbolicLink(symlink_name_u, name_u);
-	FreeString(symlink_name_u);
-
-	if (ret != STATUS_SUCCESS)
+	if(!symlink_name_u)
 	{
 		FreeString(name_u);
 		return NULL;
 	}
 
 	DEVICE* device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
+	if(!device)
+	{
+		FreeString(name_u);
+		FreeString(symlink_name_u);
+		return NULL;
+	}
 
-	device->Device = deviceObject;
 	device->Name = name_u;
 	device->OpenCloseLock = CreateSpinLock();
 	device->ClientList = CreateList();
-	device->BytesSent = 0;
+	
+	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &device->Device);
+	if(ret !=STATUS_SUCCESS) //Nothing
+	{
+		//FreeString(name_u);
+		//return NULL; 		
+	}
+	
+	IoCreateSymbolicLink(symlink_name_u, name_u);
+	FreeString(symlink_name_u);
 
-	*((DEVICE **)deviceObject->DeviceExtension) = device;
-
-	deviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
+	*((DEVICE **)device->Device->DeviceExtension) = device;
+	device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
 	return device;
 }
 
@@ -101,6 +106,15 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+	if(!device)
+	{
+		Irp->IoStatus.Status = ret;
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);		
+
+		return ret;
+	}
+
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
 	if (device->IsAdaptersList)
@@ -179,16 +193,35 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+	if(!device)
+	{
+		Irp->IoStatus.Status = ret;
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+		return ret;
+	}
+
 	UINT responseSize = 0;
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
 	UINT requiredSize;
 
+	CLIENT* client = (CLIENT*)stack->FileObject->FsContext;
+
+	if (!client)
+	{
+		Irp->IoStatus.Status = ret;
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+		return ret;
+	}
+
 	if (device->IsAdaptersList)
 	{
 		NdisAcquireSpinLock(AdapterList->Lock);
 
-		if(device->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
+		if(client->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
 		{
 			requiredSize = sizeof(struct PCAP_NDIS_ADAPTER_INFO);
 		} else
@@ -212,7 +245,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
 				}
 
-				if(device->BytesSent==0)
+				if(client->BytesSent==0)
 				{
 					PCAP_NDIS_ADAPTER_LIST_HDR hdr;
 					memcpy(hdr.Signature, SIGNATURE, 8);
@@ -223,12 +256,12 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					responseSize = requiredSize;
 				} else
 				{
-					ULONG size = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
+					ULONG size = sizeof(PCAP_NDIS_ADAPTER_INFO);
 
 					PLIST_ITEM item = AdapterList->First;
 					while (item)
 					{
-						if(size>=device->BytesSent)
+						if(size >= client->BytesSent)
 						{
 							PADAPTER adapter = (PADAPTER)item->Data;
 
@@ -245,17 +278,13 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 							break;
 						}
+
 						size += sizeof(PCAP_NDIS_ADAPTER_INFO);
 						item = item->Next;
 					}
 				}
 
-				device->BytesSent += responseSize;
-				if(responseSize ==0 && device->BytesSent>0)
-				{
-					device->BytesSent = 0;
-				}
-
+				client->BytesSent += responseSize;
 				ret = STATUS_SUCCESS;
 
 				if (mdl != NULL)
@@ -269,9 +298,6 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	}
 	else
 	{
-		// Adapter device
-		CLIENT* client = stack->FileObject->FsContext;
-
 		UCHAR *buf = Irp->UserBuffer;
 
 		UINT size = 0;
