@@ -27,6 +27,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
+#include <flt_dbg.h>
 
 //////////////////////////////////////////////////////////////////////
 // Device methods
@@ -34,6 +35,8 @@
 
 DEVICE* CreateDevice(char* name)
 {
+	DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
+
 	char deviceName[1024];
 	sprintf_s(deviceName, 1024, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
 
@@ -77,12 +80,16 @@ DEVICE* CreateDevice(char* name)
 
 	*((DEVICE **)device->Device->DeviceExtension) = device;
 	device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
+
+	DEBUGP(DL_TRACE, "<===CreateDevice\n");
+
 	return device;
 }
 
 // Delete a device
 BOOL FreeDevice(PDEVICE device)
 {
+	DEBUGP(DL_TRACE, "===>FreeDevice...\n");
 	if (device == NULL)
 	{
 		return FALSE;
@@ -95,6 +102,7 @@ BOOL FreeDevice(PDEVICE device)
 
 	FILTER_FREE_MEM(device);
 
+	DEBUGP(DL_TRACE, "<===CreateDevice\n");
 	return TRUE;
 }
 
@@ -104,6 +112,7 @@ BOOL FreeDevice(PDEVICE device)
 
 NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
+	DEBUGP(DL_TRACE, "===>Device_CreateHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
@@ -111,6 +120,7 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);		
+		DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=%d\n", ret);
 
 		return ret;
 	}
@@ -150,13 +160,26 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+	DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=%d\n", ret);
+
 	return ret;
 }
 
 NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
+	DEBUGP(DL_TRACE, "===>Device_CloseHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+	if(!device)
+	{
+		Irp->IoStatus.Status = ret;
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+		DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=%d\n", ret);
+		return ret;
+	}
+
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
 	if (device->IsAdaptersList)
@@ -183,6 +206,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+	DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=%d\n", ret);
 	return ret;
 }
 
@@ -191,6 +215,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
  */
 NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
+	DEBUGP(DL_TRACE, "===>Device_ReadHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
@@ -198,6 +223,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
 
 		return ret;
 	}
@@ -214,6 +240,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+		DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
 		return ret;
 	}
 
@@ -429,11 +456,14 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Information = responseSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+	DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
+
 	return ret;
 }
 
 NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
+	DEBUGP(DL_TRACE, "===>Device_WriteHandler...\n");
 	_CRT_UNUSED(DeviceObject);
 	//TODO: Support for packet injection!
 
@@ -441,13 +471,26 @@ NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = STATUS_UNSUCCESSFUL;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
+	DEBUGP(DL_TRACE, "<===Device_WriteHandler, ret=%d\n", STATUS_UNSUCCESSFUL);
+
 	return Irp->IoStatus.Status;
 }
 
 NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
+	DEBUGP(DL_TRACE, "===>Device_IoControlHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+	if (!device)
+	{
+		Irp->IoStatus.Status = ret;
+		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=%d\n", ret);
+
+		return ret;
+	}
+
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 	UINT ReturnSize = 0;
 
@@ -478,6 +521,8 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = ret;
 	Irp->IoStatus.Information = ReturnSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=%d\n", ret);
 
 	return ret;
 }

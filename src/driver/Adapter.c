@@ -45,6 +45,7 @@ UINT SelectedMediumIndex = 0;
 */
 BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size)
 {
+	DEBUGP(DL_TRACE, "===>SendOidRequest set=%d oid=%ul...\n", set, oid);
 	if (!adapter || !data || size <= 0)
 	{
 		return FALSE;
@@ -95,11 +96,13 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 		FILTER_FREE_MEM(request);
 	}
 
+	DEBUGP(DL_TRACE, "<===SendOidRequest ret=%d\n", ret);
 	return (ret == NDIS_STATUS_PENDING || ret == NDIS_STATUS_SUCCESS);	
 }
 
 BOOL FreeAdapter(ADAPTER* adapter)
 {
+	DEBUGP(DL_TRACE, "===>FreeAdapter...\n");
 	if (!adapter)
 	{
 		return FALSE;
@@ -110,11 +113,13 @@ BOOL FreeAdapter(ADAPTER* adapter)
 
 	FILTER_FREE_MEM(adapter);
 
+	DEBUGP(DL_TRACE, "<===FreeAdapter\n");
 	return TRUE;
 }
 
 BOOL FreeAdapterList(PLIST list)
 {
+	DEBUGP(DL_TRACE, "===>FreeAdapterList...\n");
 	NdisAcquireSpinLock(list->Lock);
 	PLIST_ITEM item = list->First;
 	while (item)
@@ -133,6 +138,7 @@ BOOL FreeAdapterList(PLIST list)
 
 	//TODO: possible memory leak if something is added to the list before it's released
 	FreeList(list);
+	DEBUGP(DL_TRACE, "<===FreeAdapterList\n");
 	return TRUE;
 }
 
@@ -163,6 +169,7 @@ LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
 
 NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDIS_HANDLE BindContext, PNDIS_BIND_PARAMETERS BindParameters)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_BindAdapterHandlerEx...\n");
 	_CRT_UNUSED(ProtocolDriverContext);
 
 	NDIS_STATUS ret = NDIS_STATUS_FAILURE;	
@@ -218,11 +225,13 @@ NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDI
 		}
 	}
 
+	DEBUGP(DL_TRACE, "<===Protocol_BindAdapterHandlerEx, ret=%d\n", ret);
 	return ret;
 }
 
 NDIS_STATUS Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HANDLE ProtocolBindingContext)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_UnbindAdapterHandlerEx...\n");
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
 	NDIS_HANDLE handle = adapter->AdapterHandle;
@@ -243,11 +252,15 @@ NDIS_STATUS Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HAND
 		Protocol_CloseAdapterCompleteHandlerEx(adapter);
 	}
 
+	DEBUGP(DL_TRACE, "<===Protocol_UnbindAdapterHandlerEx, ret=%d\n", ret);
+
 	return ret;
 }
 
 void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, NDIS_STATUS Status)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx...\n");
+
 	ADAPTER* adapter = (ADAPTER*) ProtocolBindingContext;
 	if (Status == STATUS_SUCCESS)
 	{
@@ -277,10 +290,13 @@ void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, N
 	{
 		NdisCompleteBindAdapterEx(adapter->BindContext, Status);
 	}
+
+	DEBUGP(DL_TRACE, "<===Protocol_UnbindAdapterHandlerEx\n");
 }
 
 void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
 	if (adapter->UnbindContext != NULL)
@@ -314,10 +330,12 @@ void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 	}
 
 	FreeAdapter(adapter);
+	DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
 }
 
 void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS_OID_REQUEST *OidRequest, NDIS_STATUS Status)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_OidRequestCompleteHandler...\n");
 	_CRT_UNUSED(Status);
 	if(!OidRequest)
 	{
@@ -339,6 +357,7 @@ void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS
 
 	FILTER_FREE_MEM(OidRequest);
 	InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
+	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%ul\n", adapter->PendingOidRequests);
 }
 
 void Protocol_ReceiveNetBufferListsHandler(
@@ -348,6 +367,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 	ULONG                   NumberOfNetBufferLists,
 	ULONG                   ReceiveFlags)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_ReceiveNetBufferListsHandler...\n");
 	_CRT_UNUSED(PortNumber);
 
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
@@ -441,10 +461,13 @@ void Protocol_ReceiveNetBufferListsHandler(
 	{
 		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
 	}
+
+	DEBUGP(DL_TRACE, "<===Protocol_ReceiveNetBufferListsHandler\n");
 }
 
 void Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNET_BUFFER_LIST NetBufferList, ULONG SendCompleteFlags)
 {
+	DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(SendCompleteFlags);
 
@@ -474,6 +497,7 @@ void Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingConte
 		InterlockedDecrement((volatile long*)&client->PendingSendPackets);
 		InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
 	}
+	DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
 }
 
 
@@ -481,6 +505,8 @@ NDIS_STATUS Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE
 {
 	_CRT_UNUSED(NdisDriverHandle);
 	_CRT_UNUSED(DriverContext);
+	DEBUGP(DL_TRACE, "===>Protocol_SetOptionsHandler...\n");
+	DEBUGP(DL_TRACE, "<===Protocol_SetOptionsHandler\n");
 	return NDIS_STATUS_SUCCESS; //TODO: ?
 }
 
@@ -488,18 +514,23 @@ NDIS_STATUS Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET
 {
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(NetPnPEventNotification);
+	DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
+	DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
 	return NDIS_STATUS_SUCCESS; //TODO: ?
 }
 
 void Protocol_UninstallHandler(VOID)
 {
-	
+	DEBUGP(DL_TRACE, "===>Protocol_UninstallHandler...\n");
+	DEBUGP(DL_TRACE, "<===Protocol_UninstallHandler\n");
 }
 
 void Protocol_StatusHandlerEx(NDIS_HANDLE ProtocolBindingContext, PNDIS_STATUS_INDICATION StatusIndication)
 {
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(StatusIndication);
+	DEBUGP(DL_TRACE, "===>Protocol_StatusHandlerEx...\n");
+	DEBUGP(DL_TRACE, "<===Protocol_StatusHandlerEx\n");
 }
 
 void Protocol_DirectOidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNDIS_OID_REQUEST OidRequest, NDIS_STATUS Status)
@@ -507,4 +538,6 @@ void Protocol_DirectOidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(OidRequest);
 	_CRT_UNUSED(Status);
+	DEBUGP(DL_TRACE, "===>Protocol_DirectOidRequestCompleteHandler...\n");
+	DEBUGP(DL_TRACE, "<===Protocol_DirectOidRequestCompleteHandler\n");
 }

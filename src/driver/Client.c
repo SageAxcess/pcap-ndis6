@@ -25,6 +25,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
+#include <flt_dbg.h>
 
 //////////////////////////////////////////////////////////////////////
 // Client methods
@@ -32,6 +33,7 @@
 
 PCLIENT CreateClient(PDEVICE device, PFILE_OBJECT fileObject)
 {
+	DEBUGP(DL_TRACE, "===>CreateClient...\n");
 	CLIENT* client = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(CLIENT));
 	NdisZeroMemory(client, sizeof(CLIENT));
 
@@ -57,11 +59,13 @@ PCLIENT CreateClient(PDEVICE device, PFILE_OBJECT fileObject)
 
 	AddToList(device->ClientList, client);
 
+	DEBUGP(DL_TRACE, "<===CreateClient\n");
 	return client;
 }
 
 BOOL FreeClient(PCLIENT client)
 {
+	DEBUGP(DL_TRACE, "===>FreeClient...\n");
 	if(!client)
 	{
 		return FALSE;
@@ -76,11 +80,13 @@ BOOL FreeClient(PCLIENT client)
 
 	FILTER_FREE_MEM(client);
 
+	DEBUGP(DL_TRACE, "<===FreeClient\n");
 	return TRUE;
 }
 
 void FreeClientList(PLIST list)
 {
+	DEBUGP(DL_TRACE, "===>FreeClientList...\n");
 	NdisAcquireSpinLock(list->Lock);
 	PLIST_ITEM item = list->First;
 	while(item)
@@ -99,4 +105,5 @@ void FreeClientList(PLIST list)
 
 	//TODO: possible memory leak if something is added to the list before it's released
 	FreeList(list);
+	DEBUGP(DL_TRACE, "<===FreeClientList\n");
 }
