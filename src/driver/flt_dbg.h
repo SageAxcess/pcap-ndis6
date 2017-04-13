@@ -102,7 +102,7 @@ extern INT                filterDebugLevel;
         {                                                               \
             if ((lev) <= filterDebugLevel)                              \
             {                                                           \
-                DbgPrint("NDISLWF: "); DbgPrint(__VA_ARGS__);           \
+                DbgPrint("PCAPNDIS6: "); DbgPrint(__VA_ARGS__);           \
             }                                                           \
         }
 

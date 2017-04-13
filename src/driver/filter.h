@@ -32,7 +32,7 @@
 #define FILTER_TAG                 'CpLf'
 
 #define FILTER_MAJOR_NDIS_VERSION   6
-#define FILTER_MINOR_NDIS_VERSION   1
+#define FILTER_MINOR_NDIS_VERSION   0
 
 DRIVER_INITIALIZE DriverEntry;
 

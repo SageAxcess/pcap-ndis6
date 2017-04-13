@@ -475,3 +475,36 @@ void Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingConte
 		InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
 	}
 }
+
+
+NDIS_STATUS Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE DriverContext)
+{
+	_CRT_UNUSED(NdisDriverHandle);
+	_CRT_UNUSED(DriverContext);
+	return NDIS_STATUS_SUCCESS; //TODO: ?
+}
+
+NDIS_STATUS Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
+{
+	_CRT_UNUSED(ProtocolBindingContext);
+	_CRT_UNUSED(NetPnPEventNotification);
+	return NDIS_STATUS_SUCCESS; //TODO: ?
+}
+
+void Protocol_UninstallHandler(VOID)
+{
+	
+}
+
+void Protocol_StatusHandlerEx(NDIS_HANDLE ProtocolBindingContext, PNDIS_STATUS_INDICATION StatusIndication)
+{
+	_CRT_UNUSED(ProtocolBindingContext);
+	_CRT_UNUSED(StatusIndication);
+}
+
+void Protocol_DirectOidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNDIS_OID_REQUEST OidRequest, NDIS_STATUS Status)
+{
+	_CRT_UNUSED(ProtocolBindingContext);
+	_CRT_UNUSED(OidRequest);
+	_CRT_UNUSED(Status);
+}

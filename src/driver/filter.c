@@ -57,7 +57,7 @@ DriverEntry(
 //    NDIS_STRING ServiceName  = RTL_CONSTANT_STRING(FILTER_SERVICE_NAME);
 //    NDIS_STRING UniqueName   = RTL_CONSTANT_STRING(FILTER_UNIQUE_NAME);
 //    NDIS_STRING DisplayName = RTL_CONSTANT_STRING(FILTER_DISPLAY_NAME);
-    NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
+//    NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -67,7 +67,10 @@ DriverEntry(
 
 	NDIS_PROTOCOL_DRIVER_CHARACTERISTICS pChars;
 	memset(&pChars, 0, sizeof(pChars));
+	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_1;
 	pChars.Header.Type = NDIS_OBJECT_TYPE_PROTOCOL_DRIVER_CHARACTERISTICS;
+	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_1;
+
 #if NDIS_SUPPORT_NDIS61
 	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
 	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
@@ -76,17 +79,22 @@ DriverEntry(
 	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
 #endif
 
-	pChars.MajorNdisVersion = FILTER_MAJOR_NDIS_VERSION;
-	pChars.MinorNdisVersion = FILTER_MINOR_NDIS_VERSION;
-	pChars.Name = ProtocolName;
+	pChars.MajorNdisVersion = 0x06;
+	pChars.MinorNdisVersion = 0x00;
+	//pChars.Name = ProtocolName;
 
+	pChars.SetOptionsHandler = Protocol_SetOptionsHandler;
 	pChars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
 	pChars.UnbindAdapterHandlerEx = Protocol_UnbindAdapterHandlerEx;
 	pChars.OpenAdapterCompleteHandlerEx = Protocol_OpenAdapterCompleteHandlerEx;
 	pChars.CloseAdapterCompleteHandlerEx = Protocol_CloseAdapterCompleteHandlerEx;
+	pChars.NetPnPEventHandler = Protocol_NetPnPEventHandler;
+	pChars.UninstallHandler = Protocol_UninstallHandler;
 	pChars.OidRequestCompleteHandler = Protocol_OidRequestCompleteHandler;
+	pChars.StatusHandlerEx = Protocol_StatusHandlerEx;
 	pChars.ReceiveNetBufferListsHandler = Protocol_ReceiveNetBufferListsHandler;
 	pChars.SendNetBufferListsCompleteHandler = Protocol_SendNetBufferListsCompleteHandler;
+	pChars.DirectOidRequestCompleteHandler = Protocol_DirectOidRequestCompleteHandler;
 
 	memset(DriverObject->MajorFunction, 0, sizeof(DriverObject->MajorFunction));
 
@@ -123,5 +131,4 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 	FreeAdapterList(AdapterList);
 	DEBUGP(DL_TRACE, "<===DriverUnload");
 }
-
 
