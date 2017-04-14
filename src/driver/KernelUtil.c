@@ -23,6 +23,7 @@
 
 #include "filter.h"
 #include "KernelUtil.h"
+#include <flt_dbg.h>
 
 ///////////////////////////////////////////////////
 // Lock helper functions
@@ -48,6 +49,11 @@ void FreeSpinLock(PNDIS_SPIN_LOCK lock)
 
 UNICODE_STRING* CreateString(const char* str)
 {
+	DEBUGP(DL_TRACE, "===>CreateString(%s)...\n", str);
+	if(!str)
+	{
+		return NULL;
+	}
 	UNICODE_STRING* string = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
 	NdisInitializeString(string, (unsigned char*)str);
 	return string;

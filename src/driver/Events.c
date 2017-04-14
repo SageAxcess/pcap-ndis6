@@ -28,6 +28,7 @@ volatile ULONG _curEventId = 0;
 
 EVENT* CreateEvent()
 {
+	DEBUGP(DL_TRACE, "===>CreateEvent...\n");
 	EVENT *event = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(EVENT));
 	if(!event)
 	{
@@ -43,6 +44,8 @@ EVENT* CreateEvent()
 	char name[1024];
 	sprintf(name, "\\BaseNamedObjects\\%s", event->Name);
 
+	DEBUGP(DL_TRACE, " event name %s\n", name);
+
 	PUNICODE_STRING name_u = CreateString(name);
 
 	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
@@ -50,15 +53,18 @@ EVENT* CreateEvent()
 	FreeString(name_u);
 
 	if (!event->Event)
-	{
-		
+	{		
 		FILTER_FREE_MEM(event);
 		
+		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
+
 		return NULL;
 	}
 
 	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
 	KeClearEvent(event->Event);
+
+	DEBUGP(DL_TRACE, "<===CreateEvent\n");
 
 	return event;
 }

@@ -63,6 +63,7 @@ DEVICE* CreateDevice(char* name)
 		FreeString(symlink_name_u);
 		return NULL;
 	}
+	NdisZeroMemory(device, sizeof(DEVICE));
 
 	device->Name = name_u;
 	device->OpenCloseLock = CreateSpinLock();
@@ -120,31 +121,34 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);		
-		DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=%d\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=0x%8x\n", ret);
 
 		return ret;
 	}
 
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	if (device->IsAdaptersList)
+	DEBUGP(DL_TRACE, " Acquire lock at 0x%8x, adapter=0x%8x, stack=0x%8x\n", device->OpenCloseLock, device->Adapter, stack);
+	NdisAcquireSpinLock(device->OpenCloseLock);
+	DEBUGP(DL_TRACE, "    lock acquired\n");
+	if(device->Adapter!=NULL && !device->Adapter->Ready)
 	{
-		// Basic device
+		DEBUGP(DL_TRACE, "    adapter is not ready!!!\n");
+	}
+	if (device->IsAdaptersList || (device->Adapter != NULL && device->Adapter->Ready))
+	{
+		DEBUGP(DL_TRACE, "    before create client\n");
+		CLIENT* client = CreateClient(device, stack->FileObject);
+		DEBUGP(DL_TRACE, "    client created\n");
+		stack->FileObject->FsContext = client;
+		DEBUGP(DL_TRACE, "    context set\n");
+
 		ret = STATUS_SUCCESS;
 	}
-	else
+	NdisReleaseSpinLock(device->OpenCloseLock);
+
+	if (!device->IsAdaptersList)
 	{
-		NdisAcquireSpinLock(device->OpenCloseLock);
-		
-		if (device->Adapter != NULL && device->Adapter->Ready)
-		{
-			CLIENT* client = CreateClient(device, stack->FileObject);
-			stack->FileObject->FsContext = client;			
-
-			ret = STATUS_SUCCESS;
-		}
-		NdisReleaseSpinLock(device->OpenCloseLock);
-
 		if (ret == STATUS_SUCCESS)
 		{
 			UINT filter = NDIS_PACKET_TYPE_PROMISCUOUS;
@@ -160,7 +164,7 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=0x%8x\n", ret);
 
 	return ret;
 }
@@ -176,7 +180,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-		DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=%d\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=0x%8x\n", ret);
 		return ret;
 	}
 
@@ -206,7 +210,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=0x%8x\n", ret);
 	return ret;
 }
 
@@ -223,7 +227,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_ReadHandler, no device ret=0x%8x\n", ret);
 
 		return ret;
 	}
@@ -240,7 +244,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-		DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_ReadHandler, no client ret=0x%8x\n", ret);
 		return ret;
 	}
 
@@ -255,6 +259,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		{
 			requiredSize = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
 		}
+
+		DEBUGP(DL_TRACE, "  sent %u bytes to client, now need %u for buffer. Client provided %u\n", client->BytesSent, requiredSize, stack->Parameters.Read.Length);
 
 		if (stack->Parameters.Read.Length >= requiredSize)
 		{
@@ -272,6 +278,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
 				}
 
+				BOOL last = FALSE;
+
 				if(client->BytesSent==0)
 				{
 					PCAP_NDIS_ADAPTER_LIST_HDR hdr;
@@ -279,6 +287,13 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 					hdr.Count = AdapterList->Size;
 
 					RtlCopyBytes(dst, &hdr, requiredSize);
+
+					DEBUGP(DL_TRACE, "  there are %u adapters\n", hdr.Count);
+
+					if(hdr.Count==0)
+					{
+						last = TRUE;
+					}
 
 					responseSize = requiredSize;
 				} else
@@ -291,6 +306,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 						if(size >= client->BytesSent)
 						{
 							PADAPTER adapter = (PADAPTER)item->Data;
+
+							DEBUGP(DL_TRACE, "  returning adapter %s %s\n", adapter->AdapterId, adapter->DisplayName);
 
 							PCAP_NDIS_ADAPTER_INFO info;
 							RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
@@ -309,9 +326,21 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 						size += sizeof(PCAP_NDIS_ADAPTER_INFO);
 						item = item->Next;
 					}
+
+					if (item==NULL || item->Next==NULL)
+					{
+						last = TRUE;
+					}
 				}
 
-				client->BytesSent += responseSize;
+				if(last)
+				{
+					client->BytesSent = 0;
+				}
+				else {
+					client->BytesSent += responseSize;
+				}
+
 				ret = STATUS_SUCCESS;
 
 				if (mdl != NULL)
@@ -456,7 +485,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Information = responseSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=0x%8x\n", ret);
 
 	return ret;
 }
@@ -471,7 +500,7 @@ NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	Irp->IoStatus.Status = STATUS_UNSUCCESSFUL;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_WriteHandler, ret=%d\n", STATUS_UNSUCCESSFUL);
+	DEBUGP(DL_TRACE, "<===Device_WriteHandler, ret=0x%8x\n", STATUS_UNSUCCESSFUL);
 
 	return Irp->IoStatus.Status;
 }
@@ -486,7 +515,7 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=%d\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=0x%8x\n", ret);
 
 		return ret;
 	}
@@ -522,7 +551,7 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Information = ReturnSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=0x%8x\n", ret);
 
 	return ret;
 }

@@ -45,7 +45,7 @@ UINT SelectedMediumIndex = 0;
 */
 BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size)
 {
-	DEBUGP(DL_TRACE, "===>SendOidRequest set=%d oid=%ul...\n", set, oid);
+	DEBUGP(DL_TRACE, "===>SendOidRequest set=%d oid=%u...\n", set, oid);
 	if (!adapter || !data || size <= 0)
 	{
 		return FALSE;
@@ -96,7 +96,7 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 		FILTER_FREE_MEM(request);
 	}
 
-	DEBUGP(DL_TRACE, "<===SendOidRequest ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===SendOidRequest ret=0x%8x\n", ret);
 	return (ret == NDIS_STATUS_PENDING || ret == NDIS_STATUS_SUCCESS);	
 }
 
@@ -225,7 +225,7 @@ NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDI
 		}
 	}
 
-	DEBUGP(DL_TRACE, "<===Protocol_BindAdapterHandlerEx, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Protocol_BindAdapterHandlerEx, ret=0x%8x\n", ret);
 	return ret;
 }
 
@@ -252,14 +252,14 @@ NDIS_STATUS Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HAND
 		Protocol_CloseAdapterCompleteHandlerEx(adapter);
 	}
 
-	DEBUGP(DL_TRACE, "<===Protocol_UnbindAdapterHandlerEx, ret=%d\n", ret);
+	DEBUGP(DL_TRACE, "<===Protocol_UnbindAdapterHandlerEx, ret=0x%8x\n", ret);
 
 	return ret;
 }
 
 void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, NDIS_STATUS Status)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx...\n");
+	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx status=0x%8x...\n", Status);
 
 	ADAPTER* adapter = (ADAPTER*) ProtocolBindingContext;
 	if (Status == STATUS_SUCCESS)
@@ -357,7 +357,7 @@ void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS
 
 	FILTER_FREE_MEM(OidRequest);
 	InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
-	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%ul\n", adapter->PendingOidRequests);
+	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%u\n", adapter->PendingOidRequests);
 }
 
 void Protocol_ReceiveNetBufferListsHandler(
