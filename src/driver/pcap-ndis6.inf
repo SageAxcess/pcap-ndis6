@@ -29,9 +29,7 @@ DriverVer       = 20/03/2017,1.0.0.0
 ;-------------------------------------------------------------------------
 [PcapNdis6_Install]
 AddReg=Inst_Ndi
-; All LWFs must include the 0x40000 bit (NCF_LW_FILTER). Unlike miniports, you
-; don't usually need to customize this value.
-Characteristics=0x40000
+Characteristics	= 0x4080
 NetCfgInstanceId="{37195A99-7BC5-4C82-B00A-553C75C0AA1A}"
 Copyfiles = pcap_ndis6.copyfiles.sys
 
@@ -59,10 +57,9 @@ HKR, Ndi,FilterType,0x00010001,2
 
 ; Do not change these values
 HKR, Ndi\Interfaces,UpperRange,,"noupper"
-HKR, Ndi\Interfaces,LowerRange,,"nolower"
-
-HKR, Ndi\Interfaces, FilterMediaTypes,,"ethernet, fddi, wan, ppip, wlan, bluetooth, ndis5, vwifi, flpp4, flpp6, vchannel, nolower"
-HKR, Ndi,FilterRunType,0x00010001, 2 ; Optional filter
+HKR, Ndi\Interfaces,LowerRange,,"ndis5,ndis4"
+;HKR, Ndi\Interfaces, FilterMediaTypes,,"ethernet, fddi, wan, ppip, wlan, bluetooth, ndis5, vwifi, flpp4, flpp6, vchannel, nolower"
+;HKR, Ndi,FilterRunType,0x00010001, 2 ; Optional filter
 
 ;-------------------------------------------------------------------------
 ; Service installation support

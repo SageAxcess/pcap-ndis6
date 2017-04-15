@@ -208,7 +208,9 @@ NDIS_STATUS Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDI
 
 		ANSI_STRING adapterIdStr;
 		RtlUnicodeStringToAnsiString(&adapterIdStr, adapter->Name, TRUE);
-		RtlCopyBytes(adapter->AdapterId, adapterIdStr.Buffer, adapterIdStr.Length > 1023 ? 1023 : adapterIdStr.Length);		
+		if (adapter->Name->Length > 8) {
+			RtlCopyBytes(adapter->AdapterId, adapterIdStr.Buffer + 8, adapterIdStr.Length > 1030 ? 1023 : adapterIdStr.Length - 8);
+		}
 
 		RtlCopyBytes(adapter->MacAddress, BindParameters->CurrentMacAddress, 6);
 
@@ -512,9 +514,22 @@ NDIS_STATUS Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE
 
 NDIS_STATUS Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
 {
-	_CRT_UNUSED(ProtocolBindingContext);
-	_CRT_UNUSED(NetPnPEventNotification);
+	_CRT_UNUSED(ProtocolBindingContext);	;
 	DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
+
+	if (NetPnPEventNotification != NULL)
+	{
+		if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventBindsComplete)
+		{
+			DEBUGP(DL_TRACE, "   finished binding adapters!\n");
+		}
+
+		if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventSetPower)
+		{
+			DEBUGP(DL_TRACE, "   power up adapter\n");
+		}
+	}
+
 	DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
 	return NDIS_STATUS_SUCCESS; //TODO: ?
 }

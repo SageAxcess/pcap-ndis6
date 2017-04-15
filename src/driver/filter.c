@@ -57,7 +57,7 @@ DriverEntry(
 //    NDIS_STRING ServiceName  = RTL_CONSTANT_STRING(FILTER_SERVICE_NAME);
 //    NDIS_STRING UniqueName   = RTL_CONSTANT_STRING(FILTER_UNIQUE_NAME);
 //    NDIS_STRING DisplayName = RTL_CONSTANT_STRING(FILTER_DISPLAY_NAME);
-//    NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
+    NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -66,22 +66,16 @@ DriverEntry(
     FilterDriverObject = DriverObject;
 
 	NDIS_PROTOCOL_DRIVER_CHARACTERISTICS pChars;
-	memset(&pChars, 0, sizeof(pChars));
-	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_1;
+	NdisZeroMemory(&pChars, sizeof(NDIS_PROTOCOL_DRIVER_CHARACTERISTICS));
+
 	pChars.Header.Type = NDIS_OBJECT_TYPE_PROTOCOL_DRIVER_CHARACTERISTICS;
-	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_1;
 
-#if NDIS_SUPPORT_NDIS61
 	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
 	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-#else
-	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-#endif
 
-	pChars.MajorNdisVersion = 0x06;
-	pChars.MinorNdisVersion = 0x00;
-	//pChars.Name = ProtocolName;
+	pChars.MajorNdisVersion = 6;
+	pChars.MinorNdisVersion = 20;
+	pChars.Name = ProtocolName;
 
 	pChars.SetOptionsHandler = Protocol_SetOptionsHandler;
 	pChars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
@@ -96,7 +90,9 @@ DriverEntry(
 	pChars.SendNetBufferListsCompleteHandler = Protocol_SendNetBufferListsCompleteHandler;
 	pChars.DirectOidRequestCompleteHandler = Protocol_DirectOidRequestCompleteHandler;
 
-	memset(DriverObject->MajorFunction, 0, sizeof(DriverObject->MajorFunction));
+	Status = NdisRegisterProtocolDriver(NULL, &pChars, &FilterProtocolHandle);
+
+	NdisZeroMemory(DriverObject->MajorFunction, sizeof(DriverObject->MajorFunction));
 
 	DriverObject->MajorFunction[IRP_MJ_CREATE] = Device_CreateHandler;
 	DriverObject->MajorFunction[IRP_MJ_CLOSE] = Device_CloseHandler;
@@ -107,9 +103,14 @@ DriverEntry(
 	DriverObject->DriverUnload = DriverUnload;
 	AdapterList = CreateList();
 	ListAdaptersDevice = CreateDevice(ADAPTER_NAME_FORLIST);
-	ListAdaptersDevice->IsAdaptersList = TRUE;
+	if (ListAdaptersDevice) {
+		ListAdaptersDevice->IsAdaptersList = TRUE;
+	}
 
-	Status = NdisRegisterProtocolDriver(NULL, &pChars, &FilterProtocolHandle);
+	if(Status!=NDIS_STATUS_SUCCESS)
+	{
+		DriverUnload(DriverObject);
+	}
 
     DEBUGP(DL_TRACE, "<===DriverEntry, Status = %8x\n", Status);
     return Status;
