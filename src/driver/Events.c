@@ -48,7 +48,16 @@ EVENT* CreateEvent()
 
 	PUNICODE_STRING name_u = CreateString(name);
 
+	if(!name_u)
+	{
+		DEBUGP(DL_TRACE, "<===CreateEvent failed to alloc string\n");
+		FILTER_FREE_MEM(event);
+		return NULL;
+	}
+
+	DEBUGP(DL_TRACE, "  calling IoCreateNotificationEvent\n");
 	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
+	DEBUGP(DL_TRACE, "  free event name string\n");
 
 	FreeString(name_u);
 
@@ -61,7 +70,9 @@ EVENT* CreateEvent()
 		return NULL;
 	}
 
+	DEBUGP(DL_TRACE, "  initialize event\n");
 	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
+	DEBUGP(DL_TRACE, "  reset event\n");
 	KeClearEvent(event->Event);
 
 	DEBUGP(DL_TRACE, "<===CreateEvent\n");

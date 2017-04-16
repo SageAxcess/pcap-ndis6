@@ -55,13 +55,25 @@ UNICODE_STRING* CreateString(const char* str)
 		return NULL;
 	}
 	UNICODE_STRING* string = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
+	if(!string)
+	{
+		return NULL;
+	}
+	NdisZeroMemory(string, sizeof(UNICODE_STRING));
 	NdisInitializeString(string, (unsigned char*)str);
+
+	DEBUGP(DL_TRACE, "<===CreateString\n");
 	return string;
 }
 
 UNICODE_STRING* CopyString(PUNICODE_STRING string)
 {
 	UNICODE_STRING* res = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
+	if(!res)
+	{
+		return NULL;
+	}
+	res->Length = 0;
 	res->MaximumLength = string->MaximumLength;
 	res->Buffer = FILTER_ALLOC_MEM(FilterDriverObject, string->MaximumLength);
 	RtlUnicodeStringCopy(res, string);

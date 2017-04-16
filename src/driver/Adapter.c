@@ -386,8 +386,9 @@ void Protocol_ReceiveNetBufferListsHandler(
 		NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
 	}
 
-	if (adapter->Device == NULL || adapter->Ready == FALSE || adapter->AdapterHandle == NULL)
+	if (adapter==NULL || adapter->Device == NULL || adapter->Ready == FALSE || adapter->AdapterHandle == NULL)
 	{
+		DEBUGP(DL_TRACE, " no adapter or it's not ready, exiting\n");
 		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
 		return;
 	}
