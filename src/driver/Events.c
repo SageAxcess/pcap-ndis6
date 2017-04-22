@@ -55,16 +55,16 @@ EVENT* CreateEvent()
 		return NULL;
 	}
 
+	DEBUGP(DL_TRACE, " event name unicode = 0x%08x, handle=0x%08x\n", name, event->EventHandle);
+
 	DEBUGP(DL_TRACE, "  calling IoCreateNotificationEvent\n");
 	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
-	DEBUGP(DL_TRACE, "  free event name string\n");
-
-	FreeString(name_u);
 
 	if (!event->Event)
 	{		
 		FILTER_FREE_MEM(event);
-		
+		FreeString(name_u);
+
 		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
 
 		return NULL;
@@ -74,6 +74,9 @@ EVENT* CreateEvent()
 	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
 	DEBUGP(DL_TRACE, "  reset event\n");
 	KeClearEvent(event->Event);
+
+	DEBUGP(DL_TRACE, "  free event name string\n");
+	FreeString(name_u);
 
 	DEBUGP(DL_TRACE, "<===CreateEvent\n");
 

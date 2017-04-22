@@ -31,7 +31,7 @@ typedef struct EVENT
 {
 	char Name[1024];
 	PKEVENT Event;
-	NDIS_HANDLE EventHandle;
+	HANDLE EventHandle;
 } EVENT;
 typedef struct EVENT* PEVENT;
 

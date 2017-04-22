@@ -125,6 +125,13 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 		return ret;
 	}
+	
+	if (device->Adapter) {
+		DEBUGP(DL_TRACE, "  opened device for adapter %s %s\n", device->Adapter->AdapterId, device->Adapter->DisplayName);
+	} else
+	{
+		DEBUGP(DL_TRACE, "  opened device for adapter list\n");
+	}
 
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
@@ -197,10 +204,9 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 
 		if (client)
 		{
-			NdisAcquireSpinLock(device->OpenCloseLock);
-			RemoveFromListByData(device->ClientList, client);
-			NdisReleaseSpinLock(device->OpenCloseLock);
+			DEBUGP(DL_TRACE, "   acquire lock for client list and remove\n");
 
+			RemoveFromListByData(device->ClientList, client);
 			FreeClient(client);
 
 			ret = STATUS_SUCCESS;
@@ -356,16 +362,22 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		UCHAR *buf = Irp->UserBuffer;
 
+		DEBUGP(DL_TRACE, "  client provided buf 0x%08x, acquire lock 0x%08x\n", buf, client->ReadLock);
+
 		UINT size = 0;
 		NdisAcquireSpinLock(client->ReadLock);
 
 		PLIST_ITEM item = client->PacketList->First;
 
+		DEBUGP(DL_TRACE, "  found item in list = 0x%08x\n", item);
+
 		if(item)
 		{
 			PPACKET packet = (PPACKET)item->Data;
 
-			BOOL header = stack->Parameters.Read.Length == sizeof(PACKET_HDR); //client wants to read header			
+			BOOL header = stack->Parameters.Read.Length == sizeof(PACKET_HDR); //client wants to read header
+
+			DEBUGP(DL_TRACE, "  client provided %u buffer size, header=%u\n", stack->Parameters.Read.Length, header);
 
 			if(header)
 			{
@@ -386,6 +398,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 			if(header) 
 			{
+				DEBUGP(DL_TRACE, "  sending header, size=%u, packet size=%u\n", size, packet->Size);
 
 				PACKET_HDR hdr;
 				hdr.Size = packet->Size;
@@ -394,6 +407,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 				RtlCopyBytes(buf, &hdr, sizeof(PACKET_HDR));
 			} else
 			{
+				DEBUGP(DL_TRACE, "  sending data, size=%u, packet size=%u\n", size, packet->Size);
 				RtlCopyBytes(buf, packet->Data, packet->Size);
 
 				RemoveFromList(client->PacketList, item);
@@ -515,7 +529,7 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=0x%8x\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, no device, ret=0x%8x\n", ret);
 
 		return ret;
 	}
@@ -526,8 +540,18 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	if (!device->IsAdaptersList)
 	{
 		CLIENT* client = stack->FileObject->FsContext;
+		if(!client)
+		{
+			Irp->IoStatus.Status = ret;
+			IoCompleteRequest(Irp, IO_NO_INCREMENT);
+			DEBUGP(DL_TRACE, "<===Device_IoControlHandler, no client, ret=0x%8x\n", ret);
 
-		UINT size = (UINT)strlen(client->Event->Name) + 1;		
+			return ret;
+		}
+
+		UINT size = (UINT)strlen(client->Event->Name) + 1;
+		DEBUGP(DL_TRACE, "    event name length=%u, client provided %u\n", size, stack->Parameters.DeviceIoControl.OutputBufferLength);
+
 		if (stack->Parameters.DeviceIoControl.IoControlCode == IOCTL_GET_EVENT_NAME)
 		{
 			if (stack->Parameters.DeviceIoControl.OutputBufferLength >=size)
@@ -551,7 +575,7 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Information = ReturnSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, ret=0x%8x\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, size=%u, ret=0x%8x\n", ReturnSize, ret);
 
 	return ret;
 }

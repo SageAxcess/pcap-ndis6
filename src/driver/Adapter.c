@@ -393,8 +393,10 @@ void Protocol_ReceiveNetBufferListsHandler(
 		return;
 	}
 
+	DEBUGP(DL_TRACE, "   acquire lock for client list\n");
 	NdisAcquireSpinLock(adapter->Device->ClientList->Lock); // No more clients while sending packets
 
+	DEBUGP(DL_TRACE, "   iterate clients and lock each\n");
 	// Lock all client receiving queues
 	PLIST_ITEM item = adapter->Device->ClientList->First;
 	while (item)
@@ -406,15 +408,20 @@ void Protocol_ReceiveNetBufferListsHandler(
 
 	UCHAR buf[MAX_PACKET_SIZE];
 
+	DEBUGP(DL_TRACE, "   iterate lists\n");
+
 	PNET_BUFFER_LIST nbl = NetBufferLists;
 	while (nbl)
 	{
 		NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(nbl);
 		//TODO: Support for IEEE802.1Q
 
+		DEBUGP(DL_TRACE, "   iterate buffers\n");
 		while (nb)
 		{
 			UINT size = NET_BUFFER_DATA_LENGTH(nb);
+
+			DEBUGP(DL_TRACE, "     buffer size %u\n", size);
 
 			if(size>0 && size<MAX_PACKET_SIZE) //TODO: it seems we lose packets here
 			{				
@@ -428,6 +435,8 @@ void Protocol_ReceiveNetBufferListsHandler(
 					while (item)
 					{
 						CLIENT* client = (CLIENT*)item->Data;
+
+						DEBUGP(DL_TRACE, "   adding packet to client, size=%u\n", client->PacketList->Size);
 
 						if (client->PacketList->Size<MAX_PACKET_QUEUE_SIZE) //TODO: it seems we lose packets here
 						{
@@ -446,18 +455,20 @@ void Protocol_ReceiveNetBufferListsHandler(
 	}
 
 	
+	DEBUGP(DL_TRACE, "   releasing lock for clients and set event\n");
 	// Unlock client receiving queues and set event
 	item = adapter->Device->ClientList->First;
 	while (item)
 	{
 		CLIENT* client = (CLIENT*)item->Data;
-		NdisAcquireSpinLock(client->PacketList->Lock);
+		NdisReleaseSpinLock(client->PacketList->Lock);
 
 		KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 
 		item = item->Next;
 	}
 
+	DEBUGP(DL_TRACE, "   release lock for client list\n");
 	NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
 
 	if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
