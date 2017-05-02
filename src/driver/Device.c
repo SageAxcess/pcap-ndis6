@@ -126,12 +126,12 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		return ret;
 	}
 	
-	if (device->Adapter) {
+	//if (device->Adapter) {
 		DEBUGP(DL_TRACE, "  opened device for adapter %s %s\n", device->Adapter->AdapterId, device->Adapter->DisplayName);
-	} else
-	{
+	//} else
+	//{
 		DEBUGP(DL_TRACE, "  opened device for adapter list\n");
-	}
+	//}
 
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
@@ -187,31 +187,35 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-		DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=0x%8x\n", ret);
+		DEBUGP(DL_TRACE, "<===Device_CloseHandler (no handler), ret=0x%8x\n", ret);
 		return ret;
 	}
 
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
+	NdisAcquireSpinLock(device->OpenCloseLock);
 	if (device->IsAdaptersList)
 	{
+		DEBUGP(DL_TRACE, "   closing all adapters list device\n");
 		ret = STATUS_SUCCESS;
 	}
 	else
 	{
+		DEBUGP(DL_TRACE, "   closing adapter device\n");
 		// Adapter device
 		PCLIENT client = (PCLIENT)stack->FileObject->FsContext;
 
 		if (client)
 		{
 			DEBUGP(DL_TRACE, "   acquire lock for client list and remove\n");
-
-			RemoveFromListByData(device->ClientList, client);
 			FreeClient(client);
+
+			stack->FileObject->FsContext = NULL;
 
 			ret = STATUS_SUCCESS;
 		}
 	}
+	NdisReleaseSpinLock(device->OpenCloseLock);
 
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);

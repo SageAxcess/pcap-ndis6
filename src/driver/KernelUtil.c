@@ -38,6 +38,10 @@ NDIS_SPIN_LOCK *CreateSpinLock()
 
 void FreeSpinLock(PNDIS_SPIN_LOCK lock)
 {
+	if(!lock)
+	{
+		return;
+	}
 	FILTER_FREE_LOCK(lock);
 	FILTER_FREE_MEM(lock);
 }
@@ -68,6 +72,11 @@ UNICODE_STRING* CreateString(const char* str)
 
 UNICODE_STRING* CopyString(PUNICODE_STRING string)
 {
+	if(!string)
+	{
+		return NULL;
+	}
+
 	UNICODE_STRING* res = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
 	if(!res)
 	{
@@ -82,6 +91,11 @@ UNICODE_STRING* CopyString(PUNICODE_STRING string)
 
 void FreeString(UNICODE_STRING* string)
 {
+	if(!string)
+	{
+		return;
+	}
+
 	NdisFreeString(*string);
 	FILTER_FREE_MEM(string);
 }

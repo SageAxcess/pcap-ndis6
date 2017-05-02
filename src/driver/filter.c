@@ -133,3 +133,24 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 	DEBUGP(DL_TRACE, "<===DriverUnload");
 }
 
+PVOID FilterAllocMem(NDIS_HANDLE NdisHandle, UINT Size)
+{
+	_CRT_UNUSED(NdisHandle);
+
+	PVOID Result = NULL;
+	NDIS_STATUS ret = NdisAllocateMemoryWithTag(&Result, Size, FILTER_ALLOC_TAG);
+	if(ret!=NDIS_STATUS_SUCCESS)
+	{
+		return NULL;
+	}
+
+	DEBUGP(DL_TRACE, "FilterAllocMem, size=%u, result=0x%08x\n", Size, Result);
+
+	return Result;
+}
+
+void FilterFreeMem(PVOID Data)
+{
+	DEBUGP(DL_TRACE, "FilterAllocMem 0x%08x\n", Data);
+	NdisFreeMemory(Data, 0, 0);
+}

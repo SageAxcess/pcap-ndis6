@@ -21,6 +21,7 @@
 #include "filter.h"
 #include "List.h"
 #include "KernelUtil.h"
+#include <flt_dbg.h>
 
 LIST* CreateList()
 {
@@ -32,6 +33,11 @@ LIST* CreateList()
 
 void FreeList(LIST* list) //TODO: possible memory leak if you don't release data
 {
+	if(!list)
+	{
+		return;
+	}
+
 	NdisAcquireSpinLock(list->Lock);
 
 	LIST_ITEM* cur = list->First;
@@ -75,6 +81,11 @@ PLIST_ITEM AddToList(LIST* list, void* data)
 
 BOOL RemoveFromList(LIST* list, PLIST_ITEM item)
 {
+	if(!item || !list)
+	{
+		return FALSE;
+	}
+	DEBUGP(DL_TRACE, "===>RemoveFromList\n");
 	BOOL res = TRUE;
 	NdisAcquireSpinLock(list->Lock);
 
@@ -108,11 +119,14 @@ BOOL RemoveFromList(LIST* list, PLIST_ITEM item)
 	}
 
 	NdisReleaseSpinLock(list->Lock);
+	DEBUGP(DL_TRACE, "<===RemoveFromList, size=%u, res=%u\n", list->Size, res);
 	return res;
 }
 
 BOOL RemoveFromListByData(LIST* list, PVOID data)
 {
+	DEBUGP(DL_TRACE, "===>RemoveFromListByData\n");
+
 	BOOL res = FALSE;
 	NdisAcquireSpinLock(list->Lock);
 
@@ -120,6 +134,8 @@ BOOL RemoveFromListByData(LIST* list, PVOID data)
 	PLIST_ITEM cur = list->First;
 	while(cur)
 	{
+		DEBUGP(DL_TRACE, "  item data=0x%08x, compare to 0x%08x\n", cur->Data, data);
+
 		if(cur->Data==data)
 		{
 			item = cur;
@@ -135,6 +151,8 @@ BOOL RemoveFromListByData(LIST* list, PVOID data)
 	{
 		res = RemoveFromList(list, item);
 	}
+
+	DEBUGP(DL_TRACE, "<=== RemoveFromListByData, res=%u\n", res);
 
 	return res;
 }

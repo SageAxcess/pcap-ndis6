@@ -76,6 +76,9 @@ BOOL FreeClient(PCLIENT client)
 
 	FreeEvent(client->Event);
 	FreeSpinLock(client->ReadLock);
+
+	DEBUGP(DL_TRACE, "releaseing net buffer list pool 0x%08x\n", client->NetBufferListPool);
+
 	NdisFreeNetBufferListPool(client->NetBufferListPool);
 
 	FILTER_FREE_MEM(client);

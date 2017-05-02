@@ -49,9 +49,14 @@ extern PDEVICE_OBJECT      NdisDeviceObject;
 #define   FILTER_LOG_RCV_REF(_O, _Instance, _NetBufferList, _Ref)
 #define   FILTER_LOG_SEND_REF(_O, _Instance, _NetBufferList, _Ref)
 
+PVOID FilterAllocMem(NDIS_HANDLE NdisHandle, UINT Size);
+void FilterFreeMem(PVOID Data);
+
 #define FILTER_ALLOC_MEM(_NdisHandle, _Size)     \
-    NdisAllocateMemoryWithTagPriority(_NdisHandle, _Size, FILTER_ALLOC_TAG, LowPoolPriority)
-#define FILTER_FREE_MEM(_pMem)    NdisFreeMemory(_pMem, 0, 0)
+    FilterAllocMem(_NdisHandle, _Size)
+//    NdisAllocateMemoryWithTagPriority(_NdisHandle, _Size, FILTER_ALLOC_TAG, LowPoolPriority)
+#define FILTER_FREE_MEM(_pMem)    FilterFreeMem(_pMem)
+//NdisFreeMemory(_pMem, 0, 0)
 #define FILTER_INIT_LOCK(_pLock)      NdisAllocateSpinLock(_pLock)
 #define FILTER_FREE_LOCK(_pLock)      NdisFreeSpinLock(_pLock)
 

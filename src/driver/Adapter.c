@@ -89,7 +89,7 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 	{
 		InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
 
-		if (set)
+		if (set && request->DATA.SET_INFORMATION.InformationBuffer)
 		{
 			FILTER_FREE_MEM(request->DATA.SET_INFORMATION.InformationBuffer);
 		}
@@ -352,7 +352,7 @@ void Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS
 		canRelease = FALSE;
 	}
 
-	if (canRelease)
+	if (canRelease && OidRequest->DATA.SET_INFORMATION.InformationBuffer)
 	{
 		FILTER_FREE_MEM(OidRequest->DATA.SET_INFORMATION.InformationBuffer);
 	}
@@ -371,7 +371,6 @@ void Protocol_ReceiveNetBufferListsHandler(
 {
 	DEBUGP(DL_TRACE, "===>Protocol_ReceiveNetBufferListsHandler...\n");
 	_CRT_UNUSED(PortNumber);
-
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
 	if (NetBufferLists == NULL || NumberOfNetBufferLists == 0)
@@ -386,9 +385,13 @@ void Protocol_ReceiveNetBufferListsHandler(
 		NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
 	}
 
-	if (adapter==NULL || adapter->Device == NULL || adapter->Ready == FALSE || adapter->AdapterHandle == NULL)
+	if (adapter==NULL || adapter->AdapterHandle == NULL)
 	{
-		DEBUGP(DL_TRACE, " no adapter or it's not ready, exiting\n");
+		return;
+	}
+
+	if(adapter->Ready==FALSE || adapter->Device == NULL)
+	{
 		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
 		return;
 	}
@@ -406,10 +409,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 		item = item->Next;
 	}
 
-	UCHAR buf[MAX_PACKET_SIZE];
-
 	DEBUGP(DL_TRACE, "   iterate lists\n");
-
 	PNET_BUFFER_LIST nbl = NetBufferLists;
 	while (nbl)
 	{
@@ -422,10 +422,9 @@ void Protocol_ReceiveNetBufferListsHandler(
 			UINT size = NET_BUFFER_DATA_LENGTH(nb);
 
 			DEBUGP(DL_TRACE, "     buffer size %u\n", size);
-
 			if(size>0 && size<MAX_PACKET_SIZE) //TODO: it seems we lose packets here
 			{				
-				UCHAR *ptr = NdisGetDataBuffer(nb, size, &buf, 1, 0);
+				UCHAR *ptr = NdisGetDataBuffer(nb, size, adapter->TmpBuf, 1, 0);
 
 				if (ptr != NULL)
 				{
@@ -437,7 +436,6 @@ void Protocol_ReceiveNetBufferListsHandler(
 						CLIENT* client = (CLIENT*)item->Data;
 
 						DEBUGP(DL_TRACE, "   adding packet to client, size=%u\n", client->PacketList->Size);
-
 						if (client->PacketList->Size<MAX_PACKET_QUEUE_SIZE) //TODO: it seems we lose packets here
 						{
 							AddToList(client->PacketList, CreatePacket(ptr, size, timestamp));

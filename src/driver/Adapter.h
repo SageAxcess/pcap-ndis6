@@ -50,6 +50,8 @@ typedef struct ADAPTER {
 
 	volatile ULONG PendingOidRequests;
 	volatile ULONG PendingSendPackets;
+
+	char TmpBuf[MAX_PACKET_SIZE];
 } ADAPTER;
 typedef const ADAPTER *PADAPTER;
 
