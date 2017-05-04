@@ -42,6 +42,7 @@ PCLIENT CreateClient(PDEVICE device, PFILE_OBJECT fileObject)
 	client->Event = CreateEvent();
 	client->ReadLock = CreateSpinLock();
 	client->BytesSent = 0;
+	client->PacketList = CreateList();
 
 	NET_BUFFER_LIST_POOL_PARAMETERS parameters;
 	memset(&parameters, 0, sizeof(NET_BUFFER_LIST_POOL_PARAMETERS));
