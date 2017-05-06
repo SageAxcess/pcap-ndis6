@@ -228,8 +228,8 @@ typedef struct _ADAPTER  {
 
 	UINT CurrentTimeout;
 
-	struct bpf_program *Filter;
 	struct MUTEX *FilterLock;
+	struct bpf_program *Filter;	
 }  ADAPTER, *LPADAPTER;
 
 /*!

@@ -527,6 +527,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 		if (info)
 		{
 			result = (ADAPTER*)malloc(sizeof(ADAPTER));
+			memset(result, 0, sizeof(ADAPTER));
 
 			result->hFile = NdisDriverOpenAdapter(ndis, info->AdapterId);
 			result->FilterLock = PacketCreateMutex();
@@ -573,24 +574,31 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
 
 	if(lpAdapter->Filter!=NULL)
 	{
+		TRACE_PRINT1("lock mutex, lock=0x%08x", lpAdapter->FilterLock);
 		PacketLockMutex(lpAdapter->FilterLock);
 
+		TRACE_PRINT2("releasing filter, ins=0x%08x, filter=0x%08x", lpAdapter->Filter->bf_insns, lpAdapter->Filter);
 		free(lpAdapter->Filter->bf_insns);
 		free(lpAdapter->Filter);
 
 		lpAdapter->Filter = NULL;
 
+		TRACE_PRINT("unlock mutex");
 		PacketUnlockMutex(lpAdapter->FilterLock);
 	}
 
+	TRACE_PRINT("releasing mutex");
 	PacketFreeMutex(lpAdapter->FilterLock);
 
+	TRACE_PRINT("closing event");
 	if(lpAdapter->ReadEvent!=NULL)
 	{
 		CloseHandle(lpAdapter->ReadEvent);
 	}
 
-	GlobalFreePtr(lpAdapter);
+	TRACE_PRINT("releasing adapter");
+	free(lpAdapter);
+	TRACE_EXIT("PacketCloseAdapter");
 }
 
 LPPACKET PacketAllocatePacket(void)

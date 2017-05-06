@@ -23,9 +23,17 @@
 #include "NdisDriver.h"
 #include <stdio.h>
 
+#ifdef _DEBUG1
+#define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
+#else
+#define DEBUG_PRINT(x,...)
+#endif
+
 PCAP_NDIS* NdisDriverOpen()
-{
-	HANDLE hFile = CreateFileA("\\\\.\\" ADAPTER_ID_PREFIX "" ADAPTER_NAME_FORLIST, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+{	
+	DEBUG_PRINT("===>NdisDriverOpen\n");
+
+	HANDLE hFile = CreateFileA("\\\\.\\" ADAPTER_ID_PREFIX "" ADAPTER_NAME_FORLIST, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);	
 
 	if(hFile == INVALID_HANDLE_VALUE)
 	{
@@ -34,11 +42,15 @@ PCAP_NDIS* NdisDriverOpen()
 
 	PCAP_NDIS* ndis = (PCAP_NDIS*)malloc(sizeof(PCAP_NDIS));
 	ndis->handle = hFile;
+
+	DEBUG_PRINT("<===NdisDriverOpen\n");
+
 	return ndis;
 }
 
 void NdisDriverClose(PCAP_NDIS* ndis)
 {
+	DEBUG_PRINT("===>NdisDriverClose\n");
 	if(!ndis)
 	{
 		return;
@@ -48,10 +60,12 @@ void NdisDriverClose(PCAP_NDIS* ndis)
 		CloseHandle(ndis->handle);
 	}
 	free(ndis);
+	DEBUG_PRINT("<===NdisDriverClose\n");
 }
 
 PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterId)
 {
+	DEBUG_PRINT("===>NdisDriverOpenAdapter(%s)\n", szAdapterId);
 	if(!ndis)
 	{
 		return NULL;
@@ -72,11 +86,15 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 	adapter->Stat.Dropped = 0;
 	adapter->Stat.Received = 0;
 
+	DEBUG_PRINT("<===NdisDriverOpenAdapter\n");
+
 	return adapter;
 }
 
 void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 {
+	DEBUG_PRINT("===>NdisDriverCloseAdapter\n");
+
 	if(!adapter)
 	{
 		return;
@@ -86,10 +104,14 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 		CloseHandle(adapter->Handle);
 	}
 	free(adapter);
+
+	DEBUG_PRINT("<===NdisDriverCloseAdapter\n");
 }
 
 BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, DWORD* dwBytesReceived)
 {
+	DEBUG_PRINT("===>NdisDriverNextPacket, buf size=%u\n", size);
+
 	if (!adapter || !adapter->Handle) {
 		return FALSE;
 	}
@@ -98,6 +120,7 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 
 	if(size<sizeof(PACKET_HDR))
 	{
+		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
 		return FALSE;
 	}
 
@@ -108,6 +131,8 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 		return FALSE;
 	}
 	
+	DEBUG_PRINT("  read %u header bytes\n", dwBytesRead);
+
 	struct bpf_hdr* bpf = ((struct bpf_hdr *)*buf);
 	bpf->bh_caplen = hdr.Size;
 	bpf->bh_datalen = hdr.Size;
@@ -119,16 +144,22 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 
 	if(size<(hdr.Size + sizeof(PACKET_HDR)))
 	{
+		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
 		return FALSE;
 	}
 	
 	if (!ReadFile(adapter->Handle, pdata, hdr.Size, &dwBytesRead, NULL))
 	{
+		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
 		return FALSE;
 	}
 
+	DEBUG_PRINT("  read %u data bytes\n", dwBytesRead);
+
 	bpf->bh_caplen = dwBytesRead;
 	*dwBytesReceived = dwBytesRead;
+
+	DEBUG_PRINT("<===NdisDriverNextPacket(true)\n");
 
 	return TRUE;
 }
@@ -136,6 +167,7 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 // Get adapter list
 PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 {
+	DEBUG_PRINT("===>NdisDriverGetAdapterList\n");
 	if (!ndis) {
 		return NULL;
 	}
@@ -175,11 +207,15 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 		return NULL;
 	}
 
+	DEBUG_PRINT("<===NdisDriverGetAdapterList, size=%u\n", list->count);
+
 	return list;
 }
 
 void NdisDriverFreeAdapterList(PCAP_NDIS_ADAPTER_LIST* list)
 {
+	DEBUG_PRINT("===>NdisDriverFreeAdapterList\n");
+
 	if(!list)
 	{
 		return;
@@ -189,4 +225,6 @@ void NdisDriverFreeAdapterList(PCAP_NDIS_ADAPTER_LIST* list)
 		free(list->adapters);
 	}
 	free(list);
+
+	DEBUG_PRINT("<===NdisDriverFreeAdapterList\n");
 }
