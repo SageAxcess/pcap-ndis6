@@ -68,6 +68,8 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 
 	UNUSED(lpReserved);
 
+	void* fs;
+
     switch(Reason)
     {
 	case DLL_PROCESS_ATTACH:
@@ -99,9 +101,10 @@ BOOL APIENTRY DllMain(HANDLE DllHandle,DWORD Reason,LPVOID lpReserved)
 
 		//
 		// Retrieve driver version information from the file. 
-    	// TODO: check in x64, probably doesn't work well
 		//
-		PacketGetFileVersion(TEXT("drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"), PacketDriverVersion, sizeof(PacketDriverVersion));
+		fs = DisableWow64FsRedirection();
+		PacketGetFileVersion(TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"), PacketDriverVersion, sizeof(PacketDriverVersion));
+		RestoreWow64FsRedirection(fs);
 
 		ndis = NdisDriverOpen();
 		break;
@@ -402,6 +405,8 @@ BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLe
 	} *lpTranslate;
 
 	TRACE_ENTER("PacketGetFileVersion");
+
+	wprintf(L"  read %s file version\n", FileName);
 
 	// Now lets dive in and pull out the version information:
     dwVerInfoSize = GetFileVersionInfoSize(FileName, &dwVerHnd);

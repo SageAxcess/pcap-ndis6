@@ -53,3 +53,52 @@ void PacketUnlockMutex(MUTEX* lock)
 	}
 	LeaveCriticalSection(&lock->cs);
 }
+
+BOOL IsWow64()
+{
+#ifdef _AMD64
+	return false;
+#else
+	BOOL b = FALSE;
+
+	if (IsWow64Process(GetCurrentProcess(), &b) == FALSE)
+	{
+		return FALSE;
+	}
+
+	return b;
+#endif
+}
+
+
+void *DisableWow64FsRedirection()
+{
+	void *p = NULL;
+
+	if (IsWow64() == FALSE)
+	{
+		return NULL;
+	}
+
+	if (Wow64DisableWow64FsRedirection(&p) == FALSE)
+	{
+		return NULL;
+	}
+
+	return p;
+}
+
+void RestoreWow64FsRedirection(void *p)
+{
+	if (p == NULL)
+	{
+		return;
+	}
+
+	if (IsWow64() == FALSE)
+	{
+		return;
+	}
+
+	Wow64RevertWow64FsRedirection(p);
+}

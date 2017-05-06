@@ -39,8 +39,8 @@
 //  - please do not use prefix names longer than 70 chars. 
 //  - the following characters are surely accepted in the prefixes:  "[A-Z][a-z][0-9]_-',"   
 //
-#define NPF_DRIVER_NAME							"aegis"					///< (HHH) Packet.dll
-#define NPF_DRIVER_NAME_WIDECHAR				L"aegis"				///< (HHH) Packet.dll
+#define NPF_DRIVER_NAME							"pcap-ndis6"					///< (HHH) Packet.dll
+#define NPF_DRIVER_NAME_WIDECHAR				L"pcap-ndis6"				///< (HHH) Packet.dll
 
 //
 // Derived strings

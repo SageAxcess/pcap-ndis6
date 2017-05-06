@@ -30,3 +30,6 @@ MUTEX* PacketCreateMutex();
 void PacketFreeMutex(MUTEX* lock);
 void PacketLockMutex(MUTEX* lock);
 void PacketUnlockMutex(MUTEX* lock);
+
+void *DisableWow64FsRedirection();
+void RestoreWow64FsRedirection(void *p);
