@@ -30,6 +30,8 @@
 
 #include <packet32.h>
 #include <StrSafe.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 #include "Packet32-Int.h"
 #include "NdisDriver.h"
@@ -50,8 +52,10 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <windows.h>
 #include <windowsx.h>
+#include <ws2ipdef.h>
 #include <Iphlpapi.h>
 #include <IPIfCons.h>
+#include <netioapi.h>
 
 #include <WpcapNames.h>
 
@@ -1012,11 +1016,113 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 */
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries)
 {
-	_CRT_UNUSED(AdapterName);
-	_CRT_UNUSED(buffer);
-	_CRT_UNUSED(NEntries);
+	UINT retcode;
+	MIB_IF_TABLE2 *table;
+	UINT table_size = sizeof(MIB_IFTABLE);
 
-	TRACE_PRINT("PacketGetNetInfoEx not supported in this verison"); //TODO: Add support!
+	TRACE_PRINT1("PacketGetNetInfoEx(%s)", AdapterName);
+
+	retcode = GetIfTable2(&table);
+
+	if (retcode != NO_ERROR || table == NULL)
+	{
+		TRACE_PRINT("PacketGetNetInfoEx: error reading adapter list");
+		return FALSE;
+	}
+
+	int index = -1;
+
+	for (int i = 0; i < table->NumEntries; i++)
+	{
+		MIB_IF_ROW2* row = &table->Table[i];
+
+		char guid[1024];
+		sprintf_s(guid, 1024, "{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}",
+			row->InterfaceGuid.Data1, row->InterfaceGuid.Data2, row->InterfaceGuid.Data3,
+			row->InterfaceGuid.Data4[0], row->InterfaceGuid.Data4[1], row->InterfaceGuid.Data4[2], row->InterfaceGuid.Data4[3],
+			row->InterfaceGuid.Data4[4], row->InterfaceGuid.Data4[5], row->InterfaceGuid.Data4[6], row->InterfaceGuid.Data4[7]);
+
+		TRACE_PRINT1("   adapter guid %s", guid);
+
+		if(!strcmp(guid, AdapterName))
+		{
+			TRACE_PRINT1("  detected interface index %u", row->InterfaceIndex);
+			index = row->InterfaceIndex;
+			break;
+		}
+	}
+	FreeMibTable(table);
+
+	if(index >= 0)
+	{
+		UINT ret = 0;
+		IP_ADAPTER_INFO *info;
+		UINT size = sizeof(IP_ADAPTER_INFO);
+		info = (IP_ADAPTER_INFO *)malloc(size);
+		memset(info, 0, size);
+
+		ret = GetAdaptersInfo(info, &size);
+		while(ret == ERROR_INSUFFICIENT_BUFFER || ret == ERROR_BUFFER_OVERFLOW)
+		{
+			free(info);
+			size += sizeof(IP_ADAPTER_INFO);
+			info = (IP_ADAPTER_INFO *)malloc(size);
+			memset(info, 0, size);
+
+			ret = GetAdaptersInfo(info, &size);
+		}
+
+		if(ret!=NO_ERROR)
+		{
+			TRACE_PRINT1("PacketGetNetInfoEx: error calling GetAdaptersInfo %d", ret);
+
+			free(info);
+			return FALSE;
+		}
+
+		IP_ADAPTER_INFO *cur = info;
+		while(cur)
+		{
+			if(cur->Index == index)
+			{
+				IP_ADDR_STRING* first = &cur->IpAddressList;
+
+				int addrNum = 0;
+				while(addrNum < (*NEntries) && first)
+				{
+					struct addrinfo hint, *info;
+					memset(&hint, 0, sizeof(hint));
+					hint.ai_family = AF_UNSPEC;
+					hint.ai_socktype = SOCK_DGRAM;
+					hint.ai_protocol = IPPROTO_UDP;
+
+					info = 0;
+
+					TRACE_PRINT1("  resolving address %s", first->IpAddress.String);
+					
+					if(getaddrinfo(first->IpAddress.String, NULL, &hint, &info) == 0)
+					{
+						memset(&buffer[addrNum].IPAddress, 0, sizeof(struct sockaddr_storage));
+						memcpy(&buffer[addrNum].IPAddress, info->ai_addr, info->ai_addrlen);
+					}
+
+					first = first->Next;
+					addrNum++;
+				}
+
+				*NEntries = addrNum;
+
+				break;
+			}
+			cur = cur->Next;
+		}
+
+		free(info);
+		return TRUE;
+	}
+
+	TRACE_PRINT1("PacketGetNetInfoEx: adapter not found by guid %s", AdapterName);
+	
 	return FALSE;
 }
 
