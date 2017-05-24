@@ -492,6 +492,11 @@ void Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingConte
 		CLIENT* client;
 		NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(first);
 
+		if (NET_BUFFER_LIST_INFO(first, Ieee8021QNetBufferListInfo) != 0)
+		{
+			DEBUGP(DL_TRACE, "!!! 802.11Q !!!\n");
+		}
+
 		if (nb != NULL)
 		{
 			UINT size = NET_BUFFER_DATA_LENGTH(nb);

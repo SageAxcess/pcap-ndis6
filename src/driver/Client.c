@@ -96,7 +96,9 @@ BOOL FreeClient(PCLIENT client)
 void FreeClientList(PLIST list)
 {
 	DEBUGP(DL_TRACE, "===>FreeClientList...\n");
-	NdisAcquireSpinLock(list->Lock);
+
+	//Do not need to lock list because device is being closed anyways and there will be no new clients
+	
 	PLIST_ITEM item = list->First;
 	while(item)
 	{
@@ -109,8 +111,6 @@ void FreeClientList(PLIST list)
 
 		item = item->Next;
 	}
-
-	NdisReleaseSpinLock(list->Lock);
 
 	//TODO: possible memory leak if something is added to the list before it's released
 	FreeList(list);
