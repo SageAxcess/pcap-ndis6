@@ -401,13 +401,13 @@ void Protocol_ReceiveNetBufferListsHandler(
 
 	// DEBUGP(DL_TRACE, "   iterate clients and lock each\n");
 	// Lock all client receiving queues
-	PLIST_ITEM item = NULL;/* = adapter->Device->ClientList->First;
+	PLIST_ITEM item = adapter->Device->ClientList->First;
 	while (item)
 	{
 		CLIENT* client = (CLIENT*)item->Data;
-		NdisAcquireSpinLock(client->PacketList->Lock);
+		NdisAcquireSpinLock(client->ReadLock);
 		item = item->Next;
-	}*/
+	}
 
 	DEBUGP(DL_TRACE, "   iterate lists\n");
 	PNET_BUFFER_LIST nbl = NetBufferLists;
@@ -459,7 +459,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 	while (item)
 	{
 		CLIENT* client = (CLIENT*)item->Data;
-		//NdisReleaseSpinLock(client->PacketList->Lock);
+		NdisReleaseSpinLock(client->ReadLock);
 
 		KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 

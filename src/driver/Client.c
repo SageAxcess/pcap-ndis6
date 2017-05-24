@@ -72,13 +72,18 @@ BOOL FreeClient(PCLIENT client)
 		return FALSE;
 	}
 
+	NdisAcquireSpinLock(client->ReadLock);
+
 	FreePacketList(client->PacketList);
 	RemoveFromListByData(client->Device->ClientList, client);
+	client->PacketList = NULL;
+
+	NdisReleaseSpinLock(client->ReadLock);
 
 	FreeEvent(client->Event);
 	FreeSpinLock(client->ReadLock);
 
-	DEBUGP(DL_TRACE, "releaseing net buffer list pool 0x%08x\n", client->NetBufferListPool);
+	DEBUGP(DL_TRACE, "releasing net buffer list pool 0x%08x\n", client->NetBufferListPool);
 
 	NdisFreeNetBufferListPool(client->NetBufferListPool);
 

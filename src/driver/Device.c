@@ -368,6 +368,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 		DEBUGP(DL_TRACE, "  client provided buf 0x%08x, acquire lock 0x%08x\n", buf, client->ReadLock);
 
+		NdisAcquireSpinLock(client->ReadLock);
+
 		UINT size = 0;
 		NdisAcquireSpinLock(client->PacketList->Lock);
 
@@ -421,6 +423,12 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 				item = NULL;
 				packet = NULL;
+			}
+
+			if (mdl != NULL)
+			{
+				MmUnlockPages(mdl);
+				IoFreeMdl(mdl);
 			}
 		}
 
@@ -493,7 +501,9 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		} else
 		{
 			KeResetEvent(client->Event->Event);
-		}		
+		}
+
+		NdisReleaseSpinLock(client->ReadLock);
 
 		ret = STATUS_SUCCESS;
 		responseSize = size;
