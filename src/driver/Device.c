@@ -369,9 +369,11 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		DEBUGP(DL_TRACE, "  client provided buf 0x%08x, acquire lock 0x%08x\n", buf, client->ReadLock);
 
 		UINT size = 0;
-		NdisAcquireSpinLock(client->ReadLock);
+		NdisAcquireSpinLock(client->PacketList->Lock);
 
 		PLIST_ITEM item = client->PacketList->First;
+
+		NdisReleaseSpinLock(client->PacketList->Lock);
 
 		DEBUGP(DL_TRACE, "  found item in list = 0x%08x\n", item);
 
@@ -491,9 +493,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		} else
 		{
 			KeResetEvent(client->Event->Event);
-		}
-
-		NdisReleaseSpinLock(client->ReadLock);
+		}		
 
 		ret = STATUS_SUCCESS;
 		responseSize = size;

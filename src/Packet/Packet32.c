@@ -554,6 +554,8 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 				eventName[dwBytesReturned] = 0;
 				sprintf_s(eventNameFull, 1024, "Global\\%s", eventName);
 
+				TRACE_PRINT1("  detected event name %s", eventNameFull);
+
 				result->ReadEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, eventNameFull);
 			}
 		}
@@ -649,15 +651,22 @@ VOID PacketInitPacket(LPPACKET lpPacket,PVOID Buffer,UINT Length)
 
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN Sync)
 {
+	TRACE_ENTER("PacketReceivePacket");
 	_CRT_UNUSED(Sync);
 	BOOLEAN res = FALSE;
 
 	if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
 	{
-		if((int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
-			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut==0)?INFINITE:AdapterObject->ReadTimeOut);
-
+		TRACE_PRINT("   ... NdisDriverNextPacket");
 		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+		TRACE_PRINT2("   received %d bytes, result=%d", lpPacket->ulBytesReceived, res);
+
+		if(!lpPacket->ulBytesReceived && (int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
+		{
+			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == 0) ? INFINITE : AdapterObject->ReadTimeOut);
+
+			res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+		}
 	}
 	else
 	{
@@ -790,6 +799,14 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 	{
 		return FALSE;
 	}
+
+	if(1)
+	{
+		TRACE_PRINT("  [debug] ignoring PacketSetBpf");
+		TRACE_EXIT("PacketSetBpf");
+		return TRUE;
+	}
+	
 
 	struct bpf_program *filter = NULL;
 	if (fp != NULL)
