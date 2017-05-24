@@ -23,7 +23,7 @@
 #include "NdisDriver.h"
 #include <stdio.h>
 
-#ifdef _DEBUG
+#ifdef DEBUG_CONSOLE
 #define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
 #else
 #define DEBUG_PRINT(x,...)

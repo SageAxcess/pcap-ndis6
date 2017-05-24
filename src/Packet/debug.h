@@ -212,7 +212,7 @@ static __forceinline void TRACE_PRINT_OS_INFO()
 }
 #else
 
-#ifdef _DEBUG
+#ifdef DEBUG_CONSOLE
 #define TRACE_ENTER(_x)					printf ("--> " _x "\n");
 #define TRACE_EXIT(_x)					printf ("<-- " _x "\n");
 #define TRACE_PRINT(_x)					printf ("    " _x "\n");

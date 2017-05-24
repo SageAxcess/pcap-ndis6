@@ -1,163 +1,31 @@
-﻿	<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx;*</Extensions>
-      <UniqueIdentifier>{E549C692-AB5D-4B19-A27F-39CB688D325C}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files">
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
-      <UniqueIdentifier>{86E411A4-7A15-4BA4-97E2-8CC8596C66E7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files">
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms;man;xml</Extensions>
-      <UniqueIdentifier>{E39D3E0D-5966-4619-A8EB-D91989A3EF89}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Driver Files">
-      <Extensions>inf;inv;inx;mof;mc;</Extensions>
-      <UniqueIdentifier>{3CE8B5F7-6B57-4C41-93D5-1F9C5132D57D}</UniqueIdentifier>
-    </Filter>
+    <ClCompile Include="Adapter.c" />
+    <ClCompile Include="Client.c" />
+    <ClCompile Include="Device.c" />
+    <ClCompile Include="Events.c" />
+    <ClCompile Include="filter.c" />
+    <ClCompile Include="flt_dbg.c" />
+    <ClCompile Include="KernelUtil.c" />
+    <ClCompile Include="List.c" />
+    <ClCompile Include="Packet.c" />
+    <ClCompile Include="precompsrc.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="filter.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="flt_dbg.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="precompsrc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="KernelUtil.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Device.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Adapter.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Events.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Client.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="List.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Packet.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <ClInclude Include="Client.h" />
+    <ClInclude Include="Adapter.h" />
+    <ClInclude Include="Device.h" />
+    <ClInclude Include="DeviceConnection.h" />
+    <ClInclude Include="Events.h" />
+    <ClInclude Include="KernelUtil.h" />
+    <ClInclude Include="List.h" />
+    <ClInclude Include="Packet.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="filter.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
+    <ResourceCompile Include="filter.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="filteruser.h" />
-    <ClInclude Include="flt_dbg.h" />
-    <ClInclude Include="precomp.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="winpcap_ndis.h" />
-    <ClInclude Include="KernelUtil.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Device.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Adapter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Events.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Client.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="List.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Packet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DeviceConnection.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Inf Include="*.inf">
-      <Filter>Driver Files</Filter>
-    </Inf>
+    <Inf Include="*.inf" />
   </ItemGroup>
 </Project>
