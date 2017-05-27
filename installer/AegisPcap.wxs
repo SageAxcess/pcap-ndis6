@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Name="AegisPcap"
+					 Language="1033"
+					 Version="1.0.1"
+					 Manufacturer="ChangeDynamix, LLC"
+					 Id="{7F3ADE9E-D317-47f2-9DC8-754887CD242A}"
+					 UpgradeCode="{E9E20FD8-905F-41be-97A7-991F0A0FAB9A}">
+
+		<Package InstallerVersion="200" Compressed="yes" Languages="1033"
+						 Description="Aegis"
+						 Manufacturer="ChangeDynamix, LLC"
+						 Platform="x86" />
+
+		<Upgrade Id="{711CA6BE-6851-45fd-976E-C3968900C9AB}">
+			<UpgradeVersion OnlyDetect="yes" Property="SELFFOUND"
+											Minimum="1.0.1" IncludeMinimum="yes"
+											Maximum="1.0.1" IncludeMaximum="yes" />
+			<UpgradeVersion OnlyDetect="yes" Property="NEWERFOUND"
+											Minimum="1.0.1" IncludeMinimum="no" />
+			<UpgradeVersion OnlyDetect="no" Property="PREVIOUSFOUND" Minimum="1.0.0" IncludeMinimum="yes"
+											Maximum="1.0.1" IncludeMaximum="no" />
+		</Upgrade>
+
+
+		<Media Id="1" Cabinet="AegisPcap.cab" EmbedCab="yes" />
+
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="ManufacturerDir" Name="ChangeDynamix">
+					<Directory Id="INSTALLDIR" Name="AegisPcap">
+						<Directory Id="x86Folder" Name="x86">
+							<Component Id="x86_Component" Guid="{C737B284-E209-4ec1-8E69-1EAFAC57A001}" SharedDllRefCount="no" Win64="no">
+								<File Id="x86_dpinst_exe" Name="dpinst.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="x86\dpinst.exe" />
+								<File Id="x86_Packet_dll" Name="packet-ndis6.dll" KeyPath="yes" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\packet-ndis6.dll" />
+								<File Id="x86_wpcap_dll" Name="wpcap.dll" KeyPath="no" Vital="no" Compressed="default" DiskId="1" Source="..\build\Debug\x86\wpcap.dll" />
+								<File Id="x86_drivers_pcap_sys" Name="pcap-ndis6.sys" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\pcap-ndis6.sys" />
+								<File Id="x86_drivers_pcap_cat" Name="pcap-ndis6.cat" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\pcap-ndis6.cat" />
+								<File Id="x86_drivers_pcap_inf" Name="pcap-ndis6.inf" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\pcap-ndis6.inf" />
+							</Component>
+						</Directory>
+						<Directory Id="x64Folder" Name="x64">
+							<Component Id="x64_Component" Guid="{C737B284-E209-4ec1-8E69-1EAFAC57A002}" SharedDllRefCount="no" Win64="no">
+								<File Id="x64_dpinst_exe" Name="dpinst.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="x64\dpinst.exe" />
+								<File Id="x64_Packet_dll" Name="packet-ndis6.dll" KeyPath="yes" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\packet-ndis6.dll" />
+								<File Id="x64_wpcap_dll" Name="wpcap.dll" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\wpcap.dll" />
+								<File Id="x64_drivers_pcap_sys" Name="pcap-ndis6.sys" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\pcap-ndis6.sys" />
+								<File Id="x64_drivers_pcap_cat" Name="pcap-ndis6.cat" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\pcap-ndis6.cat" />
+								<File Id="x64_drivers_pcap_inf" Name="pcap-ndis6.inf" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\pcap-ndis6.inf" />
+							</Component>
+						</Directory>
+						<Component Id="common_Component" Guid="{C737B284-E209-4ec1-8E69-1EAFAC57A003}" SharedDllRefCount="no" Win64="no">
+							<File Id="common_install_drivers_cmd" Name="install_drivers.cmd" KeyPath="yes" Vital="yes" Compressed="default" DiskId="1" Source="install_drivers.cmd" />
+							<File Id="common_uninstall_drivers_cmd" Name="uninstall_drivers.cmd" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="uninstall_drivers.cmd" />
+						</Component>
+					</Directory>
+				</Directory>
+			</Directory>
+			<Directory Id="ProgramFiles64Folder"/>
+		</Directory>
+
+		<CustomAction Id="AlreadyUpdated" Error="This program has already been installed." />
+		<CustomAction Id="NoDowngrade" Error="A newer version of this program has already been installed." />
+		<CustomAction Id="RunInstaller" FileKey="common_install_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
+		<CustomAction Id="RunUninstaller" FileKey="common_uninstall_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
+
+<!-- TODO: use x64 installer in x64 environment -->
+
+		<InstallExecuteSequence>
+			<Custom Action="RunInstaller" After="StartServices">(NOT Installed)</Custom>
+			<Custom Action="RunUninstaller" After="StopServices">(Installed)</Custom>
+			<Custom Action="AlreadyUpdated" After="FindRelatedProducts">SELFFOUND</Custom>
+			<Custom Action="NoDowngrade" After="FindRelatedProducts">NEWERFOUND</Custom>
+			<RemoveExistingProducts After="InstallValidate" />
+		</InstallExecuteSequence>
+
+		<Feature Id="FeatureAegisPcap" Absent="disallow" AllowAdvertise="no" ConfigurableDirectory="INSTALLDIR"
+						 Description="AegisPcap"
+						 Display="hidden" Level="1"
+						 Title="AegisPcap"
+						 TypicalDefault="install">
+			 <ComponentRef Id="x86_Component" />
+			 <ComponentRef Id="x64_Component" />
+			 <ComponentRef Id="common_Component" />
+		</Feature>
+
+		<Property Id="ARPCOMMENTS">AegisPcap</Property>
+		<Property Id="ARPCONTACT">ChangeDynamix, LLC</Property>
+		<Property Id="ARPHELPLINK">https://changedynamix.io/</Property>
+		<Property Id="ARPURLINFOABOUT">https://changedynamix.io/</Property>
+		<Property Id="ARPURLUPDATEINFO">https://changedynamix.io/</Property>
+		<Property Id="ARPHELPTELEPHONE">(888) 270-7120</Property>
+		<Property Id="ALLUSERS">2</Property>
+
+		<Property Id="INSTALLDIR">
+			<RegistrySearch Id="InstallDirRegistry" Type="raw"
+								Root="HKLM" Key="Software\ChangeDynamix\AegisPcap\InstallInfo\[UpgradeCode]"
+								Name="InstallDir" />
+		</Property>
+
+		<Condition Message="This operating system is not supported by AegisPcap.">(Not Version9X=400)</Condition>
+		<Condition Message="This operating system is not supported by AegisPcap.">(VersionNT>=601)</Condition>
+
+		<UIRef Id="WixUI_InstallDir"/>
+		<UIRef Id="WixUI_ErrorProgressText" />
+		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+	</Product>
+</Wix>
+
