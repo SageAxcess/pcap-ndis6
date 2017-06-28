@@ -3,6 +3,7 @@ echo WinPCAP NDIS6.0 driver installer
 echo    architecture = %PROCESSOR_ARCHITECTURE% 
 echo    system dir = %SystemRoot%
 echo Copying wpcap.dll
+
 if %PROCESSOR_ARCHITECTURE%  == x86 goto x86
 :x64
 copy /y x64\packet-ndis6.dll %SystemRoot%\system32
