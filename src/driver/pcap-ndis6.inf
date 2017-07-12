@@ -13,7 +13,7 @@ Class           = NetService
 ClassGUID       = {4D36E974-E325-11CE-BFC1-08002BE10318}
 CatalogFile     = pcap-ndis6.cat
 Provider        = %ProviderString%
-DriverVer       = 20/03/2017,1.0.0.0
+DriverVer       = 07/12/2017,1.0.0.0
 
 [Manufacturer]
 %ManufacturerName%=ChangeDynamix,NTx86,NTamd64

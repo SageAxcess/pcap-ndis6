@@ -102,6 +102,7 @@
     <CodeAnalysisRuleSet>..\..\..\..\..\..\Program Files (x86)\Windows Kits\8.1\CodeAnalysis\DriverRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableInf2cat>false</EnableInf2cat>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -243,12 +244,14 @@
     </ClCompile>
     <PostBuildEvent>
       <Command>signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.sys
-Inf2Cat.exe /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64
+Inf2Cat.exe /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64 /uselocaltime
 signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.cat 
 copy /y ..\..\cert\pcap-ndis6.cer $(OutDir)</Command>
     </PostBuildEvent>
     <Inf>
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
+      <SpecifyDriverVerDirectiveVersion>false</SpecifyDriverVerDirectiveVersion>
+      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
     </Inf>
     <MessageCompile>
       <GenerateKernelModeLoggingMacros>true</GenerateKernelModeLoggingMacros>
@@ -281,7 +284,7 @@ copy /y ..\..\cert\pcap-ndis6.cer $(OutDir)</Command>
       <Command>@echo "Signing driver"
 signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.sys
 @echo "Generating catalog file"
-Inf2Cat.exe /driver:$(OutDir) /os:6_3_X86,8_X86,7_X86,Server2008_X86
+Inf2Cat.exe /driver:$(OutDir) /os:6_3_X86,8_X86,7_X86,Server2008_X86 /uselocaltime
 @echo "Signing catalog"
 signtool sign /v /ac ..\..\cert\pcap-ndis6.cer /f ..\..\cert\pcap-ndis6.pfx /t http://timestamp.verisign.com/scripts/timestamp.dll $(OutDir)pcap-ndis6.cat 
 @echo "Copying certificate"
