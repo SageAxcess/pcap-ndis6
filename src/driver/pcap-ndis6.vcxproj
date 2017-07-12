@@ -250,8 +250,10 @@ copy /y ..\..\cert\pcap-ndis6.cer $(OutDir)</Command>
     </PostBuildEvent>
     <Inf>
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
-      <SpecifyDriverVerDirectiveVersion>false</SpecifyDriverVerDirectiveVersion>
-      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
+      <SpecifyDriverVerDirectiveVersion>true</SpecifyDriverVerDirectiveVersion>
+      <SpecifyDriverVerDirectiveDate>true</SpecifyDriverVerDirectiveDate>
+      <TimeStamp>1.0.0.0</TimeStamp>
+      <DateStamp>07/11/2017</DateStamp>
     </Inf>
     <MessageCompile>
       <GenerateKernelModeLoggingMacros>true</GenerateKernelModeLoggingMacros>
