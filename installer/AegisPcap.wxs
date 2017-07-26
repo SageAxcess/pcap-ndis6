@@ -31,7 +31,7 @@
 					<Directory Id="INSTALLDIR" Name="AegisPcap">
 						<Directory Id="x86Folder" Name="x86">
 							<Component Id="x86_Component" Guid="{C737B284-E209-4ec1-8E69-1EAFAC57A001}" SharedDllRefCount="no" Win64="no">
-								<File Id="x86_dpinst_exe" Name="dpinst.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="x86\dpinst.exe" />
+								<File Id="x86_installer_exe" Name="DriverInstaller.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\DriverInstaller.exe" />
 								<File Id="x86_Packet_dll" Name="packet-ndis6.dll" KeyPath="yes" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\packet-ndis6.dll" />
 								<File Id="x86_wpcap_dll" Name="wpcap.dll" KeyPath="no" Vital="no" Compressed="default" DiskId="1" Source="..\build\Debug\x86\wpcap.dll" />
 								<File Id="x86_drivers_pcap_sys" Name="pcap-ndis6.sys" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x86\pcap-ndis6.sys" />
@@ -41,7 +41,7 @@
 						</Directory>
 						<Directory Id="x64Folder" Name="x64">
 							<Component Id="x64_Component" Guid="{C737B284-E209-4ec1-8E69-1EAFAC57A002}" SharedDllRefCount="no" Win64="no">
-								<File Id="x64_dpinst_exe" Name="dpinst.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="x64\dpinst.exe" />
+								<File Id="x64_installer_exe" Name="DriverInstaller.exe" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\DriverInstaller.exe" />
 								<File Id="x64_Packet_dll" Name="packet-ndis6.dll" KeyPath="yes" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\packet-ndis6.dll" />
 								<File Id="x64_wpcap_dll" Name="wpcap.dll" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\wpcap.dll" />
 								<File Id="x64_drivers_pcap_sys" Name="pcap-ndis6.sys" KeyPath="no" Vital="yes" Compressed="default" DiskId="1" Source="..\build\Debug\x64\pcap-ndis6.sys" />

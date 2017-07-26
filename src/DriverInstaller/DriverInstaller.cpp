@@ -46,18 +46,21 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 
 	if (SUCCEEDED(hr))
 	{
+		printf("[DEBUG] Created InetCfg\n");
 		INetCfgLock *pLock;
 
 		hr = pNetCfg->QueryInterface(IID_INetCfgLock, (PVOID*)&pLock);
 
 		if (SUCCEEDED(hr))
 		{
+			printf("[DEBUG] Created InetCfgLock\n");
 			LPWSTR locked_by;
 
 			hr = pLock->AcquireWriteLock(lock_timeout, L"SoftEther VPN", &locked_by);
 
 			if (SUCCEEDED(hr))
 			{
+				printf("[DEBUG] Acquired InetCfgLock\n");
 				hr = pNetCfg->Initialize(NULL);
 
 				if (SUCCEEDED(hr))
@@ -76,14 +79,19 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 						next = tmp;
 					}
 
+					printf("[DEBUG] setup inf at %s\n", inf_dir);
+
 					if (SetupCopyOEMInfA(inf_path, inf_dir, SPOST_PATH, 0, NULL, 0, NULL, 0))
 					{
+						printf("[DEBUG] installed .inf\n");
 						INetCfgClassSetup *pSetup;
 
 						hr = pNetCfg->QueryNetCfgClass(&GUID_DEVCLASS_NETTRANS, IID_INetCfgClassSetup, (void **)&pSetup);
 
 						if (SUCCEEDED(hr))
 						{
+							printf("[DEBUG] Applying to interface\n");
+
 							OBO_TOKEN token;
 							INetCfgComponent *pComponent;
 
@@ -95,6 +103,7 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 
 							if (SUCCEEDED(hr))
 							{
+								printf("[DEBUG] Success\n");
 								pNetCfg->Apply();
 
 								ret = true;
@@ -115,6 +124,9 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 								SetupUninstallOEMInfA(dst_inf_name, 0, NULL);
 							}
 						}
+					} else
+					{
+						printf("[ERROR] Error in SetupCopyOEMInf: %d\n", GetLastError());
 					}
 				}
 
@@ -202,9 +214,11 @@ bool UninstallNdisProtocolDriver(UINT lock_timeout)
 
 int main(int argc, char** argv)
 {
-	if(argc>0)
+	if(argc>1)
 	{
-		if(!strcmp(argv[0], "/install"))
+		CoInitialize(NULL);
+
+		if(!strcmp(argv[1], "/install"))
 		{
 			HMODULE hModule = GetModuleHandle(NULL);
 			char path[MAX_PATH];
@@ -215,18 +229,23 @@ int main(int argc, char** argv)
 				char* temp = strchr(last + 1, '\\');
 				if(!temp)
 				{
-					last[0] = 0;
+					last[1] = 0;
 					break;
 				}
 
 				last = temp;
 			}
+			strcat_s(path, MAX_PATH, "pcap-ndis6.inf");
+
+			printf("[DEBUG] Installing .inf at %s\n", path);
 
 			InstallNdisProtocolDriver(path, 60 * 1000);
-		} else if (!strcmp(argv[0], "/uninstall"))
+		} else if (!strcmp(argv[1], "/uninstall"))
 		{
 			UninstallNdisProtocolDriver(60 * 1000);
 		}
+
+		CoUninitialize();
 	}
 
     return 0;

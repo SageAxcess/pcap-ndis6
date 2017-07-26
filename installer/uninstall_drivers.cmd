@@ -6,7 +6,7 @@ echo    system dir = %SystemRoot%
 if %PROCESSOR_ARCHITECTURE%  == x86 goto x86
 :x64
 echo Uninstalling drivers
-x64\dpinst.exe /q /u x64\pcap-ndis6.inf
+x64\DriverInstaller.exe /uninstall
 
 echo Removing files
 
@@ -21,7 +21,7 @@ copy /y x64\pcap-ndis6.* %SystemRoot%\system32
 goto exit
 :x86
 echo Uninstalling drivers
-x86\dpinst.exe /q /u x86\pcap-ndis6.inf
+x64\DriverInstaller.exe /uninstall
 
 goto exit
 :exit

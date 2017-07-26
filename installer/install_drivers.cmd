@@ -13,7 +13,7 @@ copy /y x86\wpcap.dll %SystemRoot%\SysWOW64
 
 echo Installing drivers
 copy /y x64\pcap-ndis6.* %SystemRoot%\system32
-x64\dpinst.exe /q /f /PATH x64\
+x64\DriverInstaller.exe /install
 
 goto exit
 :x86
@@ -22,7 +22,7 @@ copy /y x86\wpcap.dll %SystemRoot%\system32
 
 echo Installing drivers
 copy /y x86\pcap-ndis6.* %SystemRoot%\system32
-x86\dpinst.exe /q /f /PATH x86\
+x86\DriverInstaller.exe /install
 
 goto exit
 :exit
