@@ -405,7 +405,9 @@ void Protocol_ReceiveNetBufferListsHandler(
 	while (item)
 	{
 		CLIENT* client = (CLIENT*)item->Data;
-		NdisAcquireSpinLock(client->ReadLock);
+		if (client && client->ReadLock) {
+			NdisAcquireSpinLock(client->ReadLock);
+		}
 		item = item->Next;
 	}
 
@@ -459,9 +461,11 @@ void Protocol_ReceiveNetBufferListsHandler(
 	while (item)
 	{
 		CLIENT* client = (CLIENT*)item->Data;
-		NdisReleaseSpinLock(client->ReadLock);
+		if(client && client->ReadLock)
+			NdisReleaseSpinLock(client->ReadLock);
 
-		KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+		if(client && client->Event && client->Event->Event)
+			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 
 		item = item->Next;
 	}

@@ -98,7 +98,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_X86_;_DEBUG;_WINDOWS;HAVE_AIRPCAP_API;HAVE_AIRPCAP_API;HAVE_WANPACKET_API;HAVE_IPHELPER_API;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_X86_;_DEBUG;DEBUG_CONSOLE;_WINDOWS;HAVE_AIRPCAP_API;HAVE_AIRPCAP_API;HAVE_WANPACKET_API;HAVE_IPHELPER_API;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>

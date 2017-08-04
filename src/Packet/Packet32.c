@@ -943,6 +943,7 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
 
 	if(!ndis)
 	{
+		TRACE_PRINT("PacketGetAdapterNames: no ndis driver instance!");
 		return FALSE;
 	}
 

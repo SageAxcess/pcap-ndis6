@@ -37,6 +37,7 @@ PCAP_NDIS* NdisDriverOpen()
 
 	if(hFile == INVALID_HANDLE_VALUE)
 	{
+		DEBUG_PRINT("    unable to open pipe!\n");
 		return NULL; //TODO: install pcap-ndis6.sys?
 	}
 
