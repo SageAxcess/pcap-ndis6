@@ -86,7 +86,7 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 						printf("[DEBUG] installed .inf\n");
 						INetCfgClassSetup *pSetup;
 
-						hr = pNetCfg->QueryNetCfgClass(&GUID_DEVCLASS_NETTRANS, IID_INetCfgClassSetup, (void **)&pSetup);
+						hr = pNetCfg->QueryNetCfgClass(&GUID_DEVCLASS_NETSERVICE, IID_INetCfgClassSetup, (void **)&pSetup);
 
 						if (SUCCEEDED(hr))
 						{
@@ -99,7 +99,7 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 
 							token.Type = OBO_USER;
 
-							hr = pSetup->Install(L"AegisPcap", &token, 0, 0, NULL, NULL, &pComponent);
+							hr = pSetup->Install(L"PcapNdis6", &token, 0, 0, NULL, NULL, &pComponent);
 
 							if (SUCCEEDED(hr))
 							{
@@ -107,6 +107,9 @@ bool InstallNdisProtocolDriver(char *inf_path, UINT lock_timeout)
 								pNetCfg->Apply();
 
 								ret = true;
+							} else
+							{
+								printf("[DEBUG] Install returned 0x%x\n", hr);
 							}
 
 							pSetup->Release();
@@ -169,13 +172,13 @@ bool UninstallNdisProtocolDriver(UINT lock_timeout)
 				if (SUCCEEDED(hr))
 				{
 					INetCfgComponent *pComponent;
-					hr = pNetCfg->FindComponent(L"AegisPcap", &pComponent);
+					hr = pNetCfg->FindComponent(L"PcapNdis6", &pComponent);
 
 					if (SUCCEEDED(hr))
 					{
 						INetCfgClassSetup *pSetup;
 
-						hr = pNetCfg->QueryNetCfgClass(&GUID_DEVCLASS_NETTRANS, IID_INetCfgClassSetup, (void **)&pSetup);
+						hr = pNetCfg->QueryNetCfgClass(&GUID_DEVCLASS_NETSERVICE, IID_INetCfgClassSetup, (void **)&pSetup);
 
 						if (SUCCEEDED(hr))
 						{
