@@ -64,8 +64,6 @@
 		<CustomAction Id="RunInstaller" FileKey="common_install_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
 		<CustomAction Id="RunUninstaller" FileKey="common_uninstall_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
 
-<!-- TODO: use x64 installer in x64 environment -->
-
 		<InstallExecuteSequence>
 			<Custom Action="RunInstaller" After="StartServices">(NOT Installed)</Custom>
 			<Custom Action="RunUninstaller" After="StopServices">(Installed)</Custom>
