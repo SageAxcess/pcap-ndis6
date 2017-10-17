@@ -7,11 +7,11 @@
 #endif //APSTUDIO_INVOKED
 
 
-#include "..\..\..\version.h"
+#include "..\..\..\driver_version.h"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION		WINPCAP_MAJOR,WINPCAP_MINOR,WINPCAP_REV,WINPCAP_BUILD
- PRODUCTVERSION		WINPCAP_MAJOR,WINPCAP_MINOR,WINPCAP_REV,WINPCAP_BUILD
+ FILEVERSION		1,1,DRIVER_BUILD,0
+ PRODUCTVERSION		1,1,DRIVER_BUILD,0
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -26,22 +26,16 @@ BEGIN
     BEGIN
         BLOCK "000004b0"
         BEGIN
-			VALUE "CompanyName",       WINPCAP_COMPANY_NAME
-#ifdef _WINNT4
-			VALUE "FileDescription",   "packet.dll (NT4) Dynamic Link Library"
-#elif defined(_WINVISTA)
-			VALUE "FileDescription",   "packet.dll (Vista) Dynamic Link Library"
-#else
-			VALUE "FileDescription",   "packet.dll (NT5) Dynamic Link Library"
-#endif
-			VALUE "FileVersion",       WINPCAP_VER_STRING
-			VALUE "InternalName",      "packet.dll"
-			VALUE "LegalCopyright",    WINPCAP_COPYRIGHT_STRING
+			VALUE "CompanyName",       "ChangeDynamix, LLC"
+			VALUE "FileDescription",   "packet-ndis6.dll Dynamic Link Library"
+			VALUE "FileVersion",       DRIVER_VER_STRING
+			VALUE "InternalName",      "packet-ndis6.dll"
+			VALUE "LegalCopyright",    "Copyright(c) ChangeDynamix, LLC, 2017"
 			VALUE "LegalTrademarks",   ""
-			VALUE "OriginalFilename",  "packet.dll"
-			VALUE "ProductName",       WINPCAP_PRODUCT_NAME
-			VALUE "ProductVersion",    WINPCAP_VER_STRING
-            VALUE "Build Description", WINPCAP_BUILD_DESCRIPTION
+			VALUE "OriginalFilename",  "packet-ndis6.dll"
+			VALUE "ProductName",       "Aegis NDIS6 Packet capture library"
+			VALUE "ProductVersion",    DRIVER_VER_STRING
+            VALUE "Build Description", DRIVER_BUILD_DESCRIPTION
         END
     END
     BLOCK "VarFileInfo"

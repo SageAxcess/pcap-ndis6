@@ -62,6 +62,7 @@ PLIST_ITEM AddToList(LIST* list, void* data)
 	LIST_ITEM* item = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(LIST_ITEM));
 	NdisZeroMemory(item, sizeof(LIST_ITEM));
 	item->Data = data;
+	item->Next = NULL;
 
 	if(!list->Last)
 	{

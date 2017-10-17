@@ -108,7 +108,10 @@ BOOL FreeAdapter(ADAPTER* adapter)
 		return FALSE;
 	}
 
-	FreeString(adapter->Name);
+	FilterFreeMem(adapter->Name->Buffer);
+	FilterFreeMem(adapter->Name);
+
+	//FreeString(adapter->Name);
 	FreeSpinLock(adapter->Lock);
 
 	FILTER_FREE_MEM(adapter);

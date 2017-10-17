@@ -96,7 +96,7 @@ void FreeString(UNICODE_STRING* string)
 	{
 		return;
 	}
-
+	
 	NdisFreeString(*string);
 	FILTER_FREE_MEM(string);
 }
