@@ -32,6 +32,7 @@
 NDIS_SPIN_LOCK *CreateSpinLock()
 {
 	NDIS_SPIN_LOCK *lock = (NDIS_SPIN_LOCK*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(NDIS_SPIN_LOCK));
+	NdisZeroMemory(lock, sizeof(NDIS_SPIN_LOCK));
 	NdisAllocateSpinLock(lock);
 	return lock;
 }

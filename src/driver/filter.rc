@@ -36,7 +36,7 @@ BEGIN
             VALUE "InternalName", "pcap-ndis.sys"
             VALUE "LegalCopyright", "© Microsoft Corporation. All rights reserved."
             VALUE "OriginalFilename", "pcap-ndis.sys"
-            VALUE "ProductName", "WInPcap for Windows 7/8/10"
+            VALUE "ProductName", "WinPcap for Windows 7/8/10"
             VALUE "ProductVersion", "1.0.0.0"
         END
     END

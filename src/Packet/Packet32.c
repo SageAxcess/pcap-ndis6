@@ -800,14 +800,6 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 		return FALSE;
 	}
 
-	if(1)
-	{
-		TRACE_PRINT("  [debug] ignoring PacketSetBpf");
-		TRACE_EXIT("PacketSetBpf");
-		return TRUE;
-	}
-	
-
 	struct bpf_program *filter = NULL;
 	if (fp != NULL)
 	{
@@ -836,7 +828,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 
 		AdapterObject->Filter = filter;
 	}
-	PacketFreeMutex(AdapterObject->FilterLock);
+	PacketUnlockMutex(AdapterObject->FilterLock);
 
 	TRACE_EXIT("PacketSetBpf");
 		

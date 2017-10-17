@@ -27,9 +27,9 @@
 #pragma warning(disable:28930) // Unused assignment of pointer, by design in samples
 #pragma warning(disable:28931) // Unused assignment of variable, by design in samples
 
-#define FILTER_REQUEST_ID          'cpLF'
-#define FILTER_ALLOC_TAG           'cplf'
-#define FILTER_TAG                 'CpLf'
+#define FILTER_REQUEST_ID          'nyDC'
+#define FILTER_ALLOC_TAG           'nyDC' //reverts to CDyn=ChangeDynamix
+#define FILTER_TAG                 'nyDC' 
 
 #define FILTER_MAJOR_NDIS_VERSION   6
 #define FILTER_MINOR_NDIS_VERSION   0
