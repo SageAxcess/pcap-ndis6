@@ -130,6 +130,7 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 
 	FreeDevice(ListAdaptersDevice);
 	FreeAdapterList(AdapterList);
+	AdapterList = NULL;
 	DEBUGP(DL_TRACE, "<===DriverUnload");
 }
 

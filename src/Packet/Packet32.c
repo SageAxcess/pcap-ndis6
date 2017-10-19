@@ -557,6 +557,9 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 				TRACE_PRINT1("  detected event name %s", eventNameFull);
 
 				result->ReadEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, eventNameFull);
+
+				result->ReadTimeOut = 0;
+				PacketSetReadTimeout(result, 0);				
 			}
 		}
 
@@ -663,7 +666,7 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
 		if(!lpPacket->ulBytesReceived && (int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
 		{
-			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == 0) ? INFINITE : AdapterObject->ReadTimeOut);
+			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
 
 			res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 		}
@@ -777,7 +780,7 @@ BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject, int timeout)
 		timeout = 0;
 	}
 	PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)AdapterObject->hFile;
-	adapter->ReadTimeout = timeout;
+	adapter->ReadTimeout = timeout;	
 
 	return TRUE;	
 }

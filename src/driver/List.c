@@ -61,8 +61,7 @@ PLIST_ITEM AddToList(LIST* list, void* data)
 
 	LIST_ITEM* item = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(LIST_ITEM));
 	NdisZeroMemory(item, sizeof(LIST_ITEM));
-	item->Data = data;
-	item->Next = NULL;
+	item->Data = data;	
 
 	if(!list->Last)
 	{
@@ -70,7 +69,7 @@ PLIST_ITEM AddToList(LIST* list, void* data)
 	} else
 	{
 		list->Last->Next = item;
-		item->Prev = list->Last->Next;
+		item->Prev = list->Last;
 		list->Last = item;
 	}
 	list->Size++;
@@ -90,7 +89,7 @@ BOOL RemoveFromList(LIST* list, PLIST_ITEM item)
 	BOOL res = TRUE;
 	NdisAcquireSpinLock(list->Lock);
 
-	if(item->Prev==NULL&&item->Next==NULL)
+	if(item->Prev==NULL && item->Next==NULL)
 	{
 		if(list->Size>1 || list->First!=item)
 		{
@@ -127,6 +126,11 @@ BOOL RemoveFromList(LIST* list, PLIST_ITEM item)
 BOOL RemoveFromListByData(LIST* list, PVOID data)
 {
 	DEBUGP(DL_TRACE, "===>RemoveFromListByData\n");
+
+	if(!list)
+	{
+		return FALSE;
+	}
 
 	BOOL res = FALSE;
 	NdisAcquireSpinLock(list->Lock);
