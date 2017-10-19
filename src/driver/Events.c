@@ -55,7 +55,7 @@ EVENT* CreateEvent()
 		return NULL;
 	}
 
-	DEBUGP(DL_TRACE, " event name unicode = 0x%08x, handle=0x%08x\n", name, event->EventHandle);
+	DEBUGP(DL_TRACE, " event name unicode = 0x%08x, handle=0x%08x\n", name_u, event->EventHandle);
 
 	DEBUGP(DL_TRACE, "  calling IoCreateNotificationEvent\n");
 	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
