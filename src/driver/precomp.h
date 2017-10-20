@@ -19,6 +19,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #pragma warning(disable:4201)  //nonstandard extension used : nameless struct/union
+#include <Ntifs.h>
 #include <ndis.h>
 #include <filteruser.h>
 #include <stdio.h>

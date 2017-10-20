@@ -26,6 +26,8 @@
 #include "Packet.h"
 #include "KernelUtil.h"
 
+#include "..\..\driver_version.h"
+
 //////////////////////////////////////////////////////////////////////
 // Adapter variables
 //////////////////////////////////////////////////////////////////////
@@ -567,7 +569,7 @@ void Protocol_StatusHandlerEx(NDIS_HANDLE ProtocolBindingContext, PNDIS_STATUS_I
 {
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(StatusIndication);
-	DEBUGP(DL_TRACE, "===>Protocol_StatusHandlerEx...\n");
+	DEBUGP(DL_TRACE, "===>Protocol_StatusHandlerEx... " DRIVER_VER_STRING "\n");
 	DEBUGP(DL_TRACE, "<===Protocol_StatusHandlerEx\n");
 }
 

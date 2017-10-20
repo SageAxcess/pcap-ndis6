@@ -18,8 +18,6 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-
-
 #include "precomp.h"
 #include "Events.h"
 #include "KernelUtil.h"
@@ -55,25 +53,44 @@ EVENT* CreateEvent()
 		return NULL;
 	}
 
-	DEBUGP(DL_TRACE, " event name unicode = 0x%08x, handle=0x%08x\n", name_u, event->EventHandle);
+	OBJECT_ATTRIBUTES EventAttributes;
+	InitializeObjectAttributes(&EventAttributes, name_u, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
 
-	DEBUGP(DL_TRACE, "  calling IoCreateNotificationEvent\n");
-	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
+	//event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
+	NTSTATUS stat = ZwCreateEvent(&event->EventHandle, EVENT_ALL_ACCESS, &EventAttributes, NotificationEvent, FALSE);
+	DEBUGP(DL_TRACE, "  calling ZwCreateEvent, status=%d\n", stat);	
 
-	if (!event->Event)
-	{		
-		FILTER_FREE_MEM(event);
+	if (!NT_SUCCESS(stat)) {
+		DEBUGP(DL_TRACE, "<===CreateEvent failed to call ZwCreateEvent\n");
+
 		FreeString(name_u);
-
-		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
+		FILTER_FREE_MEM(event);
 
 		return NULL;
 	}
 
+	stat = ObReferenceObjectByHandle(event->EventHandle,
+		EVENT_ALL_ACCESS,
+		0,
+		KernelMode,
+		(PVOID*)&event->Event,
+		0);
+
+	if (!NT_SUCCESS(stat))
+	{
+		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
+
+		FreeString(name_u);
+		FILTER_FREE_MEM(event);		
+
+		return NULL;
+	}
+
+	/*
 	DEBUGP(DL_TRACE, "  initialize event\n");
 	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
 	DEBUGP(DL_TRACE, "  reset event\n");
-	KeClearEvent(event->Event);
+	KeClearEvent(event->Event);*/
 
 	DEBUGP(DL_TRACE, "  free event name string\n");
 	FreeString(name_u);
@@ -90,6 +107,7 @@ BOOL FreeEvent(PEVENT event)
 		return FALSE;
 	}
 
+	ObDereferenceObject(event->Event);
 	ZwClose(event->EventHandle);
 
 	FILTER_FREE_MEM(event);
