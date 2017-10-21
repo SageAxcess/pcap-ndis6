@@ -3,8 +3,10 @@ set path=%path%;"C:\Program Files (x86)\WiX toolset v3.9\bin\"
 del *.wixobj
 del Output\*.wixpdb
 
-candle -ext WixUtilExtension AegisPcap.wxs
-light -ext WixUIExtension -ext WixUtilExtension -ext WixNetFxExtension -cultures:en-us AegisPcap.wixobj -out Output/aegis-pcap-1.0.1.msi
+set PRODUCT_VER=%1
+
+candle -ext WixUtilExtension -d"ProductVersion=%PRODUCT_VER%" AegisPcap.wxs
+light -ext WixUIExtension -ext WixUtilExtension -ext WixNetFxExtension -cultures:en-us AegisPcap.wixobj -out Output/aegis-pcap-%PRODUCT_VER%.msi
 
 del *.wixobj
 del Output\*.wixpdb

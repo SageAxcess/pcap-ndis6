@@ -1143,10 +1143,8 @@ BOOLEAN PacketGetNetType(LPADAPTER AdapterObject, NetType *type)
 {
 	_CRT_UNUSED(AdapterObject);
 
-	TRACE_PRINT("PacketGetNetType not supported in this version")
-
 	type->LinkSpeed = 100 * 1024 * 1024;
-	type->LinkType = 0; //TODO: burilovmv: get speed and link type
+	type->LinkType = 0;
 
 	return TRUE;
 }

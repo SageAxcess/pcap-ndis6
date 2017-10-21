@@ -14,12 +14,14 @@ if %PROCESSOR_ARCHITECTURE%  == x86 goto x86
 :x64
 echo Uninstalling drivers
 x64\DriverInstaller.exe /uninstall
+del /f /q %SystemRoot%\system32\pcap-ndis6.*
 
 goto exit
 
 :x86
 echo Uninstalling drivers
-x64\DriverInstaller.exe /uninstall
+x86\DriverInstaller.exe /uninstall
+del /f /q %SystemRoot%\system32\pcap-ndis6.*
 
 goto exit
 :exit

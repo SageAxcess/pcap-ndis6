@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 	<Product Name="AegisPcap"
 					 Language="1033"
-					 Version="1.0.1"
+					 Version="$(var.ProductVersion)"
 					 Manufacturer="ChangeDynamix, LLC"
 					 Id="{7F3ADE9E-D317-47f2-9DC8-754887CD242A}"
 					 UpgradeCode="{E9E20FD8-905F-41be-97A7-991F0A0FAB9A}">
@@ -14,12 +14,12 @@
 
 		<Upgrade Id="{711CA6BE-6851-45fd-976E-C3968900C9AB}">
 			<UpgradeVersion OnlyDetect="yes" Property="SELFFOUND"
-											Minimum="1.0.1" IncludeMinimum="yes"
-											Maximum="1.0.1" IncludeMaximum="yes" />
+											Minimum="$(var.ProductVersion)" IncludeMinimum="yes"
+											Maximum="$(var.ProductVersion)" IncludeMaximum="yes" />
 			<UpgradeVersion OnlyDetect="yes" Property="NEWERFOUND"
-											Minimum="1.0.1" IncludeMinimum="no" />
-			<UpgradeVersion OnlyDetect="no" Property="PREVIOUSFOUND" Minimum="1.0.0" IncludeMinimum="yes"
-											Maximum="1.0.1" IncludeMaximum="no" />
+											Minimum="$(var.ProductVersion)" IncludeMinimum="no" />
+			<UpgradeVersion OnlyDetect="no" Property="PREVIOUSFOUND" Minimum="1.0.0.0" IncludeMinimum="yes"
+											Maximum="$(var.ProductVersion)" IncludeMaximum="no" />
 		</Upgrade>
 
 
