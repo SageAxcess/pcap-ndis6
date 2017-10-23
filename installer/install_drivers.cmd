@@ -1,7 +1,11 @@
 @echo off
+SET mypath=%~dp0
+cd %mypath:~0,-1%
+
 echo WinPCAP NDIS6.0 driver installer
 echo    architecture = %PROCESSOR_ARCHITECTURE% 
 echo    system dir = %SystemRoot%
+echo    current dir = %mypath:~0,-1%
 echo Copying wpcap.dll
 
 if %PROCESSOR_ARCHITECTURE%  == x86 goto x86

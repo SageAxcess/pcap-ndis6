@@ -56,6 +56,8 @@ EVENT* CreateEvent()
 	OBJECT_ATTRIBUTES EventAttributes;
 	InitializeObjectAttributes(&EventAttributes, name_u, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
 
+	//TODO: better practice here is to create event in user-mode .dll. Kernel driver just assigns name to it and calls ZwOpenEvent/ObReference.../Ke_xxx functions.
+	//      We can keep EventHandle NULL or INVALID_HANDLE_VALUE until other side creates it. If there's no event - do not store anything for this client.
 	//event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
 	NTSTATUS stat = ZwCreateEvent(&event->EventHandle, EVENT_ALL_ACCESS, &EventAttributes, NotificationEvent, FALSE);
 	DEBUGP(DL_TRACE, "  calling ZwCreateEvent, status=%d\n", stat);	
