@@ -182,12 +182,14 @@
     <ClCompile Include="..\NdisDriver.c" />
     <ClCompile Include="..\Packet32.c" />
     <ClCompile Include="..\Util.c" />
+    <ClCompile Include="..\win_bpf_filter.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
     <ClInclude Include="..\Util.h" />
+    <ClInclude Include="..\valid_insns.h" />
     <ClInclude Include="..\win_bpf.h" />
   </ItemGroup>
   <ItemGroup>

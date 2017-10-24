@@ -28,10 +28,12 @@
 //
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <packet32.h>
 #include <StrSafe.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#include "win_bpf.h"
+#include <packet32.h>
 
 #include "Packet32-Int.h"
 #include "NdisDriver.h"
@@ -652,6 +654,37 @@ VOID PacketInitPacket(LPPACKET lpPacket,PVOID Buffer,UINT Length)
 	TRACE_EXIT("PacketInitPacket");
 }
 
+BOOLEAN CheckFilter(LPADAPTER AdapterObject, LPPACKET lpPacket)
+{
+	if(!lpPacket->ulBytesReceived || AdapterObject->Filter==NULL)
+	{
+		return FALSE;
+	}
+
+	struct bpf_hdr* bpf = ((struct bpf_hdr *)lpPacket->Buffer);
+	if(bpf->bh_hdrlen>lpPacket->ulBytesReceived)
+	{
+		return FALSE;
+	}
+
+	UCHAR* buf = (UCHAR*)lpPacket->Buffer + bpf->bh_hdrlen;
+
+	BOOLEAN res = TRUE;
+
+	PacketLockMutex(AdapterObject->FilterLock);
+	{
+		UINT f = bpf_filter(AdapterObject->Filter->bf_insns, buf, bpf->bh_caplen, bpf->bh_caplen);
+
+		if(f==0)
+		{
+			res = FALSE;
+		}
+	}
+	PacketUnlockMutex(AdapterObject->FilterLock);
+
+	return res;
+}
+
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN Sync)
 {
 	TRACE_ENTER("PacketReceivePacket");
@@ -669,6 +702,12 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
 
 			res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+		}
+
+		if (!CheckFilter(AdapterObject, lpPacket))
+		{
+			lpPacket->ulBytesReceived = 0;
+			res = FALSE;
 		}
 	}
 	else
