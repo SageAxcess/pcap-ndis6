@@ -145,13 +145,13 @@ PVOID FilterAllocMem(NDIS_HANDLE NdisHandle, UINT Size)
 		return NULL;
 	}
 
-	DEBUGP(DL_TRACE, "FilterAllocMem, size=%u, result=0x%08x\n", Size, Result);
+	//DEBUGP(DL_TRACE, "FilterAllocMem, size=%u, result=0x%08x\n", Size, Result);
 
 	return Result;
 }
 
 void FilterFreeMem(PVOID Data)
 {
-	DEBUGP(DL_TRACE, "FilterFreeMem 0x%08x\n", Data);
+	//DEBUGP(DL_TRACE, "FilterFreeMem 0x%08x\n", Data);
 	NdisFreeMemory(Data, 0, 0);
 }

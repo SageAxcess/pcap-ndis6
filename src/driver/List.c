@@ -79,6 +79,22 @@ PLIST_ITEM AddToList(LIST* list, void* data)
 	return item;
 }
 
+PLIST_ITEM PopListTop(LIST* list)
+{
+	if (!list || !list->First)
+	{
+		return NULL;
+	}
+
+	PLIST_ITEM item = list->First;
+	list->First = item->Next;
+	if (!item->Next)
+		list->Last = 0;
+	list->Size--;
+
+	return item;
+}
+
 BOOL RemoveFromList(LIST* list, PLIST_ITEM item)
 {
 	if(!item || !list)

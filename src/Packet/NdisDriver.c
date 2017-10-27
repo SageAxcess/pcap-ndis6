@@ -29,6 +29,11 @@
 #define DEBUG_PRINT(x,...)
 #endif
 
+#ifndef ALIGN_SIZE
+#define ALIGN_SIZE( sizeToAlign, PowerOfTwo )       \
+        (((sizeToAlign) + (PowerOfTwo) - 1) & ~((PowerOfTwo) - 1))
+#endif
+
 PCAP_NDIS* NdisDriverOpen()
 {	
 	DEBUG_PRINT("===>NdisDriverOpen\n");
@@ -86,6 +91,8 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 	adapter->Stat.Captured = 0;
 	adapter->Stat.Dropped = 0;
 	adapter->Stat.Received = 0;
+	adapter->BufferedPackets = 0;	
+	adapter->BufferOffset = 0;
 
 	DEBUG_PRINT("<===NdisDriverOpenAdapter\n");
 
@@ -119,46 +126,51 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 
 	*dwBytesReceived = 0;
 
-	if(size<sizeof(PACKET_HDR))
+	if(size<sizeof(struct bpf_hdr))
 	{
 		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
 		return FALSE;
 	}
 
-	DWORD dwBytesRead = 0;
-	PACKET_HDR hdr;
-	if (!ReadFile(adapter->Handle, &hdr, sizeof(PACKET_HDR), &dwBytesRead, NULL))
-	{		
-		return FALSE;
-	}
-	
-	DEBUG_PRINT("  read %u header bytes\n", dwBytesRead);
-
-	struct bpf_hdr* bpf = ((struct bpf_hdr *)*buf);
-	bpf->bh_caplen = hdr.Size;
-	bpf->bh_datalen = hdr.Size;
-	bpf->bh_hdrlen = sizeof(struct bpf_hdr);
-	bpf->bh_tstamp.tv_sec = (long)(hdr.Timestamp.QuadPart / 1000); // Get seconds part
-	bpf->bh_tstamp.tv_usec = (long)(hdr.Timestamp.QuadPart - bpf->bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
-
-	char* pdata = (char*)(*buf) + bpf->bh_hdrlen; //skip header
-
-	if(size<(hdr.Size + sizeof(PACKET_HDR)))
+	if(adapter->BufferedPackets==0)
 	{
-		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
-		return FALSE;
+
+		DWORD dwBytesRead = 0;
+		if (!ReadFile(adapter->Handle, &adapter->ReadBuffer, READ_BUFFER_SIZE, &dwBytesRead, NULL))
+		{
+			return FALSE;
+		}
+
+		adapter->BufferOffset = 0;
+		DWORD curSize = 0;
+		while (curSize < dwBytesRead) {
+			struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + curSize);
+
+			curSize += ALIGN_SIZE(bpf->bh_datalen + bpf->bh_hdrlen, 1024);
+			adapter->BufferedPackets++;
+		}
 	}
-	
-	if (!ReadFile(adapter->Handle, pdata, hdr.Size, &dwBytesRead, NULL))
+
+	if (adapter->BufferedPackets == 0)
 	{
-		DEBUG_PRINT("<===NdisDriverNextPacket(false)\n");
-		return FALSE;
+		*dwBytesReceived = 0;
 	}
+	else {
+		struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + adapter->BufferOffset);
 
-	DEBUG_PRINT("  read %u data bytes\n", dwBytesRead);
+		UINT packetLen = bpf->bh_datalen + bpf->bh_hdrlen;
+		if(size<packetLen)
+		{
+			*dwBytesReceived = 0;
+			return FALSE;
+		}
 
-	bpf->bh_caplen = dwBytesRead;
-	*dwBytesReceived = dwBytesRead;
+		memcpy(*buf, bpf, packetLen);
+		*dwBytesReceived = packetLen;
+
+		adapter->BufferedPackets--;
+		adapter->BufferOffset += ALIGN_SIZE(packetLen, 1024);
+	}
 
 	DEBUG_PRINT("<===NdisDriverNextPacket(true)\n");
 

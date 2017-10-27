@@ -29,6 +29,25 @@
 #include "KernelUtil.h"
 #include <flt_dbg.h>
 
+
+struct timeval {
+	long    tv_sec;         /* seconds */
+	long    tv_usec;        /* and microseconds */
+};
+
+struct bpf_hdr {
+	struct timeval	bh_tstamp;	/* time stamp */
+	ULONG			bh_caplen;	/* length of captured portion */
+	ULONG			bh_datalen;	/* original length of packet */
+	USHORT			bh_hdrlen;	/* length of bpf header (this struct
+									plus alignment padding) */
+};
+
+#ifndef ALIGN_SIZE
+#define ALIGN_SIZE( sizeToAlign, PowerOfTwo )       \
+        (((sizeToAlign) + (PowerOfTwo) - 1) & ~((PowerOfTwo) - 1))
+#endif
+
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
@@ -366,134 +385,71 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	{
 		UCHAR *buf = Irp->UserBuffer;
 
-		DEBUGP(DL_TRACE, "  client provided buf 0x%08x, acquire lock 0x%08x\n", buf, client->ReadLock);
+		DEBUGP(DL_TRACE, "  client provided buf = %d bytes\n", stack->Parameters.Read.Length);
 
 		NdisAcquireSpinLock(client->ReadLock);
+
+		UINT availableSize = stack->Parameters.Read.Length;
 
 		UINT size = 0;
 		NdisAcquireSpinLock(client->PacketList->Lock);
 
-		PLIST_ITEM item = client->PacketList->First;
+		MDL *mdl = NULL;
+		ProbeForWrite(buf, availableSize, 1);
+
+		mdl = IoAllocateMdl(buf, availableSize, FALSE, FALSE, NULL);
+		if (mdl != NULL)
+		{
+			MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
+		}
+
+		PLIST_ITEM item = PopListTop(client->PacketList);
+
+		while(item)
+		{
+			PPACKET packet = (PPACKET)item->Data;
+
+			USHORT hdrSize = ALIGN_SIZE(sizeof(struct bpf_hdr), 4);
+
+			DEBUGP(DL_TRACE, "  packet size=%d, response size=%d, aligned header size=%d, real header size=%d\n", packet->Size, size, hdrSize, sizeof(struct bpf_hdr));
+
+			struct bpf_hdr bpf;
+			bpf.bh_caplen = packet->Size;
+			bpf.bh_datalen = packet->Size;
+			bpf.bh_hdrlen = hdrSize;
+			bpf.bh_tstamp.tv_sec = (long)(packet->Timestamp.QuadPart / 1000); // Get seconds part
+			bpf.bh_tstamp.tv_usec = (long)(packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+			
+			RtlCopyBytes(buf, &bpf, sizeof(struct bpf_hdr));
+			RtlCopyBytes(buf + hdrSize, packet->Data, packet->Size);
+
+			size += ALIGN_SIZE(packet->Size + hdrSize, 1024);
+			buf += ALIGN_SIZE(packet->Size + hdrSize, 1024);
+
+			FreePacket(packet);
+
+			if(item->Next!=NULL)
+			{
+				PPACKET next = (PPACKET)item->Next->Data;
+				if(size + next->Size + hdrSize > availableSize)
+				{
+					FILTER_FREE_MEM(item);
+
+					break;
+				}
+			}
+
+			FILTER_FREE_MEM(item);
+			item = PopListTop(client->PacketList);
+		}
 
 		NdisReleaseSpinLock(client->PacketList->Lock);
 
-		DEBUGP(DL_TRACE, "  found item in list = 0x%08x\n", item);
-
-		if(item)
+		if (mdl != NULL)
 		{
-			PPACKET packet = (PPACKET)item->Data;
-
-			BOOL header = stack->Parameters.Read.Length == sizeof(PACKET_HDR); //client wants to read header
-
-			DEBUGP(DL_TRACE, "  client provided %u buffer size, header=%u\n", stack->Parameters.Read.Length, header);
-
-			if(header)
-			{
-				size = sizeof(PACKET_HDR);
-			} else
-			{
-				size = packet->Size;
-			}
-
-			MDL *mdl;
-			ProbeForWrite(buf, size, 1);
-
-			mdl = IoAllocateMdl(buf, size, FALSE, FALSE, NULL);
-			if (mdl != NULL)
-			{
-				MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
-			}
-
-			if(header) 
-			{
-				DEBUGP(DL_TRACE, "  sending header, size=%u, packet size=%u\n", size, packet->Size);
-
-				PACKET_HDR hdr;
-				hdr.Size = packet->Size;
-				hdr.Timestamp = packet->Timestamp;
-
-				RtlCopyBytes(buf, &hdr, sizeof(PACKET_HDR));
-			} else
-			{
-				DEBUGP(DL_TRACE, "  sending data, size=%u, packet size=%u\n", size, packet->Size);
-				RtlCopyBytes(buf, packet->Data, packet->Size);
-
-				RemoveFromList(client->PacketList, item);
-				FreePacket(packet);
-
-				item = NULL;
-				packet = NULL;
-			}
-
-			if (mdl != NULL)
-			{
-				MmUnlockPages(mdl);
-				IoFreeMdl(mdl);
-			}
+			MmUnlockPages(mdl);
+			IoFreeMdl(mdl);
 		}
-
-		//TODO: this is code to read multiple packets at once
-		/*
-		while(item && total<stack->Parameters.Read.Length)
-		{
-			PPACKET packet = (PPACKET)item->Data;
-
-			if((total + packet->Size + sizeof(PACKET_HDR)) > stack->Parameters.Read.Length)
-			{
-				break;
-			}
-
-			total += packet->Size + sizeof(PACKET_HDR);
-			item = item->Next;
-		}
-
-		if(total>0)
-		{
-			MDL *mdl;
-			ProbeForWrite(buf, total, 1);
-
-			mdl = IoAllocateMdl(buf, total, FALSE, FALSE, NULL);
-			if (mdl != NULL)
-			{
-				MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
-			}
-
-			item = client->PacketList->First;
-			total = 0;
-
-			while (item && total<stack->Parameters.Read.Length)
-			{
-				PPACKET packet = (PPACKET)item->Data;
-
-				if ((total + packet->Size + sizeof(PACKET_HDR)) > stack->Parameters.Read.Length)
-				{
-					break;
-				}
-
-				PACKET_HDR hdr;
-				hdr.Size = packet->Size;
-				hdr.Timestamp = packet->Timestamp;
-
-				RtlCopyBytes(buf, &hdr, sizeof(PACKET_HDR));
-				buf += sizeof(PACKET_HDR);
-
-				RtlCopyBytes(buf, packet->Data, packet->Size);
-				buf += packet->Size;
-
-				total += packet->Size + sizeof(PACKET_HDR);
-
-				item = item->Next;
-
-				RemoveFromList(client->PacketList, item->Prev);
-				FreePacket(packet);
-			}
-
-			if (mdl != NULL)
-			{
-				MmUnlockPages(mdl);
-				IoFreeMdl(mdl);
-			}
-		}*/
 
 		if(client->PacketList->Size>0)
 		{
@@ -513,7 +469,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	Irp->IoStatus.Information = responseSize;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_ReadHandler, ret=0x%8x\n", ret);
+	DEBUGP(DL_TRACE, "<===Device_ReadHandler, response size = %d, items in buffer=%d, ret=0x%8x\n", responseSize, client->PacketList->Size, ret);
 
 	return ret;
 }

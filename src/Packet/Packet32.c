@@ -694,7 +694,7 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 	if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
 	{
 		TRACE_PRINT("   ... NdisDriverNextPacket");
-		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+		/*res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 		TRACE_PRINT2("   received %d bytes, result=%d", lpPacket->ulBytesReceived, res);
 
 		if(!lpPacket->ulBytesReceived && (int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
@@ -702,7 +702,10 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
 
 			res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
-		}
+		}*/
+
+		WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 
 		if (!CheckFilter(AdapterObject, lpPacket))
 		{

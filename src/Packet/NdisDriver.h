@@ -20,6 +20,8 @@
 
 #include "winpcap_ndis.h"
 
+#define READ_BUFFER_SIZE 32000
+
 typedef struct PCAP_NDIS
 {
 	void* handle;
@@ -36,6 +38,10 @@ typedef struct PCAP_NDIS_ADAPTER
 	void* Handle;
 	UINT ReadTimeout;
 	PCAP_NDIS_ADAPTER_STAT Stat;
+
+	UINT BufferOffset;
+	UINT BufferedPackets;
+	UCHAR ReadBuffer[READ_BUFFER_SIZE];
 } PCAP_NDIS_ADAPTER;
 
 typedef struct PCAP_NDIS_ADAPTER_LIST

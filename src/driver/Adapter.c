@@ -69,6 +69,11 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 		request->RequestType = NdisRequestSetInformation;
 		request->DATA.SET_INFORMATION.Oid = oid;
 		request->DATA.SET_INFORMATION.InformationBuffer = FILTER_ALLOC_MEM(FilterDriverObject, size);
+		if(!request->DATA.SET_INFORMATION.InformationBuffer)
+		{
+			FILTER_FREE_MEM(request);
+			return FALSE;
+		}
 		memcpy(request->DATA.SET_INFORMATION.InformationBuffer, data, size);
 		request->DATA.SET_INFORMATION.InformationBufferLength = size;
 	} else
@@ -91,7 +96,7 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 	{
 		InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
 
-		if (set && request->DATA.SET_INFORMATION.InformationBuffer)
+		if (set)
 		{
 			FILTER_FREE_MEM(request->DATA.SET_INFORMATION.InformationBuffer);
 		}
@@ -469,7 +474,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 			NdisReleaseSpinLock(client->ReadLock);
 
 		if (client && client->Event && client->Event->Event) {
-			DEBUGP(DL_TRACE, "   setting event %s\n", client->Event->Name);
+			//DEBUGP(DL_TRACE, "   setting event %s\n", client->Event->Name);
 			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 		}
 

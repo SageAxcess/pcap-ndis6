@@ -60,9 +60,3 @@ typedef struct PCAP_NDIS_ADAPTER_LIST_HDR
 	UINT Count;
 } PCAP_NDIS_ADAPTER_LIST_HDR;
 
-typedef struct PACKET_HDR
-{
-	UINT Size;
-	LARGE_INTEGER Timestamp;
-} PACKET_HDR;
-typedef struct PACKET_HDR* PPACKET_HDR;

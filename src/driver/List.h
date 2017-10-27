@@ -49,5 +49,6 @@ typedef struct LIST* PLIST;
 LIST* CreateList();
 void FreeList(LIST* list);
 PLIST_ITEM AddToList(LIST* list, void* data);
+PLIST_ITEM PopListTop(LIST* list); // Doesn't lock, doesn't free memory
 BOOL RemoveFromList(LIST* list, PLIST_ITEM item);
 BOOL RemoveFromListByData(LIST* list, PVOID data);

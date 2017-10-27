@@ -93,7 +93,7 @@ typedef PNDIS_SPIN_LOCK     PFILTER_LOCK;
 
 #endif    // DBG_SPIN_LOCK
 
-#if DBG
+#if DBG_PRINT
 
 extern INT                filterDebugLevel;
 

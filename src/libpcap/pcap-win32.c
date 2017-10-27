@@ -63,10 +63,10 @@ static int pcap_getnonblock_win32(pcap_t *, char *);
 static int pcap_setnonblock_win32(pcap_t *, int, char *);
 
 /*dimension of the buffer in the pcap_t structure*/
-#define	WIN32_DEFAULT_USER_BUFFER_SIZE 256000
+#define	WIN32_DEFAULT_USER_BUFFER_SIZE 32000
 
 /*dimension of the buffer in the kernel driver NPF */
-#define	WIN32_DEFAULT_KERNEL_BUFFER_SIZE 1000000
+#define	WIN32_DEFAULT_KERNEL_BUFFER_SIZE 32000
 
 /* Equivalent to ntohs(), but a lot faster under Windows */
 #define SWAPS(_X) ((_X & 0xff) << 8) | (_X >> 8)
