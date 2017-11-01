@@ -28,6 +28,7 @@ LIST* CreateList()
 	LIST* list = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(LIST));
 	NdisZeroMemory(list, sizeof(LIST));
 	list->Lock = CreateSpinLock();
+	list->Releasing = FALSE;
 	return list;
 }
 
@@ -39,6 +40,7 @@ void FreeList(LIST* list) //TODO: possible memory leak if you don't release data
 	}
 
 	NdisAcquireSpinLock(list->Lock);
+	list->Releasing = TRUE;
 
 	LIST_ITEM* cur = list->First;
 	while(cur)
@@ -58,6 +60,12 @@ void FreeList(LIST* list) //TODO: possible memory leak if you don't release data
 PLIST_ITEM AddToList(LIST* list, void* data)
 {
 	NdisAcquireSpinLock(list->Lock);
+
+	if(list->Releasing)
+	{
+		NdisReleaseSpinLock(list->Lock);
+		return NULL;
+	}
 
 	LIST_ITEM* item = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(LIST_ITEM));
 	NdisZeroMemory(item, sizeof(LIST_ITEM));

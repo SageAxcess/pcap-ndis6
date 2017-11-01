@@ -61,6 +61,8 @@ void FreePacketList(PLIST list)
 	}
 
 	NdisAcquireSpinLock(list->Lock);
+	list->Releasing = TRUE;
+
 	PLIST_ITEM item = list->First;
 	while (item)
 	{
@@ -76,6 +78,5 @@ void FreePacketList(PLIST list)
 
 	NdisReleaseSpinLock(list->Lock);
 
-	//TODO: possible memory leak if something is added to the list before it's released
 	FreeList(list);
 }

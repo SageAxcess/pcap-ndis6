@@ -87,6 +87,7 @@ DEVICE* CreateDevice(char* name)
 	device->Name = name_u;
 	device->OpenCloseLock = CreateSpinLock();
 	device->ClientList = CreateList();
+	device->Releasing = FALSE;
 	
 	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &device->Device);
 	if(ret !=STATUS_SUCCESS) //Nothing
@@ -115,6 +116,24 @@ BOOL FreeDevice(PDEVICE device)
 		return FALSE;
 	}
 
+	device->Releasing = TRUE;
+
+	NdisAcquireSpinLock(device->ClientList->Lock);
+
+	PLIST_ITEM item = device->ClientList->First;
+	while (item)
+	{
+		PCLIENT client = (PCLIENT)item->Data;
+
+		KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+
+		item = item->Next;
+	}
+
+	NdisReleaseSpinLock(device->ClientList->Lock);
+
+	DriverSleep(50);
+
 	IoDeleteDevice(device->Device);
 	FreeString(device->Name);
 	FreeSpinLock(device->OpenCloseLock);
@@ -136,7 +155,7 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
-	if(!device)
+	if(!device || device->Releasing)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);		
@@ -163,11 +182,10 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	}
 	if (device->IsAdaptersList || (device->Adapter != NULL && device->Adapter->Ready))
 	{
-		DEBUGP(DL_TRACE, "    before create client\n");
-		CLIENT* client = CreateClient(device, stack->FileObject);
-		DEBUGP(DL_TRACE, "    client created\n");
-		stack->FileObject->FsContext = client;
-		DEBUGP(DL_TRACE, "    context set\n");
+		if (!device->ClientList->Releasing) {
+			CLIENT* client = CreateClient(device, stack->FileObject);			
+			stack->FileObject->FsContext = client;			
+		}
 
 		ret = STATUS_SUCCESS;
 	}
@@ -201,7 +219,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
-	if(!device)
+	if(!device || device->Releasing)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
@@ -227,6 +245,8 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 		if (client)
 		{
 			DEBUGP(DL_TRACE, "   acquire lock for client list and remove\n");
+			RemoveFromListByData(device->ClientList, client);
+
 			FreeClient(client);
 
 			stack->FileObject->FsContext = NULL;
@@ -252,7 +272,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
-	if(!device)
+	if(!device || device->Releasing)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
@@ -390,6 +410,18 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 		NdisAcquireSpinLock(client->ReadLock);
 
 		UINT availableSize = stack->Parameters.Read.Length;
+
+		if(client->PacketList==NULL || client->PacketList->Releasing) //Seems that driver is being unloaded, release is protected with ReadLock so no conflict
+		{
+			ret = STATUS_UNSUCCESSFUL;
+			responseSize = 0;		
+
+			Irp->IoStatus.Status = ret;
+			Irp->IoStatus.Information = responseSize;
+			IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+			return ret;
+		}
 
 		UINT size = 0;
 		NdisAcquireSpinLock(client->PacketList->Lock);

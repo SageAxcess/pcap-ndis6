@@ -38,6 +38,7 @@ typedef struct LIST {
 	PLIST_ITEM First;
 	PLIST_ITEM Last;
 
+	BOOL Releasing;
 	ULONG Size;
 } LIST;
 typedef struct LIST* PLIST;

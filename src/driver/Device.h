@@ -36,6 +36,7 @@ typedef struct DEVICE {
 	PNDIS_SPIN_LOCK OpenCloseLock;
 	PLIST ClientList;
 
+	BOOL Releasing;
 	BOOL IsAdaptersList;
 } DEVICE;
 typedef struct DEVICE* PDEVICE;

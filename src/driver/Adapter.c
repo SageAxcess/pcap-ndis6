@@ -115,8 +115,13 @@ BOOL FreeAdapter(ADAPTER* adapter)
 		return FALSE;
 	}
 
-	FilterFreeMem(adapter->Name->Buffer);
-	FilterFreeMem(adapter->Name);
+	if (adapter->Device)
+	{
+		FreeDevice(adapter->Device);
+		adapter->Device = NULL;
+	}
+
+	FreeString(adapter->Name);
 
 	//FreeString(adapter->Name);
 	FreeSpinLock(adapter->Lock);
@@ -274,7 +279,7 @@ void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, N
 	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx status=0x%8x...\n", Status);
 
 	ADAPTER* adapter = (ADAPTER*) ProtocolBindingContext;
-	if (Status == STATUS_SUCCESS)
+	if (Status == STATUS_SUCCESS && !AdapterList->Releasing)
 	{
 		DEVICE* device = CreateDevice(adapter->AdapterId);
 
@@ -298,7 +303,7 @@ void Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, N
 		adapter = NULL;
 	}
 
-	if (adapter->BindContext!=NULL)
+	if (adapter!=NULL && adapter->BindContext!=NULL)
 	{
 		NdisCompleteBindAdapterEx(adapter->BindContext, Status);
 	}
@@ -314,31 +319,6 @@ void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 	if (adapter->UnbindContext != NULL)
 	{
 		NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
-	}
-
-	if(adapter->Device)
-	{
-		NdisAcquireSpinLock(adapter->Device->ClientList->Lock);
-
-		PLIST_ITEM item = adapter->Device->ClientList->First;
-		while(item)
-		{
-			PCLIENT client = (PCLIENT)item->Data;
-
-			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-
-			item = item->Next;
-		}
-
-		NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
-
-		while (adapter->Device->ClientList->Size>0) //TODO: make sure it really disconnects
-		{
-			DriverSleep(50);
-		}
-
-		FreeDevice(adapter->Device);
-		adapter->Device = NULL;
 	}
 
 	FreeAdapter(adapter);
@@ -448,7 +428,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 						CLIENT* client = (CLIENT*)item->Data;
 
 						DEBUGP(DL_TRACE, "   adding packet to client, size=%u\n", client->PacketList->Size);
-						if (client->PacketList->Size<MAX_PACKET_QUEUE_SIZE) //TODO: it seems we lose packets here
+						if (client->PacketList->Size<MAX_PACKET_QUEUE_SIZE && !client->PacketList->Releasing) //TODO: it seems we lose packets here
 						{
 							AddToList(client->PacketList, CreatePacket(ptr, size, timestamp));
 						}
