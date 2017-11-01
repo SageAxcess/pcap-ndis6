@@ -7,6 +7,10 @@ echo    architecture = %PROCESSOR_ARCHITECTURE%
 echo    system dir = %SystemRoot%
 echo    current dir = %mypath:~0,-1%
 
+echo Stopping service
+net stop aegis
+taskkill /F /IM aegis.exe /T
+
 echo Removing files
 
 del /f /q %SystemRoot%\system32\packet-ndis6.dll
