@@ -171,10 +171,10 @@ bool UninstallNdisProtocolDriver(UINT lock_timeout)
 
 				if (SUCCEEDED(hr))
 				{
-					INetCfgComponent *pComponent;
+					INetCfgComponent *pComponent = NULL;
 					hr = pNetCfg->FindComponent(L"PcapNdis6", &pComponent);
 
-					if (SUCCEEDED(hr))
+					if (SUCCEEDED(hr) && pComponent)
 					{
 						INetCfgClassSetup *pSetup;
 
