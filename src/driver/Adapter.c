@@ -414,7 +414,7 @@ void Protocol_ReceiveNetBufferListsHandler(
 			UINT size = NET_BUFFER_DATA_LENGTH(nb);
 
 			//DEBUGP(DL_TRACE, "     buffer size %u\n", size);
-			if(size>0 && size<MAX_PACKET_SIZE) //TODO: it seems we lose packets here
+			if(size>0 && size<MAX_PACKET_SIZE)
 			{				
 				UCHAR *ptr = NdisGetDataBuffer(nb, size, adapter->TmpBuf, 1, 0);
 

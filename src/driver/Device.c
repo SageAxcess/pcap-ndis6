@@ -85,6 +85,7 @@ DEVICE* CreateDevice(char* name)
 	NdisZeroMemory(device, sizeof(DEVICE));
 
 	device->Name = name_u;
+	device->SymlinkName = symlink_name_u;
 	device->OpenCloseLock = CreateSpinLock();
 	device->ClientList = CreateList();
 	device->Releasing = FALSE;
@@ -97,7 +98,6 @@ DEVICE* CreateDevice(char* name)
 	}
 	
 	IoCreateSymbolicLink(symlink_name_u, name_u);
-	FreeString(symlink_name_u);
 
 	*((DEVICE **)device->Device->DeviceExtension) = device;
 	device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
@@ -118,6 +118,10 @@ BOOL FreeDevice(PDEVICE device)
 
 	device->Releasing = TRUE;
 
+	IoDeleteSymbolicLink(device->SymlinkName);
+	IoDeleteDevice(device->Device);
+	DriverSleep(50);
+
 	NdisAcquireSpinLock(device->ClientList->Lock);
 
 	PLIST_ITEM item = device->ClientList->First;
@@ -132,10 +136,8 @@ BOOL FreeDevice(PDEVICE device)
 
 	NdisReleaseSpinLock(device->ClientList->Lock);
 
-	DriverSleep(50);
-
-	IoDeleteDevice(device->Device);
 	FreeString(device->Name);
+	FreeString(device->SymlinkName);
 	FreeSpinLock(device->OpenCloseLock);
 	FreeClientList(device->ClientList);
 

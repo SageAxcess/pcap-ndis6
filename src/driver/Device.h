@@ -29,6 +29,7 @@
 
 typedef struct DEVICE {
 	PUNICODE_STRING Name;
+	PUNICODE_STRING SymlinkName;
 	PDEVICE_OBJECT Device;
 
 	struct ADAPTER* Adapter;
