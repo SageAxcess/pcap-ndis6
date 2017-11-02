@@ -707,6 +707,11 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 		WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
 		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
 
+		if(!res)
+		{
+			PacketCloseAdapter(AdapterObject);
+		}
+
 		if(lpPacket->ulBytesReceived > 0)
 		{
 			Sleep(100);

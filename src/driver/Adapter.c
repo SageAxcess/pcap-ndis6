@@ -262,6 +262,10 @@ NDIS_STATUS Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HAND
 		DriverSleep(50);
 	}
 
+	if (adapter->Device != NULL) {
+		adapter->Device->Releasing = TRUE;
+	}
+
 	NDIS_STATUS ret = NdisCloseAdapterEx(handle);
 	if (ret != NDIS_STATUS_PENDING)
 	{
@@ -320,6 +324,26 @@ void Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
 	{
 		NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
 	}
+
+	NdisAcquireSpinLock(adapter->Device->ClientList->Lock);
+
+	while(adapter->Device->ClientList->Size > 0)
+	{
+
+		PLIST_ITEM item = adapter->Device->ClientList->First;
+		while (item)
+		{
+			CLIENT* client = (CLIENT*)item->Data;
+			if (client && client->Event) {
+				KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+			}
+			item = item->Next;
+		}
+
+		DriverSleep(50); //TODO: wait until adapter->Device stops
+	}
+
+	NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
 
 	FreeAdapter(adapter);
 	DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");

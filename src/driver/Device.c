@@ -116,8 +116,6 @@ BOOL FreeDevice(PDEVICE device)
 		return FALSE;
 	}
 
-	device->Releasing = TRUE;
-
 	IoDeleteSymbolicLink(device->SymlinkName);
 	IoDeleteDevice(device->Device);
 	DriverSleep(50);
@@ -221,7 +219,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
-	if(!device || device->Releasing)
+	if(!device)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);
