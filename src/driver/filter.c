@@ -128,6 +128,9 @@ void DriverUnload(DRIVER_OBJECT* DriverObject)
 		FilterProtocolHandle = NULL;
 	}
 
+	ListAdaptersDevice->Releasing = TRUE;
+	DriverSleep(500);
+
 	FreeDevice(ListAdaptersDevice);
 	FreeAdapterList(AdapterList);
 	AdapterList = NULL;

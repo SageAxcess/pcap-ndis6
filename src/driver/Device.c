@@ -247,7 +247,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 			DEBUGP(DL_TRACE, "   acquire lock for client list and remove\n");
 			RemoveFromListByData(device->ClientList, client);
 
-			FreeClient(client);
+			FreeClient(client);			
 
 			stack->FileObject->FsContext = NULL;
 

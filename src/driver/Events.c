@@ -53,14 +53,12 @@ EVENT* CreateEvent()
 		return NULL;
 	}
 
-	OBJECT_ATTRIBUTES EventAttributes;
-	InitializeObjectAttributes(&EventAttributes, name_u, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+	// Second method to create event
+	/*OBJECT_ATTRIBUTES EventAttributes;
+	InitializeObjectAttributes(&EventAttributes, name_u, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE | OBJ_PERMANENT, NULL, NULL);
 
-	//TODO: better practice here is to create event in user-mode .dll. Kernel driver just assigns name to it and calls ZwOpenEvent/ObReference.../Ke_xxx functions.
-	//      We can keep EventHandle NULL or INVALID_HANDLE_VALUE until other side creates it. If there's no event - do not store anything for this client.
-	//event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
 	NTSTATUS stat = ZwCreateEvent(&event->EventHandle, EVENT_ALL_ACCESS, &EventAttributes, NotificationEvent, FALSE);
-	DEBUGP(DL_TRACE, "  calling ZwCreateEvent, status=%d\n", stat);	
+	DEBUGP(DL_TRACE, "  calling ZwCreateEvent, status=%d\n", stat);
 
 	if (!NT_SUCCESS(stat)) {
 		DEBUGP(DL_TRACE, "<===CreateEvent failed to call ZwCreateEvent\n");
@@ -83,16 +81,26 @@ EVENT* CreateEvent()
 		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
 
 		FreeString(name_u);
-		FILTER_FREE_MEM(event);		
+		FILTER_FREE_MEM(event);
 
 		return NULL;
-	}
+	}*/
 
-	/*
+	//TODO: better practice here is to create event in user-mode .dll. Kernel driver just assigns name to it and calls ZwOpenEvent/ObReference.../Ke_xxx functions.
+	//      We can keep EventHandle NULL or INVALID_HANDLE_VALUE until other side creates it. If there's no event - do not store anything for this client.
+	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
+	if(event->Event == NULL)
+	{
+		DEBUGP(DL_TRACE, "<===CreateEvent failed to call IoCreateNotificationEvent\n");
+		FreeString(name_u);
+		FILTER_FREE_MEM(event);
+		return NULL;
+	}
+	
 	DEBUGP(DL_TRACE, "  initialize event\n");
 	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
 	DEBUGP(DL_TRACE, "  reset event\n");
-	KeClearEvent(event->Event);*/
+	KeClearEvent(event->Event);
 
 	DEBUGP(DL_TRACE, "  free event name string\n");
 	FreeString(name_u);
@@ -109,7 +117,7 @@ BOOL FreeEvent(PEVENT event)
 		return FALSE;
 	}
 
-	ObDereferenceObject(event->Event);
+	//ObDereferenceObject(event->Event);
 	ZwClose(event->EventHandle);
 
 	FILTER_FREE_MEM(event);
