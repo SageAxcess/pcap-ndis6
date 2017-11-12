@@ -51,8 +51,8 @@ BOOL FreeDevice(PDEVICE device);
 //////////////////////////////////////////////////////////////////////
 // Device callbacks
 /////////////////////////////////////////////////////////////////////
-NTSTATUS Device_CreateHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS Device_ReadHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS Device_IoControlHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_WRITE) Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) Device_IoControlHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);

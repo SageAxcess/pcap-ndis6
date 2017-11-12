@@ -47,6 +47,13 @@ PCAP_NDIS* NdisDriverOpen()
 	}
 
 	PCAP_NDIS* ndis = (PCAP_NDIS*)malloc(sizeof(PCAP_NDIS));
+	if(!ndis)
+	{
+		DEBUG_PRINT("    unable to allocate memory!\n");
+		CloseHandle(hFile);
+		return NULL;
+	}
+
 	ndis->handle = hFile;
 
 	DEBUG_PRINT("<===NdisDriverOpen\n");
@@ -87,6 +94,13 @@ PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterI
 	}
 
 	PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)malloc(sizeof(struct PCAP_NDIS_ADAPTER));
+	if(!adapter)
+	{
+		DEBUG_PRINT("    unable to allocate memory!\n");
+		CloseHandle(hFile);
+		return NULL;
+	}
+
 	adapter->Handle = hFile;
 	adapter->Stat.Captured = 0;
 	adapter->Stat.Dropped = 0;
@@ -186,6 +200,11 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 	}
 
 	PCAP_NDIS_ADAPTER_LIST* list = (PCAP_NDIS_ADAPTER_LIST*)malloc(sizeof(PCAP_NDIS_ADAPTER_LIST));
+	if(!list)
+	{
+		return NULL;
+	}
+
 	list->count = 0;
 	list->adapters = NULL;
 
@@ -200,9 +219,13 @@ PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 			return NULL;
 		}
 
-		list->count = hdr.Count > MAX_ADAPTERS ? MAX_ADAPTERS : hdr.Count;
-		
+		list->count = hdr.Count > MAX_ADAPTERS ? MAX_ADAPTERS : hdr.Count;		
 		list->adapters = (PCAP_NDIS_ADAPTER_INFO*)malloc(sizeof(PCAP_NDIS_ADAPTER_INFO) * list->count);
+		if(!list->adapters)
+		{
+			NdisDriverFreeAdapterList(list);
+			return NULL;
+		}
 
 		for (int i = 0; i < list->count && i < MAX_ADAPTERS;i++)
 		{

@@ -34,13 +34,13 @@ EVENT* CreateEvent()
 	}
 	NdisZeroMemory(event, sizeof(EVENT));
 
-	InterlockedIncrement((volatile long*)&_curEventId);
-	LARGE_INTEGER timestamp = KeQueryPerformanceCounter(NULL);
+	ULONG eventId = InterlockedIncrement((volatile long*)&_curEventId);
+	LARGE_INTEGER timestamp = KeQueryPerformanceCounter(NULL);	
 	
-	sprintf(event->Name, EVENT_NAME_FMT, _curEventId, timestamp.QuadPart);
+	sprintf_s(event->Name, 256, EVENT_NAME_FMT, eventId, timestamp.QuadPart);
 
-	char name[1024];
-	sprintf(name, "\\BaseNamedObjects\\%s", event->Name);
+	char name[256];
+	sprintf_s(name, 256, "\\BaseNamedObjects\\%s", event->Name);
 
 	DEBUGP(DL_TRACE, " event name %s\n", name);
 

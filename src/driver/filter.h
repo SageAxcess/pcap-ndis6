@@ -65,7 +65,7 @@ void FilterFreeMem(PVOID Data);
 // function prototypes
 //
 
-void DriverUnload(DRIVER_OBJECT *driver_object);
+void _Function_class_(DRIVER_UNLOAD) DriverUnload(DRIVER_OBJECT *driver_object);
 
 
 #endif  //_FILT_H

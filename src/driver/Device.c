@@ -56,11 +56,11 @@ DEVICE* CreateDevice(char* name)
 {
 	DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
 
-	char deviceName[1024];
-	sprintf_s(deviceName, 1024, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
+	char deviceName[256];
+	sprintf_s(deviceName, 256, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
 
-	char symlinkName[1024];
-	sprintf_s(symlinkName, 1024, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
+	char symlinkName[256];
+	sprintf_s(symlinkName, 256, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
 
 	NDIS_STRING* name_u = CreateString(deviceName);
 	if(!name_u)
@@ -99,8 +99,10 @@ DEVICE* CreateDevice(char* name)
 	
 	IoCreateSymbolicLink(symlink_name_u, name_u);
 
-	*((DEVICE **)device->Device->DeviceExtension) = device;
-	device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
+	if (device->Device) {
+		*((DEVICE **)device->Device->DeviceExtension) = device;
+		device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
+	}
 
 	DEBUGP(DL_TRACE, "<===CreateDevice\n");
 
@@ -149,7 +151,7 @@ BOOL FreeDevice(PDEVICE device)
 // Device callbacks
 /////////////////////////////////////////////////////////////////////
 
-NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_CreateHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
@@ -213,7 +215,7 @@ NTSTATUS Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	return ret;
 }
 
-NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_CloseHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
@@ -266,7 +268,7 @@ NTSTATUS Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 /**
  * Device read callback
  */
-NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_ReadHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
@@ -299,8 +301,6 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 	if (device->IsAdaptersList)
 	{
-		NdisAcquireSpinLock(AdapterList->Lock);
-
 		if(client->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
 		{
 			requiredSize = sizeof(struct PCAP_NDIS_ADAPTER_INFO);
@@ -319,7 +319,20 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 			{
 				MDL *mdl;
 
-				ProbeForWrite(Irp->UserBuffer, requiredSize, 1);
+				__try {
+					ProbeForWrite(Irp->UserBuffer, requiredSize, 1);
+				} __except(EXCEPTION_EXECUTE_HANDLER) {
+					DEBUGP(DL_ERROR, " invalid buffer received at DeviceRead handler");
+
+					ret = STATUS_UNSUCCESSFUL;
+					responseSize = 0;
+
+					Irp->IoStatus.Status = ret;
+					Irp->IoStatus.Information = responseSize;
+					IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+					return ret;
+				}
 
 				mdl = IoAllocateMdl(dst, requiredSize, FALSE, FALSE, NULL);
 				if (mdl != NULL)
@@ -360,8 +373,8 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 							PCAP_NDIS_ADAPTER_INFO info;
 							RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
-							RtlCopyBytes(info.AdapterId, adapter->AdapterId, 1024);
-							RtlCopyBytes(info.DisplayName, adapter->DisplayName, 1024);
+							RtlCopyBytes(info.AdapterId, adapter->AdapterId, 256);
+							RtlCopyBytes(info.DisplayName, adapter->DisplayName, 256);
 
 							info.MtuSize = adapter->MtuSize;
 
@@ -399,15 +412,12 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 				}
 			}
 		}
-		NdisReleaseSpinLock(AdapterList->Lock);
 	}
 	else
 	{
 		UCHAR *buf = Irp->UserBuffer;
 
 		DEBUGP(DL_TRACE, "  client provided buf = %d bytes\n", stack->Parameters.Read.Length);
-
-		NdisAcquireSpinLock(client->ReadLock);
 
 		UINT availableSize = stack->Parameters.Read.Length;
 
@@ -418,16 +428,31 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 
 			Irp->IoStatus.Status = ret;
 			Irp->IoStatus.Information = responseSize;
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);
+			IoCompleteRequest(Irp, IO_NO_INCREMENT);			
 
 			return ret;
 		}
 
 		UINT size = 0;
-		NdisAcquireSpinLock(client->PacketList->Lock);
-
 		MDL *mdl = NULL;
-		ProbeForWrite(buf, availableSize, 1);
+		__try {
+			ProbeForWrite(buf, availableSize, 1);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) {
+			DEBUGP(DL_ERROR, " invalid buffer received at DeviceRead handler");
+			NdisReleaseSpinLock(client->ReadLock);
+
+			ret = STATUS_UNSUCCESSFUL;
+			responseSize = 0;
+
+			Irp->IoStatus.Status = ret;
+			Irp->IoStatus.Information = responseSize;
+			IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+			return ret;
+		}
+
+		NdisAcquireSpinLock(client->PacketList->Lock);
 
 		mdl = IoAllocateMdl(buf, availableSize, FALSE, FALSE, NULL);
 		if (mdl != NULL)
@@ -491,8 +516,6 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 			KeResetEvent(client->Event->Event);
 		}
 
-		NdisReleaseSpinLock(client->ReadLock);
-
 		ret = STATUS_SUCCESS;
 		responseSize = size;
 	}
@@ -506,7 +529,7 @@ NTSTATUS Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 	return ret;
 }
 
-NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_WRITE) Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_WriteHandler...\n");
 	_CRT_UNUSED(DeviceObject);
@@ -521,7 +544,7 @@ NTSTATUS Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 	return Irp->IoStatus.Status;
 }
 
-NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_IoControlHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
@@ -561,13 +584,19 @@ NTSTATUS Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 				char* buf = (char*)Irp->UserBuffer;
 				if (buf)
 				{
-					ProbeForWrite(buf, size, 1);
+					__try {
+						ProbeForWrite(buf, size, 1);
+						strcpy_s(buf, size, client->Event->Name);
 
-					strcpy_s(buf, size, client->Event->Name);
+						ReturnSize = size;
+						ret = STATUS_SUCCESS;
+					}
+					__except (EXCEPTION_EXECUTE_HANDLER) {
+						DEBUGP(DL_ERROR, " invalid buffer received at Device_IoControlHandler handler");
 
-					ReturnSize = size;
-
-					ret = STATUS_SUCCESS;
+						ReturnSize = 0;
+						ret = STATUS_UNSUCCESSFUL;
+					}
 				}
 			}
 		}

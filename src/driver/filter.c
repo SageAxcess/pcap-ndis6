@@ -116,7 +116,7 @@ DriverEntry(
     return Status;
 }
 
-void DriverUnload(DRIVER_OBJECT* DriverObject)
+void _Function_class_(DRIVER_UNLOAD) DriverUnload(DRIVER_OBJECT* DriverObject)
 {
 	DEBUGP(DL_TRACE, "===>DriverUnload");
 

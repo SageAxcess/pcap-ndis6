@@ -5,18 +5,9 @@
 
 #include <winsock2.h>
 #include <windows.h>
-#include <wincrypt.h>
 #include <wininet.h>
-#include <Wbemidl.h>
-#include <comdef.h>
 #include <Mshtmhst.h>
-#include <shlobj.h>
-#include <commctrl.h>
-#include <Dbghelp.h>
-#include <iphlpapi.h>
-#include <Natupnp.h>
 #include <devguid.h>
-#include <regstr.h>
 #include <cfgmgr32.h>
 #include <tchar.h>
 #include <objbase.h>
@@ -26,9 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#include <stdarg.h>
-#include <time.h>
-#include <errno.h>
 
 #include "netcfgn.h"
 
@@ -219,7 +207,12 @@ int main(int argc, char** argv)
 {
 	if(argc>1)
 	{
-		CoInitialize(NULL);
+		HRESULT hr = CoInitialize(NULL);
+		if(hr!=S_OK)
+		{
+			printf("Failed to call CoInitialize!\n");
+			exit(1);
+		}
 
 		if(!strcmp(argv[1], "/install"))
 		{

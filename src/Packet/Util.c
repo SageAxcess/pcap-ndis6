@@ -22,6 +22,10 @@
 MUTEX* PacketCreateMutex()
 {
 	MUTEX* mutex = (MUTEX*)malloc(sizeof(MUTEX));
+	if(!mutex)
+	{
+		return NULL;
+	}
 	memset(&mutex->cs, 0, sizeof(CRITICAL_SECTION));
 	InitializeCriticalSection(&mutex->cs);
 	return mutex;

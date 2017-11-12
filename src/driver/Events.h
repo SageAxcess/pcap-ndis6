@@ -29,7 +29,7 @@
 
 typedef struct EVENT
 {
-	char Name[1024];
+	char Name[256];
 	PKEVENT Event;
 	HANDLE EventHandle;
 } EVENT;

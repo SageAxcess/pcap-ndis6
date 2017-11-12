@@ -15,9 +15,10 @@
 // Copyright(c) 2005 - 2007 CACE Technologies, Davis(California)
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
-#define UNICODE 1
 
-#pragma warning (disable : 4127)  //conditional expression is constant. Used for do{}while(FALSE) loops.
+#pragma warning (disable : 4127)  // conditional expression is constant. Used for do{}while(FALSE) loops.
+#pragma warning (disable : 28183) // do not treat GlobalAlloc as warning
+#pragma warning (disable : 6387)  // do not treat GlobalAlloc as warning
 
 #if (MSC_VER < 1300)
 #pragma warning (disable : 4710) // inline function not expanded. used for strsafe functions
@@ -54,9 +55,7 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <windows.h>
 #include <windowsx.h>
-#include <ws2ipdef.h>
 #include <Iphlpapi.h>
-#include <IPIfCons.h>
 #include <netioapi.h>
 
 #include <WpcapNames.h>
@@ -214,27 +213,27 @@ static PCHAR WChar2SChar(PWCHAR string)
   NOTE: this function is used for NPF adapters, only.
 */
 
-BOOLEAN PacketSetMaxLookaheadsize (LPADAPTER AdapterObject)
+BOOLEAN PacketSetMaxLookaheadsize(LPADAPTER AdapterObject)
 {
-    BOOLEAN    Status;
-    ULONG      IoCtlBufferLength=(sizeof(PACKET_OID_DATA)+sizeof(ULONG)-1);
-    PPACKET_OID_DATA  OidData;
+	BOOLEAN    Status;
+	ULONG      IoCtlBufferLength = (sizeof(PACKET_OID_DATA) + sizeof(ULONG) - 1);
+	PPACKET_OID_DATA  OidData;
 
 	TRACE_ENTER("PacketSetMaxLookaheadsize");
 
-    OidData = GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT,IoCtlBufferLength);
-    if (OidData == NULL) {
-        TRACE_PRINT("PacketSetMaxLookaheadsize failed");
-        Status = FALSE;
-    }
+	OidData = GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, IoCtlBufferLength);
+	if (OidData == NULL) {
+		TRACE_PRINT("PacketSetMaxLookaheadsize failed");
+		Status = FALSE;
+	}
 	else
 	{
 		//set the size of the lookahead buffer to the maximum available by the the NIC driver
-		OidData->Oid=OID_GEN_MAXIMUM_LOOKAHEAD;
-		OidData->Length=sizeof(ULONG);
-		Status=PacketRequest(AdapterObject,FALSE,OidData);
-		OidData->Oid=OID_GEN_CURRENT_LOOKAHEAD;
-		Status=PacketRequest(AdapterObject,TRUE,OidData);
+		OidData->Oid = OID_GEN_MAXIMUM_LOOKAHEAD;
+		OidData->Length = sizeof(ULONG);
+		PacketRequest(AdapterObject, FALSE, OidData); // Ignore response
+		OidData->Oid = OID_GEN_CURRENT_LOOKAHEAD;
+		Status = PacketRequest(AdapterObject, TRUE, OidData);
 		GlobalFreePtr(OidData);
 	}
 
@@ -412,7 +411,7 @@ BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLe
 
 	TRACE_ENTER("PacketGetFileVersion");
 
-	wprintf(L"  read %s file version\n", FileName);
+	printf("  read %s file version\n", FileName);
 
 	// Now lets dive in and pull out the version information:
     dwVerInfoSize = GetFileVersionInfoSize(FileName, &dwVerHnd);
@@ -426,7 +425,7 @@ BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLe
 			return FALSE;
 		}
 
-		if(!GetFileVersionInfo(FileName, dwVerHnd, dwVerInfoSize, lpstrVffInfo)) 
+		if(!GetFileVersionInfo(FileName, 0, dwVerInfoSize, lpstrVffInfo)) 
 		{
 			TRACE_PRINT("PacketGetFileVersion: failed to call GetFileVersionInfo");
             GlobalFreePtr(lpstrVffInfo);
@@ -538,6 +537,11 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 		if (info)
 		{
 			result = (ADAPTER*)malloc(sizeof(ADAPTER));
+			if(!result)
+			{
+				NdisDriverFreeAdapterList(list);
+				return NULL;
+			}
 			memset(result, 0, sizeof(ADAPTER));
 
 			result->hFile = NdisDriverOpenAdapter(ndis, info->AdapterId);
@@ -545,15 +549,15 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 			result->Flags = INFO_FLAG_NDIS_ADAPTER;
 			strcpy_s(result->Name, sizeof(result->Name), info->AdapterId);
 
-			char eventName[1024];
-			char eventNameFull[1024];
+			char eventName[1024] = {0};
+			char eventNameFull[1024] = {0};
 
 			PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)result->hFile;
 
 			DWORD dwBytesReturned = 0;
-			if (DeviceIoControl(adapter->Handle, IOCTL_GET_EVENT_NAME, &eventName, 1024, &eventName, 1024, &dwBytesReturned, NULL) == TRUE)
+			if (DeviceIoControl(adapter->Handle, (DWORD)IOCTL_GET_EVENT_NAME, &eventName, 1024u, &eventName, 1024u, &dwBytesReturned, NULL) == TRUE)
 			{
-				eventName[dwBytesReturned] = 0;
+				eventName[dwBytesReturned > 1023 ? 1023 : dwBytesReturned] = 0;
 				sprintf_s(eventNameFull, 1024, "Global\\%s", eventName);
 
 				TRACE_PRINT1("  detected event name %s", eventNameFull);
@@ -564,7 +568,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 				PacketSetReadTimeout(result, 0);				
 			}
 		}
-
+		
 		NdisDriverFreeAdapterList(list);
 	}
 
@@ -859,6 +863,10 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 	if (fp != NULL)
 	{
 		filter = (struct bpf_program*)malloc(sizeof(struct bpf_program));
+		if(!filter)
+		{
+			return FALSE;
+		}
 		filter->bf_len = fp->bf_len;
 
 		size_t size = sizeof(struct bpf_insn) * filter->bf_len;
@@ -1083,7 +1091,6 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
 {
 	UINT retcode;
 	MIB_IF_TABLE2 *table;
-	UINT table_size = sizeof(MIB_IFTABLE);
 
 	TRACE_PRINT1("PacketGetNetInfoEx(%s)", AdapterName);
 
@@ -1097,7 +1104,7 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
 
 	int index = -1;
 
-	for (int i = 0; i < table->NumEntries; i++)
+	for (unsigned int i = 0; i < table->NumEntries; i++)
 	{
 		MIB_IF_ROW2* row = &table->Table[i];
 
@@ -1120,13 +1127,12 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
 
 	if(index >= 0)
 	{
-		UINT ret = 0;
 		IP_ADAPTER_INFO *info;
-		UINT size = sizeof(IP_ADAPTER_INFO);
+		ULONG size = sizeof(IP_ADAPTER_INFO);
 		info = (IP_ADAPTER_INFO *)malloc(size);
 		memset(info, 0, size);
 
-		ret = GetAdaptersInfo(info, &size);
+		UINT ret = GetAdaptersInfo(info, &size);
 		while(ret == ERROR_INSUFFICIENT_BUFFER || ret == ERROR_BUFFER_OVERFLOW)
 		{
 			free(info);
@@ -1148,27 +1154,27 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
 		IP_ADAPTER_INFO *cur = info;
 		while(cur)
 		{
-			if(cur->Index == index)
+			if(cur->Index == (DWORD)index)
 			{
 				IP_ADDR_STRING* first = &cur->IpAddressList;
 
 				int addrNum = 0;
 				while(addrNum < (*NEntries) && first)
 				{
-					struct addrinfo hint, *info;
+					struct addrinfo hint, *ainfo;
 					memset(&hint, 0, sizeof(hint));
 					hint.ai_family = AF_UNSPEC;
 					hint.ai_socktype = SOCK_DGRAM;
 					hint.ai_protocol = IPPROTO_UDP;
 
-					info = 0;
+					ainfo = 0;
 
 					TRACE_PRINT1("  resolving address %s", first->IpAddress.String);
 					
-					if(getaddrinfo(first->IpAddress.String, NULL, &hint, &info) == 0)
+					if(getaddrinfo(first->IpAddress.String, NULL, &hint, &ainfo) == 0)
 					{
 						memset(&buffer[addrNum].IPAddress, 0, sizeof(struct sockaddr_storage));
-						memcpy(&buffer[addrNum].IPAddress, info->ai_addr, info->ai_addrlen);
+						memcpy(&buffer[addrNum].IPAddress, ainfo->ai_addr, ainfo->ai_addrlen);
 					}
 
 					first = first->Next;

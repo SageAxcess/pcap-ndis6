@@ -1,3 +1,8 @@
 /Debug/
 /x64/
 /Release/
+/build/
+/sdv/
+/sdv.temp/
+*.sdv
+*.log

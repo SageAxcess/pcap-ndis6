@@ -64,7 +64,11 @@ UNICODE_STRING* CreateString(const char* str)
 	{
 		return NULL;
 	}
+
 	NdisZeroMemory(string, sizeof(UNICODE_STRING));
+	// Disable warning C6102: Using '*string' from failed function call at line '69'. 
+	// Anyways, memory is allocated
+#pragma warning( disable:6102 )
 	NdisInitializeString(string, (unsigned char*)str);
 
 	DEBUGP(DL_TRACE, "<===CreateString\n");
