@@ -48,6 +48,8 @@ struct bpf_hdr {
         (((sizeToAlign) + (PowerOfTwo) - 1) & ~((PowerOfTwo) - 1))
 #endif
 
+extern NDIS_HANDLE         FilterProtocolHandle;
+
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
@@ -176,7 +178,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
 	DEBUGP(DL_TRACE, " Acquire lock at 0x%8x, adapter=0x%8x, stack=0x%8x\n", device->OpenCloseLock, device->Adapter, stack);
-	NdisAcquireSpinLock(device->OpenCloseLock);
+	//NdisAcquireSpinLock(device->OpenCloseLock);
 	DEBUGP(DL_TRACE, "    lock acquired\n");
 	if(device->Adapter!=NULL && !device->Adapter->Ready)
 	{
@@ -191,7 +193,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 
 		ret = STATUS_SUCCESS;
 	}
-	NdisReleaseSpinLock(device->OpenCloseLock);
+	//NdisReleaseSpinLock(device->OpenCloseLock);
 
 	if (!device->IsAdaptersList)
 	{
@@ -232,7 +234,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_
 
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	NdisAcquireSpinLock(device->OpenCloseLock);
+	//NdisAcquireSpinLock(device->OpenCloseLock);
 	if (device->IsAdaptersList)
 	{
 		DEBUGP(DL_TRACE, "   closing all adapters list device\n");
@@ -256,7 +258,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_
 			ret = STATUS_SUCCESS;
 		}
 	}
-	NdisReleaseSpinLock(device->OpenCloseLock);
+	//NdisReleaseSpinLock(device->OpenCloseLock);
 
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
@@ -270,11 +272,13 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_
  */
 NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
-	DEBUGP(DL_TRACE, "===>Device_ReadHandler...\n");
-	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
 
-	if(!device || device->Releasing)
+	DEBUGP(DL_TRACE, "===>Device_ReadHandler...\n");
+
+	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
+
+	if(!FilterProtocolHandle || !device || device->Releasing)
 	{
 		Irp->IoStatus.Status = ret;
 		IoCompleteRequest(Irp, IO_NO_INCREMENT);

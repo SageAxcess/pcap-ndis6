@@ -117,6 +117,34 @@ BOOL FreeAdapter(ADAPTER* adapter)
 
 	if (adapter->Device)
 	{
+		adapter->Device->Releasing = TRUE;
+
+		int i = 0;
+		while (adapter->Device->ClientList->Size > 0)
+		{
+			if (i == 0) {
+				NdisAcquireSpinLock(adapter->Device->ClientList->Lock);
+				PLIST_ITEM item = adapter->Device->ClientList->First;
+				while (item)
+				{
+					CLIENT* client = (CLIENT*)item->Data;
+					if (client && client->Event) {
+						KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+					}
+					item = item->Next;
+				}
+				NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
+			}
+
+			i++;
+			DriverSleep(100); //TODO: wait until adapter->Device stops
+
+			if (i>1000)
+			{
+				break;
+			}
+		}
+
 		FreeDevice(adapter->Device);
 		adapter->Device = NULL;
 	}
@@ -250,6 +278,7 @@ NDIS_STATUS _Function_class_(PROTOCOL_BIND_ADAPTER_EX) Protocol_BindAdapterHandl
 NDIS_STATUS _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX) Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HANDLE ProtocolBindingContext)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_UnbindAdapterHandlerEx...\n");
+
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
 	NDIS_HANDLE handle = adapter->AdapterHandle;
@@ -261,10 +290,6 @@ NDIS_STATUS _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX) Protocol_UnbindAdapterH
 	while (adapter->PendingOidRequests>0 || adapter->PendingSendPackets>0)
 	{
 		DriverSleep(50);
-	}
-
-	if (adapter->Device != NULL) {
-		adapter->Device->Releasing = TRUE;
 	}
 
 	NDIS_STATUS ret = NdisCloseAdapterEx(handle);
@@ -324,33 +349,6 @@ void _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX) Protocol_CloseAdapterC
 	if (adapter->UnbindContext != NULL)
 	{
 		NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
-	}
-
-	int i = 0;
-
-	while(adapter->Device->ClientList->Size > 0)
-	{
-		if (i == 0) {
-			NdisAcquireSpinLock(adapter->Device->ClientList->Lock);
-			PLIST_ITEM item = adapter->Device->ClientList->First;
-			while (item)
-			{
-				CLIENT* client = (CLIENT*)item->Data;
-				if (client && client->Event) {
-					KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-				}
-				item = item->Next;
-			}
-			NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
-		}
-
-		i++;
-		DriverSleep(50); //TODO: wait until adapter->Device stops
-
-		if(i>1000)
-		{
-			break;
-		}
 	}
 
 	FreeAdapter(adapter);

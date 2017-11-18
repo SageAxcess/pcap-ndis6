@@ -111,8 +111,14 @@ void FreeString(UNICODE_STRING* string)
 
 void DriverSleep(long msec)
 {
-	LARGE_INTEGER interval;
-	interval.QuadPart = (__int64)msec * 10000;
+	KTIMER timer;
+	RtlZeroMemory(&timer, sizeof(KTIMER));
 
-	KeDelayExecutionThread(KernelMode, FALSE, &interval);
+	LARGE_INTEGER duetime;
+	duetime.QuadPart = (__int64)msec * -10000;
+
+	KeInitializeTimerEx(&timer, NotificationTimer);
+	KeSetTimerEx(&timer, duetime, 0, NULL);
+
+	KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
 }
