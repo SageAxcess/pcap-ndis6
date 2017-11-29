@@ -578,11 +578,11 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL
 			return ret;
 		}
 
-		UINT size = (UINT)strlen(client->Event->Name) + 1;
-		DEBUGP(DL_TRACE, "    event name length=%u, client provided %u\n", size, stack->Parameters.DeviceIoControl.OutputBufferLength);
-
 		if (stack->Parameters.DeviceIoControl.IoControlCode == IOCTL_GET_EVENT_NAME)
 		{
+			UINT size = (UINT)strlen(client->Event->Name) + 1;
+			DEBUGP(DL_TRACE, "    event name length=%u, client provided %u\n", size, stack->Parameters.DeviceIoControl.OutputBufferLength);
+
 			if (stack->Parameters.DeviceIoControl.OutputBufferLength >=size)
 			{
 				char* buf = (char*)Irp->UserBuffer;
@@ -603,6 +603,99 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL
 					}
 				}
 			}
+		} else if (stack->Parameters.DeviceIoControl.IoControlCode == IOCTL_GET_PACKETBUF)
+		{
+			DEBUGP(DL_TRACE, "  client provided buf = %d bytes\n", stack->Parameters.DeviceIoControl.OutputBufferLength);
+
+			UINT availableSize = stack->Parameters.DeviceIoControl.OutputBufferLength;
+
+			if (client->PacketList == NULL || client->PacketList->Releasing) //Seems that driver is being unloaded, release is protected with ReadLock so no conflict
+			{
+				ret = STATUS_UNSUCCESSFUL;
+				ReturnSize = 0;
+
+				Irp->IoStatus.Status = ret;
+				Irp->IoStatus.Information = ReturnSize;
+				IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+				return ret;
+			}
+
+			char* buf = (char*)Irp->UserBuffer;
+			UINT size = 0;
+			
+			__try {
+				ProbeForWrite(buf, availableSize, 1);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER) {
+				DEBUGP(DL_ERROR, " invalid buffer received at DeviceIoControl handler");
+				NdisReleaseSpinLock(client->ReadLock);
+
+				ret = STATUS_UNSUCCESSFUL;
+				ReturnSize = 0;
+
+				Irp->IoStatus.Status = ret;
+				Irp->IoStatus.Information = ReturnSize;
+				IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+				return ret;
+			}
+
+			NdisAcquireSpinLock(client->PacketList->Lock);
+
+			PLIST_ITEM item = PopListTop(client->PacketList);
+
+			while (item)
+			{
+				PPACKET packet = (PPACKET)item->Data;
+
+				USHORT hdrSize = ALIGN_SIZE(sizeof(struct bpf_hdr), 4);
+
+				DEBUGP(DL_TRACE, "  packet size=%d, response size=%d, aligned header size=%d, real header size=%d\n", packet->Size, size, hdrSize, sizeof(struct bpf_hdr));
+
+				struct bpf_hdr bpf;
+				bpf.bh_caplen = packet->Size;
+				bpf.bh_datalen = packet->Size;
+				bpf.bh_hdrlen = hdrSize;
+				bpf.bh_tstamp.tv_sec = (long)(packet->Timestamp.QuadPart / 1000); // Get seconds part
+				bpf.bh_tstamp.tv_usec = (long)(packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+
+				RtlCopyBytes(buf, &bpf, sizeof(struct bpf_hdr));
+				RtlCopyBytes(buf + hdrSize, packet->Data, packet->Size);
+
+				size += ALIGN_SIZE(packet->Size + hdrSize, 1024);
+				buf += ALIGN_SIZE(packet->Size + hdrSize, 1024);
+
+				FreePacket(packet);
+
+				if (item->Next != NULL)
+				{
+					PPACKET next = (PPACKET)item->Next->Data;
+					if (size + next->Size + hdrSize > availableSize)
+					{
+						FILTER_FREE_MEM(item);
+
+						break;
+					}
+				}
+
+				FILTER_FREE_MEM(item);
+				item = PopListTop(client->PacketList);
+			}
+
+			NdisReleaseSpinLock(client->PacketList->Lock);
+
+			if (client->PacketList->Size>0)
+			{
+				KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+			}
+			else
+			{
+				KeResetEvent(client->Event->Event);
+			}
+
+			ret = STATUS_SUCCESS;
+			ReturnSize = size;
 		}
 	}
 

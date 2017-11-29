@@ -150,10 +150,16 @@ BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, D
 	{
 
 		DWORD dwBytesRead = 0;
-		if (!ReadFile(adapter->Handle, &adapter->ReadBuffer, READ_BUFFER_SIZE, &dwBytesRead, NULL))
+
+		if (DeviceIoControl(adapter->Handle, (DWORD)IOCTL_GET_PACKETBUF, &adapter->ReadBuffer, READ_BUFFER_SIZE, &adapter->ReadBuffer, READ_BUFFER_SIZE, &dwBytesRead, NULL) == FALSE)
 		{
 			return FALSE;
 		}
+
+/*		if (!ReadFile(adapter->Handle, &adapter->ReadBuffer, READ_BUFFER_SIZE, &dwBytesRead, NULL))
+		{
+			return FALSE;
+		}*/
 
 		adapter->BufferOffset = 0;
 		DWORD curSize = 0;
