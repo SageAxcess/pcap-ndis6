@@ -21,6 +21,8 @@
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="List.h" />
     <ClInclude Include="Packet.h" />
+    <ClInclude Include="InterModeComms.h" />
+    <ClInclude Include="CommonDefs.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
