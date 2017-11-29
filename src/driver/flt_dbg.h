@@ -124,7 +124,9 @@ extern INT                filterDebugLevel;
             }                                                           \
         }
 
-
+#define DEBUGP_FUNC_ENTER(Level)                        DEBUGP((Level), "===> "__FUNCTION__"\n")
+#define DEBUGP_FUNC_LEAVE(Level)                        DEBUGP((Level), "<=== "__FUNCTION__"\n")
+#define DEBUGP_FUNC_LEAVE_WITH_STATUS(Level, Status)    DEBUGP((Level), "<=== "__FUNCTION__", Status = %x\n", (Status))
 
 //
 // Memory Allocation/Freeing Audit:
