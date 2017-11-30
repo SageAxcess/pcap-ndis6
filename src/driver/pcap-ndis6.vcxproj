@@ -351,7 +351,6 @@
     <ClInclude Include="Device.h" />
     <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
-    <ClInclude Include="InterModeComms.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="List.h" />
     <ClInclude Include="Packet.h" />
