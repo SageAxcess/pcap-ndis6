@@ -345,9 +345,9 @@
     <None Exclude="@(None)" Include="*.def;*.bat;*.hpj;*.asmx" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="CommonDefs.h" />
     <ClInclude Include="Device.h" />
     <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
