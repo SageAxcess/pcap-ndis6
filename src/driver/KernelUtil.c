@@ -191,7 +191,7 @@ NTSTATUS __stdcall IOUtils_ValidateAndGetIOBuffers(
     case METHOD_NEITHER:
         {
             /*
-            Caution: accessing the buffers should be performed at irql PASSIVE_LEVEL only
+                Caution: accessing the buffers should be performed at irql PASSIVE_LEVEL only
             */
             *InBuffer = IoStackLocation->Parameters.DeviceIoControl.Type3InputBuffer;
             *OutBuffer = Irp->UserBuffer;

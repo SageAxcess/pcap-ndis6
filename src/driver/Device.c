@@ -57,35 +57,35 @@ extern NDIS_HANDLE         FilterProtocolHandle;
 
 DEVICE* CreateDevice(char* name)
 {
-	DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
+    char            deviceName[256] = { 0, };
+    char            symlinkName[256] = { 0, };
+    PNDIS_STRING    name_u = NULL;
+    PNDIS_STRING    symlink_name_u = NULL;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PDEVICE         device = NULL;
 
-	char deviceName[256];
+    DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
+
 	sprintf_s(deviceName, 256, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
-
-	char symlinkName[256];
 	sprintf_s(symlinkName, 256, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
 
-	NDIS_STRING* name_u = CreateString(deviceName);
-	if(!name_u)
-	{
-		return NULL;
-	}
+    name_u = CreateString(deviceName);
 
-	NDIS_STRING* symlink_name_u = CreateString(symlinkName);
-	if(!symlink_name_u)
-	{
-		FreeString(name_u);
-		return NULL;
-	}
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(name_u),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-	DEVICE* device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
-	if(!device)
-	{
-		FreeString(name_u);
-		FreeString(symlink_name_u);
-		return NULL;
-	}
-	NdisZeroMemory(device, sizeof(DEVICE));
+	symlink_name_u = CreateString(symlinkName);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(symlink_name_u),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+	device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(device),
+        STATUS_INSUFFICIENT_RESOURCES);
+	
+    NdisZeroMemory(device, sizeof(DEVICE));
 
 	device->Name = name_u;
 	device->SymlinkName = symlink_name_u;
@@ -93,21 +93,43 @@ DEVICE* CreateDevice(char* name)
 	device->ClientList = CreateList();
 	device->Releasing = FALSE;
 	
-	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &device->Device);
-	if(ret !=STATUS_SUCCESS) //Nothing
-	{
-		//FreeString(name_u);
-		//return NULL; 		
-	}
+	Status = IoCreateDevice(
+        FilterDriverObject, 
+        sizeof(DEVICE *), 
+        name_u, 
+        FILE_DEVICE_TRANSPORT, 
+        0, 
+        FALSE, 
+        &device->Device);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 	
 	IoCreateSymbolicLink(symlink_name_u, name_u);
 
-	if (device->Device) {
-		*((DEVICE **)device->Device->DeviceExtension) = device;
+	if (device->Device)
+    {
+		*((PDEVICE *)device->Device->DeviceExtension) = device;
 		device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
 	}
 
-	DEBUGP(DL_TRACE, "<===CreateDevice\n");
+cleanup:
+
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(name_u))
+        {
+            FreeString(name_u);
+        }
+        if (Assigned(symlink_name_u))
+        {
+            FreeString(symlink_name_u);
+        }
+        if (Assigned(device))
+        {
+            FreeSpinLock(device->OpenCloseLock);
+            FreeClientList(device->ClientList);
+            FILTER_FREE_MEM(device);
+        }
+    }
 
 	return device;
 }
