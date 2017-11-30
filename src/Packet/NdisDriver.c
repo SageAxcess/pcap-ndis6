@@ -130,7 +130,11 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 	DEBUG_PRINT("<===NdisDriverCloseAdapter\n");
 }
 
-BOOL NdisDriverNextPacket(PCAP_NDIS_ADAPTER* adapter, void** buf, size_t size, DWORD* dwBytesReceived)
+BOOL NdisDriverNextPacket(
+    __in    PCAP_NDIS_ADAPTER   *adapter,
+    __out   void                **buf,
+    __in    size_t              size,
+    __out   DWORD*              dwBytesReceived)
 {
 	DEBUG_PRINT("===>NdisDriverNextPacket, buf size=%u\n", size);
 

@@ -112,7 +112,6 @@ DEVICE* CreateDevice(char* name)
 	}
 
 cleanup:
-
     if (!NT_SUCCESS(Status))
     {
         if (Assigned(name_u))
