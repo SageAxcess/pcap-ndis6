@@ -23,6 +23,7 @@
 
 #include "filter.h"
 #include "KernelUtil.h"
+#include "CommonDefs.h"
 #include <flt_dbg.h>
 
 ///////////////////////////////////////////////////
@@ -122,3 +123,143 @@ void DriverSleep(long msec)
 
 	KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
 }
+
+NTSTATUS __stdcall IOUtils_ProbeBuffer(
+    __in    PVOID   Buffer,
+    __in    ULONG   Length,
+    __in    ULONG   Alignment,
+    __in    ULONG   Flags)
+{
+    NTSTATUS	Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Length > 0,
+        STATUS_INVALID_PARAMETER_2);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        IOUtils_ValidateProbeFlags(Flags),
+        STATUS_INVALID_PARAMETER_4);
+
+    __try
+    {
+        if (IsBitFlagSet(Flags, IOUTILS_PROBE_BUFFER_FLAG_READ))
+        {
+            ProbeForRead(Buffer, Length, Alignment);
+        }
+        if (IsBitFlagSet(Flags, IOUTILS_PROBE_BUFFER_FLAG_WRITE))
+        {
+            ProbeForWrite(Buffer, Length, Alignment);
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        Status = STATUS_ACCESS_VIOLATION;
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall IOUtils_ValidateAndGetIOBuffers(
+    __in	PIRP	Irp,
+    __out	PVOID	*InBuffer,
+    __out	PULONG	InLength,
+    __out	PVOID	*OutBuffer,
+    __out	PULONG	OutLength)
+{
+    NTSTATUS			Status = STATUS_SUCCESS;
+    PIO_STACK_LOCATION	IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
+    ULONG				ControlCode = IoStackLocation->Parameters.DeviceIoControl.IoControlCode;
+
+    switch (METHOD_FROM_CTL_CODE(ControlCode))
+    {
+    #pragma region BUFFERED
+    case METHOD_BUFFERED:
+        {
+            *InBuffer =
+                *OutBuffer = Irp->AssociatedIrp.SystemBuffer;
+            *InLength = IoStackLocation->Parameters.DeviceIoControl.InputBufferLength;
+            *OutLength = IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength;
+        }break;
+    #pragma endregion
+
+    #pragma region NEITHER
+    case METHOD_NEITHER:
+        {
+            /*
+            Caution: accessing the buffers should be performed at irql PASSIVE_LEVEL only
+            */
+            *InBuffer = IoStackLocation->Parameters.DeviceIoControl.Type3InputBuffer;
+            *OutBuffer = Irp->UserBuffer;
+            *InLength = IoStackLocation->Parameters.DeviceIoControl.InputBufferLength;
+            *OutLength = IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength;
+
+            if (*InLength > 0)
+            {
+                Status = IOUtils_ProbeBuffer(
+                    *InBuffer,
+                    *InLength,
+                    1,
+                    IOUTILS_PROBE_BUFFER_FLAG_READ);
+                GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+                    NT_SUCCESS(Status),
+                    Status);
+            }
+
+            if (*OutLength > 0)
+            {
+                Status = IOUtils_ProbeBuffer(
+                    *OutBuffer,
+                    *OutLength,
+                    1,
+                    IOUTILS_PROBE_BUFFER_FLAG_WRITE);
+                GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+                    NT_SUCCESS(Status),
+                    Status);
+            }
+        }break;
+    #pragma endregion
+
+    #pragma region IN_DIRECT
+    case METHOD_IN_DIRECT:
+        {
+            *InLength = IoStackLocation->Parameters.DeviceIoControl.InputBufferLength;
+            *OutLength = IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength;
+
+            *InBuffer = (*InLength > 0) ? Irp->AssociatedIrp.SystemBuffer : NULL;
+            *OutBuffer =
+                ((*OutLength > 0) && Assigned(Irp->MdlAddress)) ?
+                MmGetSystemAddressForMdlSafe(Irp->MdlAddress, HighPagePriority) :
+                NULL;
+        }break;
+    #pragma endregion
+
+    #pragma region OUT_DIRECT
+    case METHOD_OUT_DIRECT:
+        {
+            *InLength = IoStackLocation->Parameters.DeviceIoControl.InputBufferLength;
+            *OutLength = IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength;
+
+            *InBuffer = (*InLength > 0) ? Irp->AssociatedIrp.SystemBuffer : NULL;
+            *OutBuffer =
+                ((*OutLength > 0) && Assigned(Irp->MdlAddress)) ?
+                MmGetSystemAddressForMdlSafe(Irp->MdlAddress, HighPagePriority) :
+                NULL;
+        }break;
+    #pragma endregion
+
+    #pragma region INVALID_METHOD
+    default:
+        {
+            Status = STATUS_INVALID_PARAMETER;
+        }break;
+    #pragma endregion
+    };
+
+cleanup:
+    return Status;
+};
