@@ -27,7 +27,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
-#include "CommonDefs.h"
+#include "..\shared\CommonDefs.h"
 #include <flt_dbg.h>
 
 
