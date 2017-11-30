@@ -27,19 +27,22 @@
 // Device definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct DEVICE {
+typedef struct DEVICE
+{
 	PUNICODE_STRING Name;
 	PUNICODE_STRING SymlinkName;
-	PDEVICE_OBJECT Device;
+	PDEVICE_OBJECT  Device;
 
-	struct ADAPTER* Adapter;
+	struct ADAPTER  *Adapter;
 
 	PNDIS_SPIN_LOCK OpenCloseLock;
-	PLIST ClientList;
+	PLIST           ClientList;
 
-	BOOL Releasing;
-	BOOL IsAdaptersList;
+	BOOL            Releasing;
+	BOOL            IsAdaptersList;
+
 } DEVICE;
+
 typedef struct DEVICE* PDEVICE;
 
 //////////////////////////////////////////////////////////////////////
@@ -56,7 +59,7 @@ _Function_class_(DRIVER_DISPATCH)
 _Dispatch_type_(IRP_MJ_CREATE)
 Device_CreateHandler(
     __in    PDEVICE_OBJECT  DeviceObject,
-    __in    IRP             *Irp);
+    __in    PIRP            Irp);
 
 NTSTATUS
 _Function_class_(DRIVER_DISPATCH)
