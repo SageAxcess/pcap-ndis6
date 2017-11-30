@@ -1,5 +1,15 @@
 #pragma once
 
+#define Assigned(Expression)            ((Expression) != NULL)
+
+#define SET_BIT_FLAG(Value, Flag)       ((Value) |= (Flag))
+#define CLEAR_BIT_FLAG(Value, Flag)     ((Value) &= ~(Flag))
+#define IS_BIT_FLAG_SET(Value, Flag)    (((Value) & (Flag)) == (Flag))
+
+#define SetBitFlag		                SET_BIT_FLAG
+#define ClearBitFlag	                CLEAR_BIT_FLAG
+#define IsBitFlagSet	                IS_BIT_FLAG_SET
+
 #define RETURN_VALUE_IF_TRUE(Condition, Value) \
 { \
     if (Condition) \
@@ -24,7 +34,7 @@
 { \
     if (Condition) \
     { \
-        goto cleanup;
+        goto cleanup; \
     } \
 }
 
