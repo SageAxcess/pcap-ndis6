@@ -27,6 +27,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
+#include "CommonDefs.h"
 #include <flt_dbg.h>
 
 
@@ -155,9 +156,10 @@ BOOL FreeDevice(PDEVICE device)
 
 NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
-	DEBUGP(DL_TRACE, "===>Device_CreateHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+    DEBUGP_FUNC_ENTER(DL_TRACE);
 
 	if(!device || device->Releasing)
 	{
@@ -168,22 +170,8 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 		return ret;
 	}
 	
-	//if (device->Adapter) {
-		DEBUGP(DL_TRACE, "  opened device for adapter %s %s\n", device->Adapter->AdapterId, device->Adapter->DisplayName);
-	//} else
-	//{
-		DEBUGP(DL_TRACE, "  opened device for adapter list\n");
-	//}
-
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	DEBUGP(DL_TRACE, " Acquire lock at 0x%8x, adapter=0x%8x, stack=0x%8x\n", device->OpenCloseLock, device->Adapter, stack);
-	//NdisAcquireSpinLock(device->OpenCloseLock);
-	DEBUGP(DL_TRACE, "    lock acquired\n");
-	if(device->Adapter!=NULL && !device->Adapter->Ready)
-	{
-		DEBUGP(DL_TRACE, "    adapter is not ready!!!\n");
-	}
 	if (device->IsAdaptersList || (device->Adapter != NULL && device->Adapter->Ready))
 	{
 		if (!device->ClientList->Releasing) {
@@ -193,7 +181,6 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 
 		ret = STATUS_SUCCESS;
 	}
-	//NdisReleaseSpinLock(device->OpenCloseLock);
 
 	if (!device->IsAdaptersList)
 	{
@@ -212,7 +199,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=0x%8x\n", ret);
+    DEBUGP_FUNC_LEAVE_WITH_STATUS(DL_TRACE, ret);
 
 	return ret;
 }
