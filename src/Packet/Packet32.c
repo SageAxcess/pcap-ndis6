@@ -547,7 +547,10 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 			result->hFile = NdisDriverOpenAdapter(ndis, info->AdapterId);
 			result->FilterLock = PacketCreateMutex();
 			result->Flags = INFO_FLAG_NDIS_ADAPTER;
-			strcpy_s(result->Name, sizeof(result->Name), info->AdapterId);
+			strcpy_s(
+                result->Name, 
+                sizeof(result->Name), 
+                info->AdapterId);
 
 			char eventName[1024] = {0};
 			char eventNameFull[1024] = {0};
@@ -698,15 +701,6 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 	if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
 	{
 		TRACE_PRINT("   ... NdisDriverNextPacket");
-		/*res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
-		TRACE_PRINT2("   received %d bytes, result=%d", lpPacket->ulBytesReceived, res);
-
-		if(!lpPacket->ulBytesReceived && (int)AdapterObject->ReadTimeOut != -1 && AdapterObject->ReadEvent!=INVALID_HANDLE_VALUE)
-		{
-			WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
-
-			res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
-		}*/
 
 		WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
 		res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
