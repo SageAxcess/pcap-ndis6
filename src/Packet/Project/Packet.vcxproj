@@ -185,6 +185,7 @@
     <ClCompile Include="..\win_bpf_filter.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\shared\CommonDefs.h" />
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
