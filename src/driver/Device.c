@@ -225,7 +225,10 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	return ret;
 }
 
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLOSE)
+Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_CloseHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
