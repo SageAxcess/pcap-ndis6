@@ -195,7 +195,7 @@ BOOL NdisDriverNextPacket(
 
         if (!NdisDriver_ControlDevice(
             adapter->Handle,
-            IOCTL_READ_PACKETS,
+            static_cast<DWORD>(IOCTL_READ_PACKETS),
             nullptr,
             0,
             adapter->ReadBuffer,
