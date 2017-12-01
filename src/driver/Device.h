@@ -27,19 +27,22 @@
 // Device definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct DEVICE {
+typedef struct DEVICE
+{
 	PUNICODE_STRING Name;
 	PUNICODE_STRING SymlinkName;
-	PDEVICE_OBJECT Device;
+	PDEVICE_OBJECT  Device;
 
-	struct ADAPTER* Adapter;
+	struct ADAPTER  *Adapter;
 
 	PNDIS_SPIN_LOCK OpenCloseLock;
-	PLIST ClientList;
+	PLIST           ClientList;
 
-	BOOL Releasing;
-	BOOL IsAdaptersList;
+	BOOL            Releasing;
+	BOOL            IsAdaptersList;
+
 } DEVICE;
+
 typedef struct DEVICE* PDEVICE;
 
 //////////////////////////////////////////////////////////////////////
@@ -51,8 +54,37 @@ BOOL FreeDevice(PDEVICE device);
 //////////////////////////////////////////////////////////////////////
 // Device callbacks
 /////////////////////////////////////////////////////////////////////
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_WRITE) Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) Device_IoControlHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp);
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CREATE)
+Device_CreateHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    PIRP            Irp);
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLOSE)
+Device_CloseHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
+
+NTSTATUS 
+_Function_class_(DRIVER_DISPATCH) 
+_Dispatch_type_(IRP_MJ_READ)
+Device_ReadHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_WRITE)
+Device_WriteHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_DEVICE_CONTROL)
+Device_IoControlHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);

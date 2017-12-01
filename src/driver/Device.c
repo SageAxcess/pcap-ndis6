@@ -27,6 +27,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
+#include "..\shared\CommonDefs.h"
 #include <flt_dbg.h>
 
 
@@ -56,35 +57,35 @@ extern NDIS_HANDLE         FilterProtocolHandle;
 
 DEVICE* CreateDevice(char* name)
 {
-	DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
+    char            deviceName[256] = { 0, };
+    char            symlinkName[256] = { 0, };
+    PNDIS_STRING    name_u = NULL;
+    PNDIS_STRING    symlink_name_u = NULL;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PDEVICE         device = NULL;
 
-	char deviceName[256];
+    DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
+
 	sprintf_s(deviceName, 256, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
-
-	char symlinkName[256];
 	sprintf_s(symlinkName, 256, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
 
-	NDIS_STRING* name_u = CreateString(deviceName);
-	if(!name_u)
-	{
-		return NULL;
-	}
+    name_u = CreateString(deviceName);
 
-	NDIS_STRING* symlink_name_u = CreateString(symlinkName);
-	if(!symlink_name_u)
-	{
-		FreeString(name_u);
-		return NULL;
-	}
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(name_u),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-	DEVICE* device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
-	if(!device)
-	{
-		FreeString(name_u);
-		FreeString(symlink_name_u);
-		return NULL;
-	}
-	NdisZeroMemory(device, sizeof(DEVICE));
+	symlink_name_u = CreateString(symlinkName);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(symlink_name_u),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+	device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(device),
+        STATUS_INSUFFICIENT_RESOURCES);
+	
+    NdisZeroMemory(device, sizeof(DEVICE));
 
 	device->Name = name_u;
 	device->SymlinkName = symlink_name_u;
@@ -92,21 +93,42 @@ DEVICE* CreateDevice(char* name)
 	device->ClientList = CreateList();
 	device->Releasing = FALSE;
 	
-	NTSTATUS ret = IoCreateDevice(FilterDriverObject, sizeof(DEVICE *), name_u, FILE_DEVICE_TRANSPORT, 0, FALSE, &device->Device);
-	if(ret !=STATUS_SUCCESS) //Nothing
-	{
-		//FreeString(name_u);
-		//return NULL; 		
-	}
+	Status = IoCreateDevice(
+        FilterDriverObject, 
+        sizeof(DEVICE *), 
+        name_u, 
+        FILE_DEVICE_TRANSPORT, 
+        0, 
+        FALSE, 
+        &device->Device);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 	
 	IoCreateSymbolicLink(symlink_name_u, name_u);
 
-	if (device->Device) {
-		*((DEVICE **)device->Device->DeviceExtension) = device;
+	if (device->Device)
+    {
+		*((PDEVICE *)device->Device->DeviceExtension) = device;
 		device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
 	}
 
-	DEBUGP(DL_TRACE, "<===CreateDevice\n");
+cleanup:
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(name_u))
+        {
+            FreeString(name_u);
+        }
+        if (Assigned(symlink_name_u))
+        {
+            FreeString(symlink_name_u);
+        }
+        if (Assigned(device))
+        {
+            FreeSpinLock(device->OpenCloseLock);
+            FreeClientList(device->ClientList);
+            FILTER_FREE_MEM(device);
+        }
+    }
 
 	return device;
 }
@@ -155,9 +177,10 @@ BOOL FreeDevice(PDEVICE device)
 
 NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
-	DEBUGP(DL_TRACE, "===>Device_CreateHandler...\n");
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+    DEBUGP_FUNC_ENTER(DL_TRACE);
 
 	if(!device || device->Releasing)
 	{
@@ -168,22 +191,8 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 		return ret;
 	}
 	
-	//if (device->Adapter) {
-		DEBUGP(DL_TRACE, "  opened device for adapter %s %s\n", device->Adapter->AdapterId, device->Adapter->DisplayName);
-	//} else
-	//{
-		DEBUGP(DL_TRACE, "  opened device for adapter list\n");
-	//}
-
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	DEBUGP(DL_TRACE, " Acquire lock at 0x%8x, adapter=0x%8x, stack=0x%8x\n", device->OpenCloseLock, device->Adapter, stack);
-	//NdisAcquireSpinLock(device->OpenCloseLock);
-	DEBUGP(DL_TRACE, "    lock acquired\n");
-	if(device->Adapter!=NULL && !device->Adapter->Ready)
-	{
-		DEBUGP(DL_TRACE, "    adapter is not ready!!!\n");
-	}
 	if (device->IsAdaptersList || (device->Adapter != NULL && device->Adapter->Ready))
 	{
 		if (!device->ClientList->Releasing) {
@@ -193,7 +202,6 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 
 		ret = STATUS_SUCCESS;
 	}
-	//NdisReleaseSpinLock(device->OpenCloseLock);
 
 	if (!device->IsAdaptersList)
 	{
@@ -212,7 +220,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	Irp->IoStatus.Status = ret;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	DEBUGP(DL_TRACE, "<===Device_CreateHandler, ret=0x%8x\n", ret);
+    DEBUGP_FUNC_LEAVE_WITH_STATUS(DL_TRACE, ret);
 
 	return ret;
 }
@@ -266,6 +274,90 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CLOSE) Device_
 	DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=0x%8x\n", ret);
 	return ret;
 }
+
+NTSTATUS __stdcall Device_ReadPackets(
+    __in    PCLIENT Client,
+    __out   LPVOID  Buffer,
+    __in    DWORD   BufferSize,
+    __out   PDWORD  BytesRead)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    DWORD       BytesCopied = 0;
+    DWORD       BytesLeft = BufferSize;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (Assigned(Client)) &&
+        (Assigned(Buffer)) &&
+        (BufferSize > 0) &&
+        (Assigned(BytesRead)),
+        STATUS_INVALID_PARAMETER);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (Assigned(Client->PacketList)) &&
+        (!Client->PacketList->Releasing),
+        STATUS_UNSUCCESSFUL);
+
+    NdisAcquireSpinLock(Client->PacketList->Lock);
+    __try
+    {
+        PUCHAR      CurrentPtr = (PUCHAR)Buffer;
+        PLIST_ITEM  Item;
+        for (Item = PopListTop(Client->PacketList);
+             Assigned(Item);
+             Item = PopListTop(Client->PacketList))
+        {
+            PPACKET         Packet = (PPACKET)Item->Data;
+            USHORT          HeaderSize = ALIGN_SIZE(sizeof(struct bpf_hdr), 4);
+            struct bpf_hdr  bpf;
+            ULONG           TotalPacketSize = ALIGN_SIZE(Packet->Size + HeaderSize, 1024);
+
+            bpf.bh_caplen = Packet->Size;
+            bpf.bh_datalen = Packet->Size;
+            bpf.bh_hdrlen = HeaderSize;
+            bpf.bh_tstamp.tv_sec = (long)(Packet->Timestamp.QuadPart / 1000); // Get seconds part
+            bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+
+            RtlCopyMemory(CurrentPtr, &bpf, sizeof(struct bpf_hdr));
+            RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->Size);
+
+            BytesCopied += TotalPacketSize;
+            CurrentPtr += TotalPacketSize;
+            BytesLeft -= TotalPacketSize;
+
+            FreePacket(Packet);
+
+            if (Assigned(Item->Next))
+            {
+                PPACKET NextPacket = (PPACKET)Item->Next->Data;
+                if (BytesCopied + NextPacket->Size + HeaderSize > BytesLeft)
+                {
+                    FILTER_FREE_MEM(Item);
+                    break;
+                }
+            }
+
+            FILTER_FREE_MEM(Item);
+        };
+    }
+    __finally
+    {
+        NdisReleaseSpinLock(Client->PacketList->Lock);
+    }
+
+    if (Client->PacketList->Size > 0)
+    {
+        KeSetEvent(Client->Event->Event, 0, FALSE);
+    }
+    else
+    {
+        KeResetEvent(Client->Event->Event);
+    }
+
+    *BytesRead = BytesCopied;
+
+cleanup:
+    return Status;
+};
 
 /**
  * Device read callback
@@ -533,7 +625,12 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 	return ret;
 }
 
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_WRITE) Device_WriteHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_WRITE)
+Device_WriteHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    PIRP            Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_WriteHandler...\n");
 	_CRT_UNUSED(DeviceObject);
@@ -548,69 +645,124 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_WRITE) Device_
 	return Irp->IoStatus.Status;
 }
 
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) Device_IoControlHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_DEVICE_CONTROL)
+Device_IoControlHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp)
 {
-	DEBUGP(DL_TRACE, "===>Device_IoControlHandler...\n");
-	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
-	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+    PDEVICE             Device = NULL;
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PIO_STACK_LOCATION  IoStackLocation = NULL;
+    ULONG_PTR           ReturnSize = 0;
+    PCLIENT             Client = NULL;
+    UINT                Size = 0;
+    LPVOID              InBuffer = NULL;
+    LPVOID              OutBuffer = NULL;
+    DWORD               InBufferSize = 0;
+    DWORD               OutBufferSize = 0;
 
-	if (!device)
-	{
-		Irp->IoStatus.Status = ret;
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		DEBUGP(DL_TRACE, "<===Device_IoControlHandler, no device, ret=0x%8x\n", ret);
+    DEBUGP_FUNC_ENTER(DL_TRACE);
 
-		return ret;
-	}
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (Assigned(DeviceObject)) &&
+        (Assigned(Irp)),
+        STATUS_UNSUCCESSFUL);
 
-	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
-	UINT ReturnSize = 0;
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DeviceObject->DeviceExtension),
+        STATUS_UNSUCCESSFUL);
 
-	if (!device->IsAdaptersList)
-	{
-		CLIENT* client = stack->FileObject->FsContext;
-		if(!client)
-		{
-			Irp->IoStatus.Status = ret;
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);
-			DEBUGP(DL_TRACE, "<===Device_IoControlHandler, no client, ret=0x%8x\n", ret);
+    Device = *((PDEVICE *)DeviceObject->DeviceExtension);
+    IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
 
-			return ret;
-		}
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+        Device->Releasing,
+        STATUS_UNSUCCESSFUL);
 
-		UINT size = (UINT)strlen(client->Event->Name) + 1;
-		DEBUGP(DL_TRACE, "    event name length=%u, client provided %u\n", size, stack->Parameters.DeviceIoControl.OutputBufferLength);
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+        Device->IsAdaptersList,
+        STATUS_UNSUCCESSFUL);
 
-		if (stack->Parameters.DeviceIoControl.IoControlCode == IOCTL_GET_EVENT_NAME)
-		{
-			if (stack->Parameters.DeviceIoControl.OutputBufferLength >=size)
-			{
-				char* buf = (char*)Irp->UserBuffer;
-				if (buf)
-				{
-					__try {
-						ProbeForWrite(buf, size, 1);
-						strcpy_s(buf, size, client->Event->Name);
+    Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_UNSUCCESSFUL);
 
-						ReturnSize = size;
-						ret = STATUS_SUCCESS;
-					}
-					__except (EXCEPTION_EXECUTE_HANDLER) {
-						DEBUGP(DL_ERROR, " invalid buffer received at Device_IoControlHandler handler");
+    Size = (UINT)strlen(Client->Event->Name) + 1;
+    DEBUGP(
+        DL_TRACE, 
+        "    event name length=%u, client provided %u\n", 
+        Size, 
+        IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength);
 
-						ReturnSize = 0;
-						ret = STATUS_UNSUCCESSFUL;
-					}
-				}
-			}
-		}
-	}
+    Status = IOUtils_ValidateAndGetIOBuffers(
+        Irp,
+        &InBuffer,
+        &InBufferSize,
+        &OutBuffer,
+        &OutBufferSize);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	Irp->IoStatus.Status = ret;
-	Irp->IoStatus.Information = ReturnSize;
-	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    switch (IoStackLocation->Parameters.DeviceIoControl.IoControlCode)
+    {
+    case IOCTL_GET_EVENT_NAME:
+        {
+            GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+                OutBufferSize >= Size,
+                STATUS_UNSUCCESSFUL);
+            
+            strcpy_s(OutBuffer, Size, Client->Event->Name);
+            ReturnSize = Size;
+        }break;
 
-	DEBUGP(DL_TRACE, "<===Device_IoControlHandler, size=%u, ret=0x%8x\n", ReturnSize, ret);
+    case IOCTL_READ_PACKETS:
+        {
+            DWORD   BytesRead = 0;
+            Status = Device_ReadPackets(
+                Client,
+                OutBuffer,
+                OutBufferSize,
+                &BytesRead);
+            if (NT_SUCCESS(Status))
+            {
+                ReturnSize = BytesRead;
+            }
+        }break;
 
-	return ret;
-}
+    default:
+        {
+            Status = STATUS_UNSUCCESSFUL;
+        }break;
+    };
+
+cleanup:
+    if (Assigned(Irp))
+    {
+        Irp->IoStatus.Status = Status;
+        Irp->IoStatus.Information = ReturnSize;
+        IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    }
+
+    if (NT_SUCCESS(Status))
+    {
+        DEBUGP(
+            DL_TRACE, 
+            "<===Device_IoControlHandler, ReturnSize = %u, Status = %x\n", 
+            ReturnSize, 
+            Status);
+    }
+    else
+    {
+        DEBUGP(
+            DL_TRACE,
+            "<===Device_IoControlHandler, failed. DeviceObject = %p, Irp = %p, Client = %p, Status = %x\n",
+            DeviceObject,
+            Irp,
+            Client,
+            Status);
+    }
+
+    return Status;
+};

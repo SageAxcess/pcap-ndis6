@@ -32,3 +32,6 @@
 /ipch/
 /Debug/
 /x64/
+/int
+*.bak
+*.aps

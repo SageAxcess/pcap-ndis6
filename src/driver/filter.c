@@ -49,8 +49,7 @@ _Use_decl_annotations_
 NTSTATUS
 DriverEntry(
     PDRIVER_OBJECT      DriverObject,
-    PUNICODE_STRING     RegistryPath
-    )
+    PUNICODE_STRING     RegistryPath)
 {
     NDIS_STATUS Status;
 //    NDIS_FILTER_DRIVER_CHARACTERISTICS      FChars;

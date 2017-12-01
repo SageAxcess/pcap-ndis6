@@ -33,7 +33,7 @@
     <UseDebugLibraries>False</UseDebugLibraries>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
     <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver8.1</PlatformToolset>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <OutDir>$(SolutionDir)\build\$(Configuration)\x64\</OutDir>
     <TargetName>pcap-ndis6</TargetName>
@@ -55,7 +55,7 @@
     <UseDebugLibraries>False</UseDebugLibraries>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
     <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver8.1</PlatformToolset>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <OutDir>$(SolutionDir)\build\$(Configuration)\x86\</OutDir>
     <TargetName>pcap-ndis6</TargetName>
@@ -65,7 +65,7 @@
     <UseDebugLibraries>True</UseDebugLibraries>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
     <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver8.1</PlatformToolset>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
     <TargetName>pcap-ndis6</TargetName>
@@ -86,23 +86,40 @@
   </ImportGroup>
   <ItemGroup Label="WrappedTaskItems" />
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\build\$(Configuration)\x64\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x64\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
     <SupportsPackaging>true</SupportsPackaging>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)\build\$(Configuration)\x86\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <CodeAnalysisRuleSet>..\..\..\..\..\..\Program Files (x86)\Windows Kits\8.1\CodeAnalysis\DriverRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableInf2cat>false</EnableInf2cat>
     <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <TargetExt>.sys</TargetExt>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <TargetExt>.sys</TargetExt>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetExt>.sys</TargetExt>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -227,6 +244,7 @@
     <ClCompile>
       <ExceptionHandling>
       </ExceptionHandling>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
       <Command>"C:\Program Files (x86)\Windows Kits\10\bin\x86\Inf2Cat.exe" /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64</Command>
@@ -241,6 +259,7 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <EnablePREfast>false</EnablePREfast>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -267,6 +286,7 @@
     <ClCompile>
       <ExceptionHandling>
       </ExceptionHandling>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
       <Command>"C:\Program Files (x86)\Windows Kits\10\bin\x86\Inf2Cat.exe" /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64</Command>
@@ -279,6 +299,7 @@
     <ClCompile>
       <ExceptionHandling>
       </ExceptionHandling>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -324,6 +345,7 @@
     <None Exclude="@(None)" Include="*.def;*.bat;*.hpj;*.asmx" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Device.h" />
