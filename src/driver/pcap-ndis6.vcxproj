@@ -86,20 +86,20 @@
   </ImportGroup>
   <ItemGroup Label="WrappedTaskItems" />
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <SupportsPackaging>true</SupportsPackaging>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
