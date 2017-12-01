@@ -112,6 +112,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetExt>.sys</TargetExt>
     <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+    <EnableInf2cat>false</EnableInf2cat>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.sys</TargetExt>
@@ -307,8 +309,10 @@
     </PostBuildEvent>
     <Inf>
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
-      <SpecifyDriverVerDirectiveVersion>false</SpecifyDriverVerDirectiveVersion>
-      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
+      <SpecifyDriverVerDirectiveVersion>true</SpecifyDriverVerDirectiveVersion>
+      <SpecifyDriverVerDirectiveDate>true</SpecifyDriverVerDirectiveDate>
+      <TimeStamp>1.0.0.0</TimeStamp>
+      <DateStamp>07/11/2017</DateStamp>
     </Inf>
   </ItemDefinitionGroup>
   <ItemGroup>
