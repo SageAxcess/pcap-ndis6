@@ -24,38 +24,42 @@
 
 typedef struct PCAP_NDIS
 {
-	void* handle;
+    void* handle;
 } PCAP_NDIS;
 
-typedef struct PCAP_NDIS_ADAPTER_STAT {
-	UINT Received;
-	UINT Dropped;
-	UINT Captured;
+typedef struct PCAP_NDIS_ADAPTER_STAT
+{
+    UINT Received;
+    UINT Dropped;
+    UINT Captured;
 } PCAP_NDIS_ADAPTER_STAT;
 
 typedef struct PCAP_NDIS_ADAPTER
 {
-	void* Handle;
-	UINT ReadTimeout;
-	PCAP_NDIS_ADAPTER_STAT Stat;
+    void                    *Handle;
+    UINT                    ReadTimeout;
+    PCAP_NDIS_ADAPTER_STAT  Stat;
 
-	UINT BufferOffset;
-	UINT BufferedPackets;
-	UCHAR ReadBuffer[READ_BUFFER_SIZE];
+    UINT                    BufferOffset;
+    UINT                    BufferedPackets;
+    UCHAR                   ReadBuffer[READ_BUFFER_SIZE];
 } PCAP_NDIS_ADAPTER;
 
 typedef struct PCAP_NDIS_ADAPTER_LIST
 {
-	int count;
-	PCAP_NDIS_ADAPTER_INFO* adapters;
+    int                     count;
+    PCAP_NDIS_ADAPTER_INFO  *adapters;
 } PCAP_NDIS_ADAPTER_LIST;
 
 // Open channel to ndis driver
 PCAP_NDIS* NdisDriverOpen();
+
 // Close channel to ndis driver
 void NdisDriverClose(PCAP_NDIS* ndis);
+
 // Open adapter for capture
 PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterId);
+
 // Close adapter
 void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter);
 
@@ -68,5 +72,6 @@ BOOL NdisDriverNextPacket(
 
 // Get adapter list
 PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis);
+
 // Free adapter list
 void NdisDriverFreeAdapterList(PCAP_NDIS_ADAPTER_LIST* list);

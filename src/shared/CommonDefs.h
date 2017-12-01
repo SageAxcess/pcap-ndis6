@@ -30,6 +30,17 @@
 
 #define RETURN_IF_FALSE(Condition)  RETURN_IF_TRUE(!(Condition))
 
+#define RETURN_VALUE_IF_TRUE_EX(Condition, Value, AdditionalCommand) \
+{ \
+    if (Condition) \
+    { \
+        (AdditionalCommand); \
+        return (Value); \
+    } \
+}
+
+#define RETURN_VALUE_IF_FALSE_EX(Condition, Value, AdditionalCommand)   RETURN_VALUE_IF_TRUE_EX((Condition), (Value), (AdditionalCommand))
+
 #define GOTO_CLEANUP_IF_TRUE(Condition) \
 { \
     if (Condition) \

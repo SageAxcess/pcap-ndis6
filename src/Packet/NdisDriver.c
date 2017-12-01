@@ -131,6 +131,44 @@ void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
     DEBUG_PRINT("<===NdisDriverCloseAdapter\n");
 }
 
+BOOL NdisDriver_ControlDevice(
+    __in        HANDLE  DeviceHandle,
+    __in        DWORD   ControlCode,
+    __in_opt    LPVOID  InBuffer,
+    __in_opt    DWORD   InBufferSize,
+    __out_opt   LPVOID  OutBuffer,
+    __out_opt   DWORD   OutBufferSize,
+    __out_opt   LPDWORD BytesReturned = NULL,
+    __out_opt   LPDWORD ErrorCode = NULL)
+{
+    BOOL Result = FALSE;
+    RETURN_VALUE_IF_FALSE(
+        (DeviceHandle != NULL) &&
+        (DeviceHandle != INVALID_HANDLE_VALUE),
+        FALSE);
+
+    DWORD BytesCnt = 0;
+    if (BytesReturned == NULL)
+    {
+        BytesReturned = &BytesCnt;
+    }
+
+    Result = DeviceIoControl(
+        DeviceHandle,
+        ControlCode,
+        InBuffer,
+        InBufferSize,
+        OutBuffer,
+        OutBufferSize,
+        BytesReturned,
+        NULL);
+    if (Assigned(ErrorCode))
+    {
+        *ErrorCode = GetLastError();
+    }
+    return Result;
+};
+
 BOOL NdisDriverNextPacket(
     __in    PCAP_NDIS_ADAPTER   *adapter,
     __out   void                **buf,
@@ -150,17 +188,28 @@ BOOL NdisDriverNextPacket(
         size >= sizeof(struct bpf_hdr),
         FALSE);
 
-    if(adapter->BufferedPackets==0)
+    if(adapter->BufferedPackets == 0)
     {
-        DWORD dwBytesRead = 0;
-        if (!ReadFile(adapter->Handle, &adapter->ReadBuffer, READ_BUFFER_SIZE, &dwBytesRead, NULL))
+        DWORD   BytesReceived = 0;
+        DWORD   ErrorCode = 0;
+
+        if (!NdisDriver_ControlDevice(
+            adapter->Handle,
+            IOCTL_READ_PACKETS,
+            nullptr,
+            0,
+            adapter->ReadBuffer,
+            READ_BUFFER_SIZE,
+            &BytesReceived,
+            &ErrorCode))
         {
             return FALSE;
         }
 
         adapter->BufferOffset = 0;
         DWORD curSize = 0;
-        while (curSize < dwBytesRead) {
+        while (curSize < BytesReceived)
+        {
             struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + curSize);
 
             curSize += ALIGN_SIZE(bpf->bh_datalen + bpf->bh_hdrlen, 1024);
@@ -172,11 +221,12 @@ BOOL NdisDriverNextPacket(
     {
         *dwBytesReceived = 0;
     }
-    else {
+    else 
+    {
         struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + adapter->BufferOffset);
 
         UINT packetLen = bpf->bh_datalen + bpf->bh_hdrlen;
-        if(size<packetLen)
+        if(size < packetLen)
         {
             *dwBytesReceived = 0;
             return FALSE;
