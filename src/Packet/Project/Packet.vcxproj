@@ -22,7 +22,7 @@
     <ProjectGuid>{17D62EEB-EABF-4D94-B1FF-BCDAAFA7DA52}</ProjectGuid>
     <RootNamespace>Packet</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -67,29 +67,29 @@
     <_ProjectFileVersion>14.0.23107.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x86\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x86\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
