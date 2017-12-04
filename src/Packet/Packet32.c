@@ -74,7 +74,7 @@ BOOL APIENTRY DllMain(
     BOOLEAN Status=TRUE;
     TCHAR DllFileName[MAX_PATH];
 
-    UNUSED(lpvReserved);
+    UNREFERENCED_PARAMETER(lpvReserved);
 
     void* fs;
 
@@ -84,7 +84,11 @@ BOOL APIENTRY DllMain(
 
         TRACE_PRINT_DLLMAIN("************Packet32: DllMain************");
 
-#ifdef _DEBUG_TO_FILE
+        //  Since we do not handle DLL_THREAD_ATTACH/DLL_THREAD_DETACH events
+        //  we need to disable them.
+        DisableThreadLibraryCalls(hinstDLL);
+
+        #ifdef _DEBUG_TO_FILE
         PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME,"aegis.reg");
         
         // dump a bunch of registry keys useful for debug to file
@@ -95,7 +99,7 @@ BOOL APIENTRY DllMain(
         PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services",
             "services.reg");
 
-#endif
+        #endif
         //
         // Retrieve packet.dll version information from the file
         //
@@ -111,8 +115,17 @@ BOOL APIENTRY DllMain(
         // Retrieve driver version information from the file. 
         //
         fs = DisableWow64FsRedirection();
-        PacketGetFileVersion(TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"), PacketDriverVersion, sizeof(PacketDriverVersion));
-        RestoreWow64FsRedirection(fs);
+        __try
+        {
+            PacketGetFileVersion(
+                TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
+                PacketDriverVersion, 
+                sizeof(PacketDriverVersion));
+        }
+        __finally
+        {
+            RestoreWow64FsRedirection(fs);
+        }
 
         ndis = NdisDriverOpen();
         break;
@@ -1004,7 +1017,8 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
     //
     PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
 
-    if (list) {
+    if (list)
+    {
         // 
         // First scan of the list to calculate the offsets and check the sizes
         //
