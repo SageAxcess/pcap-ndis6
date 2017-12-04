@@ -34,7 +34,7 @@
 { \
     if (Condition) \
     { \
-        (AdditionalCommand); \
+        AdditionalCommand; \
         return (Value); \
     } \
 }
