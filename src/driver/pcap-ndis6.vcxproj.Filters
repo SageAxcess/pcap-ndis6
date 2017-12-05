@@ -11,6 +11,8 @@
     <ClCompile Include="List.c" />
     <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c" />
+    <ClCompile Include="KmLock.c" />
+    <ClCompile Include="KmList.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -22,6 +24,8 @@
     <ClInclude Include="List.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="..\shared\CommonDefs.h" />
+    <ClInclude Include="KmList.h" />
+    <ClInclude Include="KmLock.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

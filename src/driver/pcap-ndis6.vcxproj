@@ -352,6 +352,8 @@
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
+    <ClCompile Include="KmList.c" />
+    <ClCompile Include="KmLock.c" />
     <ClCompile Include="List.c" />
     <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c">
@@ -375,6 +377,8 @@
     <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
+    <ClInclude Include="KmList.h" />
+    <ClInclude Include="KmLock.h" />
     <ClInclude Include="List.h" />
     <ClInclude Include="Packet.h" />
   </ItemGroup>
