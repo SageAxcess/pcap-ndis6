@@ -221,7 +221,7 @@ cleanup:
 
 NTSTATUS __stdcall Km_List_FindItemEx(
     __in        PKM_LIST                            List,
-    __in        PLIST_ENTRY                         ItemDefinition,
+    __in        PVOID                               ItemDefinition,
     __in        PKM_LIST_ITEM_COMPARISON_CALLBACK   CmpCallback,
     __out_opt   PLIST_ENTRY                         *FoundItem,
     __in        BOOLEAN                             CheckParams,
@@ -235,9 +235,6 @@ NTSTATUS __stdcall Km_List_FindItemEx(
         GOTO_CLEANUP_IF_FALSE_SET_STATUS(
             Assigned(List),
             STATUS_INVALID_PARAMETER_1);
-        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-            Assigned(ItemDefinition),
-            STATUS_INVALID_PARAMETER_2);
         GOTO_CLEANUP_IF_FALSE_SET_STATUS(
             Assigned(CmpCallback),
             STATUS_INVALID_PARAMETER_3);
@@ -283,4 +280,24 @@ NTSTATUS __stdcall Km_List_FindItemEx(
 
 cleanup:
     return Status;
+};
+
+NTSTATUS __stdcall Km_List_Lock(
+    __in    PKM_LIST    List)
+{
+    RETURN_VALUE_IF_FALSE(
+        Assigned(List),
+        STATUS_INVALID_PARAMETER);
+
+    return Km_Lock_Acquire(&List->Lock);
+};
+
+NTSTATUS __stdcall Km_List_Unlock(
+    __in    PKM_LIST    List)
+{
+    RETURN_VALUE_IF_FALSE(
+        Assigned(List),
+        STATUS_INVALID_PARAMETER);
+
+    return Km_Lock_Release(&List->Lock);
 };
