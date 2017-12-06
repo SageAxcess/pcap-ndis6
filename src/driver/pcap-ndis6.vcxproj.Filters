@@ -26,6 +26,7 @@
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
+    <ClInclude Include="NdisMemoryManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
