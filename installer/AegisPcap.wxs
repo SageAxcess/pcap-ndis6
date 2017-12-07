@@ -99,6 +99,8 @@
 		<Condition Message="This operating system is not supported by AegisPcap.">(Not Version9X=400)</Condition>
 		<Condition Message="This operating system is not supported by AegisPcap.">(VersionNT>=601)</Condition>
 
+		<WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+
 		<UIRef Id="WixUI_InstallDir"/>
 		<UIRef Id="WixUI_ErrorProgressText" />
 		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
