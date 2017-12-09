@@ -42,7 +42,7 @@ void __stdcall LOG::LogMessage(
     }
 };
 
-void __stdcall LogMessageFmt(
+void __stdcall LOG::LogMessageFmt(
     __in    const   std::wstring    FormatStr,
     __in                            ...)
 {
