@@ -152,7 +152,6 @@ BOOL FreeAdapter(ADAPTER* adapter)
 	FreeString(adapter->Name);
 
 	//FreeString(adapter->Name);
-	FreeSpinLock(adapter->Lock);
 
 	FILTER_FREE_MEM(adapter);
 
@@ -249,7 +248,6 @@ Protocol_BindAdapterHandlerEx(
 		ADAPTER* adapter = (ADAPTER*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(ADAPTER));
 		NdisZeroMemory(adapter, sizeof(ADAPTER));
 
-		adapter->Lock = CreateSpinLock();
 		adapter->Name = CopyString(BindParameters->AdapterName);
 		adapter->Ready = FALSE;
 		memset(adapter->AdapterId, 0, 1024);

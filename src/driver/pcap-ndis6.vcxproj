@@ -110,24 +110,24 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableInf2cat>false</EnableInf2cat>
     <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
@@ -355,6 +355,7 @@
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="List.c" />
+    <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

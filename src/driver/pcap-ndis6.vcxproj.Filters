@@ -13,6 +13,7 @@
     <ClCompile Include="precompsrc.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
+    <ClCompile Include="NdisMemoryManager.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
