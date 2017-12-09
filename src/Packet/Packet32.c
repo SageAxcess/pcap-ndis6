@@ -81,54 +81,54 @@ BOOL APIENTRY DllMain(
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-
-        TRACE_PRINT_DLLMAIN("************Packet32: DllMain************");
-
-        //  Since we do not handle DLL_THREAD_ATTACH/DLL_THREAD_DETACH events
-        //  we need to disable them.
-        DisableThreadLibraryCalls(hinstDLL);
-
-        #ifdef _DEBUG_TO_FILE
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME,"aegis.reg");
-        
-        // dump a bunch of registry keys useful for debug to file
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}",
-            "adapters.reg");
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip",
-            "tcpip.reg");
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services",
-            "services.reg");
-
-        #endif
-        //
-        // Retrieve packet.dll version information from the file
-        //
-        if(GetModuleFileName(hinstDLL, DllFileName, sizeof(DllFileName) / sizeof(DllFileName[0])) > 0)
         {
-            PacketGetFileVersion(DllFileName, PacketLibraryVersion, sizeof(PacketLibraryVersion));
-        }
+            TRACE_PRINT_DLLMAIN("************Packet32: DllMain************");
 
-        strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
-        strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
+            //  Since we do not handle DLL_THREAD_ATTACH/DLL_THREAD_DETACH events
+            //  we need to disable them.
+            DisableThreadLibraryCalls(hinstDLL);
 
-        //
-        // Retrieve driver version information from the file. 
-        //
-        fs = DisableWow64FsRedirection();
-        __try
-        {
-            PacketGetFileVersion(
-                TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
-                PacketDriverVersion, 
-                sizeof(PacketDriverVersion));
-        }
-        __finally
-        {
-            RestoreWow64FsRedirection(fs);
-        }
+            #ifdef _DEBUG_TO_FILE
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME, "aegis.reg");
 
-        ndis = NdisDriverOpen();
-        break;
+            // dump a bunch of registry keys useful for debug to file
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}",
+                "adapters.reg");
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip",
+                "tcpip.reg");
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services",
+                "services.reg");
+
+            #endif
+            //
+            // Retrieve packet.dll version information from the file
+            //
+            if (GetModuleFileName(hinstDLL, DllFileName, sizeof(DllFileName) / sizeof(DllFileName[0])) > 0)
+            {
+                PacketGetFileVersion(DllFileName, PacketLibraryVersion, sizeof(PacketLibraryVersion));
+            }
+
+            strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
+            strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
+
+            //
+            // Retrieve driver version information from the file. 
+            //
+            fs = DisableWow64FsRedirection();
+            __try
+            {
+                PacketGetFileVersion(
+                    TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
+                    PacketDriverVersion,
+                    sizeof(PacketDriverVersion));
+            }
+            __finally
+            {
+                RestoreWow64FsRedirection(fs);
+            }
+
+            ndis = NdisDriverOpen();
+        }break;
         
     case DLL_PROCESS_DETACH:
         if(ndis)
