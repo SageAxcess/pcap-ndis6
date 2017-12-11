@@ -14,6 +14,7 @@
 #include "LogWriter.h"
 #include "CommonDefs.h"
 #include "StrUtils.h"
+#include "MiscUtils.h"
 #include <vector>
 
 std::wstring CLogWriter::InternalFormatMessage(
@@ -30,6 +31,15 @@ void CLogWriter::InternalLogMessage(
     __in    LPCWSTR Message)
 {
     UNREFERENCED_PARAMETER(Message);
+};
+
+void CLogWriter::InternalLogOSDetails()
+{
+    std::wstring Message = UTILS::STR::FormatW(
+        L"%s\n",
+        UTILS::MISC::GetOsVersionStr().c_str());
+
+    InternalLogMessage(Message.c_str());
 };
 
 CLogWriter::CLogWriter():

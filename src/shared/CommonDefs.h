@@ -106,6 +106,17 @@
 
 #define BREAK_IF_FALSE(Condition)   BREAK_IF_TRUE(!(Condition))
 
+#define BREAK_IF_TRUE_EX(Condition, AdditionalCommand) \
+{ \
+    if (Condition) \
+    { \
+        (AdditionalCommand); \
+        break; \
+    } \
+}
+
+#define BREAK_IF_FALSE_EX(Condition, AdditionalCommand) BREAK_IF_TRUE_EX((Condition), (AdditionalCommand))
+
 #define BREAK_IF_TRUE_SET_STATUS(Condition, StatusValue) \
 { \
     if (Condition) \

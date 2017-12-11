@@ -42,6 +42,13 @@
 #include "debug.h"
 #include "Util.h"
 
+#include "Logging.h"
+
+#include "..\shared\MiscUtils.h"
+
+#define AEGIS_REGISTRY_KEY_W            L"SOFTWARE\\ChangeDynamix\\AegisPcap"
+#define DEBUG_LOGGING_REG_VALUE_NAME_W  L"DebugLoggingLevel"
+
 #ifndef UNUSED
 #define UNUSED(_x) (_x)
 #endif
@@ -60,9 +67,13 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <WpcapNames.h>
 
+#include <string>
+
 char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
 char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
 char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
+
+std::wstring    ModuleFileName;
 
 //---------------------------------------------------------------------------
 
@@ -100,6 +111,15 @@ BOOL APIENTRY DllMain(
                 "services.reg");
 
             #endif
+
+            ModuleFileName = UTILS::MISC::GetModuleName(hinstDLL);
+
+            LOG::Initialize(
+                ModuleFileName,
+                HKEY_LOCAL_MACHINE,
+                AEGIS_REGISTRY_KEY_W,
+                DEBUG_LOGGING_REG_VALUE_NAME_W);
+
             //
             // Retrieve packet.dll version information from the file
             //
@@ -115,17 +135,17 @@ BOOL APIENTRY DllMain(
             // Retrieve driver version information from the file. 
             //
             fs = DisableWow64FsRedirection();
-            __try
+            try
             {
                 PacketGetFileVersion(
                     TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
                     PacketDriverVersion,
                     sizeof(PacketDriverVersion));
             }
-            __finally
+            catch(...)
             {
-                RestoreWow64FsRedirection(fs);
             }
+            RestoreWow64FsRedirection(fs);
 
             ndis = NdisDriverOpen();
         }break;
@@ -135,6 +155,9 @@ BOOL APIENTRY DllMain(
         {
             NdisDriverClose(ndis);
         }
+
+        LOG::Finalize();
+
         break;
         
     default:

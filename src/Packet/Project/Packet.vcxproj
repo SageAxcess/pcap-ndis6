@@ -194,6 +194,8 @@
     <ClCompile Include="..\..\shared\CSObject.cpp" />
     <ClCompile Include="..\..\shared\FileLogWriter.cpp" />
     <ClCompile Include="..\..\shared\LogWriter.cpp" />
+    <ClCompile Include="..\..\shared\MiscUtils.cpp" />
+    <ClCompile Include="..\..\shared\RegUtils.cpp" />
     <ClCompile Include="..\..\shared\StrUtils.cpp" />
     <ClCompile Include="..\Logging.cpp" />
     <ClCompile Include="..\NdisDriver.c" />
@@ -211,6 +213,8 @@
     <ClInclude Include="..\..\shared\CSObject.h" />
     <ClInclude Include="..\..\shared\FileLogWriter.h" />
     <ClInclude Include="..\..\shared\LogWriter.h" />
+    <ClInclude Include="..\..\shared\MiscUtils.h" />
+    <ClInclude Include="..\..\shared\RegUtils.h" />
     <ClInclude Include="..\..\shared\StrUtils.h" />
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\Logging.h" />

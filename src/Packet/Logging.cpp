@@ -14,15 +14,92 @@
 #include "..\shared\CommonDefs.h"
 #include "..\shared\FileLogWriter.h"
 #include "Logging.h"
+#include "..\shared\RegUtils.h"
 
 #include <vector>
 
 CFileLogWriter  *LogWriter = nullptr;
 
-void __stdcall LOG::Initialize(
-    __in    const   std::wstring    &FileName)
+namespace LOG
 {
-    LogWriter = new CFileLogWriter(FileName);
+    DWORD __stdcall GetLoggingLevel(
+        __in    const   HKEY            RootKey,
+        __in    const   std::wstring    &SubKeyName,
+        __in    const   std::wstring    &ValueName);
+};
+
+DWORD __stdcall LOG::GetLoggingLevel(
+    __in    const   HKEY            RootKey,
+    __in    const   std::wstring    &SubKeyName,
+    __in    const   std::wstring    &ValueName)
+{
+    RETURN_VALUE_IF_FALSE(
+        (RootKey != NULL) &&
+        (SubKeyName.length() > 0),
+        0);
+
+    DWORD   Result = 0;
+    HKEY    Key = NULL;
+    LSTATUS Status = RegOpenKeyExW(
+        RootKey,
+        SubKeyName.c_str(),
+        0,
+        KEY_READ,
+        &Key);
+    RETURN_VALUE_IF_FALSE(
+        (Key != NULL) &&
+        (Status == ERROR_SUCCESS),
+        0);
+    __try
+    {
+        if (!UTILS::REG::ReadDWORD(
+            Key,
+            ValueName,
+            &Result))
+        {
+            Result = 0;
+        }
+    }
+    __finally
+    {
+        RegCloseKey(Key);
+    }
+
+    return Result;
+};
+
+BOOL __stdcall LOG::Initialize(
+    __in    const   std::wstring    &AppFileName,
+    __in    const   HKEY            RegRootKey,
+    __in    const   std::wstring    &RegSubKeyName,
+    __in    const   std::wstring    &RegValueName)
+{
+    RETURN_VALUE_IF_FALSE(
+        (AppFileName.length() > 0) &&
+        (RegRootKey != NULL) &&
+        (RegSubKeyName.length() > 0),
+        FALSE);
+
+    DWORD   LoggingLevel = GetLoggingLevel(
+        RegRootKey,
+        RegSubKeyName,
+        RegValueName);
+
+    BOOL    Result = FALSE;
+    if (LoggingLevel != 0)
+    {
+        try
+        {
+            LogWriter = new CFileLogWriter(AppFileName);
+            Result = TRUE;
+        }
+        catch (...)
+        {
+            Result = FALSE;
+        };
+    }
+
+    return Result;
 };
 
 void __stdcall LOG::Finalize()
@@ -63,10 +140,7 @@ void __stdcall LOG::LogMessageFmt(
             FormatStr.c_str(),
             ArgList) > 0)
         {
-            if (Assigned(LogWriter))
-            {
-                LogWriter->LogMessage(&Buffer[0]);
-            }
+            LogMessage(std::wstring(&Buffer[0]));
         }
     }
     va_end(ArgList);

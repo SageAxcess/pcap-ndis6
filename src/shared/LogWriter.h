@@ -27,6 +27,8 @@ protected:
     virtual void InternalLogMessage(
         __in    LPCWSTR Message);
 
+    virtual void InternalLogOSDetails();
+
 public:
     CLogWriter();
     virtual ~CLogWriter();

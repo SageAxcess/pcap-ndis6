@@ -16,8 +16,11 @@
 
 namespace LOG
 {
-    void __stdcall Initialize(
-        __in    const   std::wstring    &FileName);
+    BOOL __stdcall Initialize(
+        __in    const   std::wstring    &AppFileName,
+        __in    const   HKEY            RegRootKey,
+        __in    const   std::wstring    &RegSubKeyName,
+        __in    const   std::wstring    &RegValueName);
 
     void __stdcall Finalize();
 
