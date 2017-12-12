@@ -197,6 +197,7 @@
     <ClCompile Include="..\..\shared\MiscUtils.cpp" />
     <ClCompile Include="..\..\shared\RegUtils.cpp" />
     <ClCompile Include="..\..\shared\StrUtils.cpp" />
+    <ClCompile Include="..\..\shared\SvcUtils.cpp" />
     <ClCompile Include="..\Logging.cpp" />
     <ClCompile Include="..\NdisDriver.c" />
     <ClCompile Include="..\Packet32.c" />
@@ -216,6 +217,7 @@
     <ClInclude Include="..\..\shared\MiscUtils.h" />
     <ClInclude Include="..\..\shared\RegUtils.h" />
     <ClInclude Include="..\..\shared\StrUtils.h" />
+    <ClInclude Include="..\..\shared\SvcUtils.h" />
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\Logging.h" />
     <ClInclude Include="..\NdisDriver.h" />

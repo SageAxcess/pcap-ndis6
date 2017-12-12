@@ -28,5 +28,8 @@ namespace UTILS
 
         void GetOSVersionInfo(
             __out   LPOSVERSIONINFOEXW  VersionInfo);
+
+        std::wstring GetFileVersion(
+            __in    const   std::wstring    &FileName);
     };
 };

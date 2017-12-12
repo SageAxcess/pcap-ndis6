@@ -15,6 +15,8 @@
 #include "MiscUtils.h"
 #include "StrUtils.h"
 
+#include <vector>
+
 std::wstring UTILS::MISC::GetModuleName(
     __in    const   HMODULE ModuleHandle)
 {
@@ -135,4 +137,65 @@ void UTILS::MISC::GetOSVersionInfo(
         VersionInfo, 
         &OsVersionInfo, 
         sizeof(OSVERSIONINFOEXW));
+};
+
+std::wstring UTILS::MISC::GetFileVersion(
+    __in    const   std::wstring    &FileName)
+{
+    UINT	dwBytes;
+    PVOID	lpBuffer;
+
+    DWORD               VersionInfoSize = 0;
+    DWORD               VersionInfoHandle = 0;
+    std::vector<char>   VersionInfoBuffer;
+    UINT                TranslationSize = 0;
+    std::wstring        SubBlockPath;
+
+    // Structure used to store enumerated languages and code pages.
+    struct LANGANDCODEPAGE
+    {
+        WORD wLanguage;
+        WORD wCodePage;
+    } *lpTranslate;
+
+    VersionInfoSize = GetFileVersionInfoSizeW(
+        FileName.c_str(),
+        &VersionInfoHandle);
+
+    RETURN_VALUE_IF_FALSE(
+        VersionInfoSize > 0,
+        L"");
+
+    VersionInfoBuffer.resize(VersionInfoSize, (char)0);
+
+    RETURN_VALUE_IF_FALSE(
+        GetFileVersionInfoW(
+            FileName.c_str(),
+            0,
+            VersionInfoSize,
+            reinterpret_cast<LPVOID>(&VersionInfoBuffer[0])),
+        L"");
+
+    RETURN_VALUE_IF_FALSE(
+        VerQueryValueW(
+            reinterpret_cast<LPVOID>(&VersionInfoBuffer[0]),
+            L"\\VarFileInfo\\Translation",
+            reinterpret_cast<LPVOID *>(&lpTranslate),
+            &TranslationSize),
+        L"");
+
+    SubBlockPath = UTILS::STR::FormatW(
+        L"\\StringFileInfo\\%04x%04x\\FileVersion",
+        lpTranslate->wLanguage,
+        lpTranslate->wCodePage);
+
+    RETURN_VALUE_IF_FALSE(
+        VerQueryValueW(
+            reinterpret_cast<LPVOID>(&VersionInfoBuffer[0]),
+            SubBlockPath.c_str(),
+            &lpBuffer,
+            &dwBytes),
+        L"");
+
+    return std::wstring(reinterpret_cast<PWCHAR>(lpBuffer));
 };

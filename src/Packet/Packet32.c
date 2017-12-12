@@ -45,9 +45,11 @@
 #include "Logging.h"
 
 #include "..\shared\MiscUtils.h"
+#include "..\shared\SvcUtils.h"
 
-#define AEGIS_REGISTRY_KEY_W            L"SOFTWARE\\ChangeDynamix\\AegisPcap"
-#define DEBUG_LOGGING_REG_VALUE_NAME_W  L"DebugLoggingLevel"
+#define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
+#define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
+#define PCAP_NDIS6_DRIVER_SERVICE_NAME_W    L"PcapNdis6"
 
 #ifndef UNUSED
 #define UNUSED(_x) (_x)
@@ -73,8 +75,10 @@ char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be r
 char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
 char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
 
-std::wstring    ModuleFileName;
-
+std::wstring    Packet_DllFileName;
+std::wstring    Packet_DllFileVersion;
+std::wstring    Packet_DriverName;
+std::wstring    Packet_DriverVersion;
 //---------------------------------------------------------------------------
 
 BOOL APIENTRY DllMain(
@@ -83,7 +87,6 @@ BOOL APIENTRY DllMain(
     __in    LPVOID      lpvReserved)
 {
     BOOLEAN Status=TRUE;
-    TCHAR DllFileName[MAX_PATH];
 
     UNREFERENCED_PARAMETER(lpvReserved);
 
@@ -112,10 +115,10 @@ BOOL APIENTRY DllMain(
 
             #endif
 
-            ModuleFileName = UTILS::MISC::GetModuleName(hinstDLL);
-
+            Packet_DllFileName = UTILS::MISC::GetModuleName(hinstDLL);
+            
             LOG::Initialize(
-                ModuleFileName,
+                Packet_DllFileName,
                 HKEY_LOCAL_MACHINE,
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
@@ -123,10 +126,8 @@ BOOL APIENTRY DllMain(
             //
             // Retrieve packet.dll version information from the file
             //
-            if (GetModuleFileName(hinstDLL, DllFileName, sizeof(DllFileName) / sizeof(DllFileName[0])) > 0)
-            {
-                PacketGetFileVersion(DllFileName, PacketLibraryVersion, sizeof(PacketLibraryVersion));
-            }
+
+            Packet_DllFileVersion = UTILS::MISC::GetFileVersion(Packet_DllFileName);
 
             strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
             strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
@@ -134,9 +135,11 @@ BOOL APIENTRY DllMain(
             //
             // Retrieve driver version information from the file. 
             //
+
             fs = DisableWow64FsRedirection();
             try
             {
+                Packet_DriverName = UTILS::SVC::GetServiceImagePath();
                 PacketGetFileVersion(
                     TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
                     PacketDriverVersion,
@@ -422,111 +425,6 @@ LONG PacketDumpRegistryKey(PCHAR KeyName, PCHAR FileName)
     return TRUE;
 }
 #endif
-
-/*! 
-  \brief Returns the version of a dll or exe file 
-  \param FileName Name of the file whose version has to be retrieved.
-  \param VersionBuff Buffer that will contain the string with the file version.
-  \param VersionBuffLen Length of the buffer poited by VersionBuff.
-  \return If the function succeeds, the return value is TRUE.
-
-  \note uses the GetFileVersionInfoSize() and GetFileVersionInfo() WIN32 API functions
-*/
-BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLen)
-{
-    DWORD   dwVerInfoSize;  // Size of version information block
-    DWORD   dwVerHnd=0;   // An 'ignored' parameter, always '0'
-    LPSTR   lpstrVffInfo;
-    UINT	cbTranslate, dwBytes;
-    TCHAR	SubBlock[64];
-    PVOID	lpBuffer;
-    PCHAR	TmpStr;
-    
-    // Structure used to store enumerated languages and code pages.
-    struct LANGANDCODEPAGE {
-      WORD wLanguage;
-      WORD wCodePage;
-    } *lpTranslate;
-
-    TRACE_ENTER("PacketGetFileVersion");
-
-    printf("  read %s file version\n", FileName);
-
-    // Now lets dive in and pull out the version information:
-    dwVerInfoSize = GetFileVersionInfoSize(FileName, &dwVerHnd);
-    if (dwVerInfoSize) 
-    {
-        lpstrVffInfo = (LPSTR)GlobalAllocPtr(GMEM_MOVEABLE, dwVerInfoSize);
-        if (lpstrVffInfo == NULL)
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to allocate memory");
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        if(!GetFileVersionInfo(FileName, 0, dwVerInfoSize, lpstrVffInfo)) 
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call GetFileVersionInfo");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        // Read the list of languages and code pages.
-        if(!VerQueryValue(lpstrVffInfo,	TEXT("\\VarFileInfo\\Translation"),	(LPVOID*)&lpTranslate, &cbTranslate))
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call VerQueryValue");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-        
-        // Create the file version string for the first (i.e. the only one) language.
-        StringCchPrintf(SubBlock,
-            sizeof(SubBlock)/sizeof(SubBlock[0]),
-            TEXT("\\StringFileInfo\\%04x%04x\\FileVersion"),
-            (*lpTranslate).wLanguage,
-            (*lpTranslate).wCodePage);
-        
-        // Retrieve the file version string for the language.
-        if(!VerQueryValue(lpstrVffInfo, SubBlock, &lpBuffer, &dwBytes))
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call VerQueryValue");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        // Convert to ASCII
-        TmpStr = WChar2SChar((PWCHAR)lpBuffer);
-
-        if(strlen(TmpStr) >= VersionBuffLen)
-        {
-            TRACE_PRINT("PacketGetFileVersion: Input buffer too small");
-            GlobalFreePtr(lpstrVffInfo);
-            GlobalFreePtr(TmpStr);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        StringCchCopyA(VersionBuff, VersionBuffLen, TmpStr);
-
-        GlobalFreePtr(lpstrVffInfo);
-        GlobalFreePtr(TmpStr);
-        
-      } 
-    else 
-    {
-        TRACE_PRINT1("PacketGetFileVersion: failed to call GetFileVersionInfoSize, LastError = %8.8x", GetLastError());
-        TRACE_EXIT("PacketGetFileVersion");
-        return FALSE;
-    
-    } 
-    
-    TRACE_EXIT("PacketGetFileVersion");
-    return TRUE;
-}
-
 
 //---------------------------------------------------------------------------
 // PUBLIC API
