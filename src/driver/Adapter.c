@@ -27,6 +27,7 @@
 #include "KernelUtil.h"
 
 #include "..\..\driver_version.h"
+#include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
 // Adapter variables
@@ -152,7 +153,6 @@ BOOL FreeAdapter(ADAPTER* adapter)
 	FreeString(adapter->Name);
 
 	//FreeString(adapter->Name);
-	FreeSpinLock(adapter->Lock);
 
 	FILTER_FREE_MEM(adapter);
 
@@ -210,7 +210,12 @@ LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
 
-NDIS_STATUS _Function_class_(PROTOCOL_BIND_ADAPTER_EX) Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDIS_HANDLE BindContext, PNDIS_BIND_PARAMETERS BindParameters)
+NDIS_STATUS
+_Function_class_(PROTOCOL_BIND_ADAPTER_EX)
+Protocol_BindAdapterHandlerEx(
+    __in    NDIS_HANDLE             ProtocolDriverContext,
+    __in    NDIS_HANDLE             BindContext,
+    __in    PNDIS_BIND_PARAMETERS   BindParameters)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_BindAdapterHandlerEx...\n");
 	_CRT_UNUSED(ProtocolDriverContext);
@@ -244,7 +249,6 @@ NDIS_STATUS _Function_class_(PROTOCOL_BIND_ADAPTER_EX) Protocol_BindAdapterHandl
 		ADAPTER* adapter = (ADAPTER*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(ADAPTER));
 		NdisZeroMemory(adapter, sizeof(ADAPTER));
 
-		adapter->Lock = CreateSpinLock();
 		adapter->Name = CopyString(BindParameters->AdapterName);
 		adapter->Ready = FALSE;
 		memset(adapter->AdapterId, 0, 1024);
@@ -275,7 +279,11 @@ NDIS_STATUS _Function_class_(PROTOCOL_BIND_ADAPTER_EX) Protocol_BindAdapterHandl
 	return ret;
 }
 
-NDIS_STATUS _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX) Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HANDLE ProtocolBindingContext)
+NDIS_STATUS
+_Function_class_(PROTOCOL_UNBIND_ADAPTER_EX)
+Protocol_UnbindAdapterHandlerEx(
+    __in    NDIS_HANDLE UnbindContext,
+    __in    NDIS_HANDLE ProtocolBindingContext)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_UnbindAdapterHandlerEx...\n");
 
@@ -304,7 +312,11 @@ NDIS_STATUS _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX) Protocol_UnbindAdapterH
 	return ret;
 }
 
-void _Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX) Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, NDIS_STATUS Status)
+void
+_Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX)
+Protocol_OpenAdapterCompleteHandlerEx(
+    __in    NDIS_HANDLE ProtocolBindingContext,
+    __in    NDIS_STATUS Status)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx status=0x%8x...\n", Status);
 
@@ -341,7 +353,10 @@ void _Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX) Protocol_OpenAdapterCom
 	DEBUGP(DL_TRACE, "<===Protocol_OpenAdapterCompleteHandlerEx\n");
 }
 
-void _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX) Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext)
+void
+_Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)
+Protocol_CloseAdapterCompleteHandlerEx(
+    __in    NDIS_HANDLE ProtocolBindingContext)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
 	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
@@ -355,7 +370,12 @@ void _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX) Protocol_CloseAdapterC
 	DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
 }
 
-void _Function_class_(PROTOCOL_OID_REQUEST_COMPLETE) Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS_OID_REQUEST *OidRequest, NDIS_STATUS Status)
+void
+_Function_class_(PROTOCOL_OID_REQUEST_COMPLETE)
+Protocol_OidRequestCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    NDIS_OID_REQUEST    *OidRequest,
+    __in    NDIS_STATUS         Status)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_OidRequestCompleteHandler...\n");
 	_CRT_UNUSED(Status);
@@ -382,129 +402,174 @@ void _Function_class_(PROTOCOL_OID_REQUEST_COMPLETE) Protocol_OidRequestComplete
 	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%u\n", adapter->PendingOidRequests);
 }
 
-void _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS) Protocol_ReceiveNetBufferListsHandler(
+void LockClients(
+    __in    PDEVICE Device,
+    __in    BOOLEAN LockList)
+{
+    PLIST_ITEM  Item;
+
+    RETURN_IF_FALSE(Assigned(Device));
+
+    if (LockList)
+    {
+        NdisAcquireSpinLock(Device->ClientList->Lock);
+    }
+
+    for (Item = Device->ClientList->First;
+        Assigned(Item);
+        Item = Item->Next)
+    {
+        CLIENT* Client = (CLIENT*)Item->Data;
+        if ((Assigned(Client)) &&
+            (Assigned(Client->ReadLock)))
+        {
+            NdisAcquireSpinLock(Client->ReadLock);
+        }
+    }
+};
+
+void UnlockClients(
+    __in    PDEVICE Device,
+    __in    BOOLEAN UnlockList,
+    __in    BOOLEAN SignalEvents)
+{
+    PLIST_ITEM  Item;
+
+    RETURN_IF_FALSE(Assigned(Device));
+
+    for (Item = Device->ClientList->First;
+        Assigned(Item);
+        Item = Item->Next)
+    {
+        CLIENT* Client = (CLIENT*)Item->Data;
+        if ((Assigned(Client)) &&
+            (Assigned(Client->ReadLock)))
+        {
+            NdisReleaseSpinLock(Client->ReadLock);
+        }
+
+        if (SignalEvents)
+        {
+            if ((Assigned(Client->Event)) &&
+                (Assigned(Client->Event->Event)))
+            {
+                KeSetEvent(Client->Event->Event, 0, FALSE);
+            }
+        }
+    }
+
+    if (UnlockList)
+    {
+        NdisReleaseSpinLock(Device->ClientList->Lock);
+    }
+};
+
+void
+_Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS)
+Protocol_ReceiveNetBufferListsHandler(
 	NDIS_HANDLE             ProtocolBindingContext,
 	PNET_BUFFER_LIST        NetBufferLists,
 	NDIS_PORT_NUMBER        PortNumber,
 	ULONG                   NumberOfNetBufferLists,
 	ULONG                   ReceiveFlags)
 {
-	//DEBUGP(DL_TRACE, "===>Protocol_ReceiveNetBufferListsHandler...\n");
-	_CRT_UNUSED(PortNumber);
-	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
+	ADAPTER *adapter = (ADAPTER*)ProtocolBindingContext;
+    ULONG   ReturnFlags = 0;
 
-	if (NetBufferLists == NULL || NumberOfNetBufferLists == 0)
-	{
-		return;
-	}
+    _CRT_UNUSED(PortNumber);
 
-	ULONG ReturnFlags = 0;
+    RETURN_IF_FALSE(
+        (Assigned(NetBufferLists)) &&
+        (NumberOfNetBufferLists > 0));
 
 	if (NDIS_TEST_RECEIVE_AT_DISPATCH_LEVEL(ReceiveFlags))
 	{
 		NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
 	}
 
-	if (adapter==NULL || adapter->AdapterHandle == NULL)
-	{
-		return;
-	}
+    RETURN_IF_FALSE(
+        (Assigned(adapter)) &&
+        (adapter->AdapterHandle != NULL));
 
-	if(adapter->Ready==FALSE || adapter->Device == NULL)
-	{
-		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
-		return;
-	}
+    RETURN_IF_FALSE_EX(
+        (adapter->Ready) &&
+        (Assigned(adapter->Device)),
+        NdisReturnNetBufferLists(
+            adapter->AdapterHandle, 
+            NetBufferLists, 
+            ReturnFlags));
 
-	//DEBUGP(DL_TRACE, "   acquire lock for client list\n");
-	NdisAcquireSpinLock(adapter->Device->ClientList->Lock); // No more clients while sending packets
+    LockClients(adapter->Device, TRUE);
+    __try
+    {
+        PNET_BUFFER_LIST    CurrentNbl;
+        LARGE_INTEGER       PacketTimeStamp = GetAdapterTime(adapter);
 
-	// DEBUGP(DL_TRACE, "   iterate clients and lock each\n");
-	// Lock all client receiving queues
-	PLIST_ITEM item = adapter->Device->ClientList->First;
-	while (item)
-	{
-		CLIENT* client = (CLIENT*)item->Data;
-		if (client && client->ReadLock) {
-			NdisAcquireSpinLock(client->ReadLock);
-		}
-		item = item->Next;
-	}
+        for (CurrentNbl = NetBufferLists;
+             Assigned(CurrentNbl);
+             CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
+        {
+            PUCHAR      MdlVA = NULL;
+            PNET_BUFFER NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
+            PMDL        Mdl = NET_BUFFER_CURRENT_MDL(NB);
+            ULONG       Offset = NET_BUFFER_DATA_OFFSET(NB);
+            ULONG       BufferLength = 0;
 
-	//DEBUGP(DL_TRACE, "   iterate lists\n");
-	PNET_BUFFER_LIST nbl = NetBufferLists;
-	while (nbl)
-	{
-		NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(nbl);
-		//TODO: Support for IEEE802.1Q
+            if (Assigned(Mdl))
+            {
+                PLIST_ITEM  Item;
 
-		//DEBUGP(DL_TRACE, "   iterate buffers\n");
-		while (nb)
-		{
-			UINT size = NET_BUFFER_DATA_LENGTH(nb);
+                NdisQueryMdl(
+                    Mdl, 
+                    &MdlVA, 
+                    &BufferLength, 
+                    NormalPagePriority);
 
-			//DEBUGP(DL_TRACE, "     buffer size %u\n", size);
-			if(size>0 && size<MAX_PACKET_SIZE)
-			{				
-				UCHAR *ptr = NdisGetDataBuffer(nb, size, adapter->TmpBuf, 1, 0);
+                BREAK_IF_FALSE(
+                    (Assigned(MdlVA)) &&
+                    (BufferLength > 0));
 
-				if (ptr != NULL)
-				{
-					LARGE_INTEGER timestamp = GetAdapterTime(adapter);
+                BREAK_IF_FALSE(BufferLength > Offset);
 
-					item = adapter->Device->ClientList->First;
-					while (item)
-					{
-						CLIENT* client = (CLIENT*)item->Data;
+                BufferLength -= Offset;
 
-						if (client) {
-							DEBUGP(DL_TRACE, "   adding packet to client, size=%u\n", client->PacketList->Size);
-							if (client->PacketList->Size < MAX_PACKET_QUEUE_SIZE && !client->PacketList->Releasing) //TODO: it seems we lose packets here
-							{
-								AddToList(client->PacketList, CreatePacket(ptr, size, timestamp));
-							}
-						}
+                BREAK_IF_FALSE(BufferLength >= sizeof(ETH_HEADER));
 
-						item = item->Next;
-					}
-				}
-			}
+                for (Item = adapter->Device->ClientList->First;
+                    Assigned(Item);
+                    Item = Item->Next)
+                {
+                    PCLIENT Client = (PCLIENT)Item->Data;
 
-			nb = NET_BUFFER_NEXT_NB(nb);
-		}
+                    if ((Client->PacketList->Size < MAX_PACKET_QUEUE_SIZE) &&
+                        (!Client->PacketList->Releasing)) //TODO: it seems we lose packets here
+                    {
+                        AddToList(
+                            Client->PacketList, 
+                            CreatePacket(MdlVA + Offset, BufferLength, PacketTimeStamp));
+                    }
 
-		nbl = NET_BUFFER_LIST_NEXT_NBL(nbl);
-	}
+                }
+            }
+        }
+    }
+    __finally
+    {
+        UnlockClients(adapter->Device, TRUE, TRUE);
+    }
 	
-	//DEBUGP(DL_TRACE, "   releasing lock for clients and set event\n");
-	// Unlock client receiving queues and set event
-	item = adapter->Device->ClientList->First;
-	while (item)
-	{
-		CLIENT* client = (CLIENT*)item->Data;
-		if(client && client->ReadLock)
-			NdisReleaseSpinLock(client->ReadLock);
-
-		if (client && client->Event && client->Event->Event && client->PacketList->Size>100) {
-			//DEBUGP(DL_TRACE, "   setting event %s\n", client->Event->Name);
-			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-		}
-
-		item = item->Next;
-	}
-
-	//DEBUGP(DL_TRACE, "   release lock for client list\n");
-	NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
-
 	if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
 	{
 		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
 	}
+};
 
-	//DEBUGP(DL_TRACE, "<===Protocol_ReceiveNetBufferListsHandler\n");
-}
-
-void _Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE) Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNET_BUFFER_LIST NetBufferList, ULONG SendCompleteFlags)
+void
+_Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE)
+Protocol_SendNetBufferListsCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    PNET_BUFFER_LIST    NetBufferList,
+    __in    ULONG               SendCompleteFlags)
 {
 	DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
 	_CRT_UNUSED(ProtocolBindingContext);
@@ -545,7 +610,11 @@ void _Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE) Protocol_SendNetB
 }
 
 
-NDIS_STATUS _Function_class_(SET_OPTIONS) Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE DriverContext)
+NDIS_STATUS
+_Function_class_(SET_OPTIONS)
+Protocol_SetOptionsHandler(
+    __in    NDIS_HANDLE NdisDriverHandle,
+    __in    NDIS_HANDLE DriverContext)
 {
 	_CRT_UNUSED(NdisDriverHandle);
 	_CRT_UNUSED(DriverContext);
@@ -554,7 +623,11 @@ NDIS_STATUS _Function_class_(SET_OPTIONS) Protocol_SetOptionsHandler(NDIS_HANDLE
 	return NDIS_STATUS_SUCCESS; //TODO: ?
 }
 
-NDIS_STATUS _Function_class_(PROTOCOL_NET_PNP_EVENT) Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
+NDIS_STATUS
+_Function_class_(PROTOCOL_NET_PNP_EVENT)
+Protocol_NetPnPEventHandler(
+    __in    NDIS_HANDLE                 ProtocolBindingContext,
+    __in    PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
 {
 	_CRT_UNUSED(ProtocolBindingContext);	;
 	DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
@@ -576,13 +649,19 @@ NDIS_STATUS _Function_class_(PROTOCOL_NET_PNP_EVENT) Protocol_NetPnPEventHandler
 	return NDIS_STATUS_SUCCESS; //TODO: ?
 }
 
-void _Function_class_(PROTOCOL_UNINSTALL) Protocol_UninstallHandler(VOID)
+void
+_Function_class_(PROTOCOL_UNINSTALL)
+Protocol_UninstallHandler()
 {
 	DEBUGP(DL_TRACE, "===>Protocol_UninstallHandler...\n");
 	DEBUGP(DL_TRACE, "<===Protocol_UninstallHandler\n");
 }
 
-void _Function_class_(PROTOCOL_STATUS_EX) Protocol_StatusHandlerEx(NDIS_HANDLE ProtocolBindingContext, PNDIS_STATUS_INDICATION StatusIndication)
+void
+_Function_class_(PROTOCOL_STATUS_EX)
+Protocol_StatusHandlerEx(
+    __in    NDIS_HANDLE             ProtocolBindingContext,
+    __in    PNDIS_STATUS_INDICATION StatusIndication)
 {
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(StatusIndication);
@@ -590,7 +669,12 @@ void _Function_class_(PROTOCOL_STATUS_EX) Protocol_StatusHandlerEx(NDIS_HANDLE P
 	DEBUGP(DL_TRACE, "<===Protocol_StatusHandlerEx\n");
 }
 
-void _Function_class_(PROTOCOL_DIRECT_OID_REQUEST_COMPLETE) Protocol_DirectOidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNDIS_OID_REQUEST OidRequest, NDIS_STATUS Status)
+void
+_Function_class_(PROTOCOL_DIRECT_OID_REQUEST_COMPLETE)
+Protocol_DirectOidRequestCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    PNDIS_OID_REQUEST   OidRequest,
+    __in    NDIS_STATUS         Status)
 {
 	_CRT_UNUSED(ProtocolBindingContext);
 	_CRT_UNUSED(OidRequest);

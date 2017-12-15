@@ -19,6 +19,8 @@
 #include <winsock2.h>
 #include <windows.h>
 
+#include "..\shared\win_bpf.h"
+
 #include "Packet32.h"
 #include "NdisDriver.h"
 #include "..\shared\CommonDefs.h"
@@ -28,11 +30,6 @@
 #define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
 #else
 #define DEBUG_PRINT(x,...)
-#endif
-
-#ifndef ALIGN_SIZE
-#define ALIGN_SIZE( sizeToAlign, PowerOfTwo )       \
-        (((sizeToAlign) + (PowerOfTwo) - 1) & ~((PowerOfTwo) - 1))
 #endif
 
 PCAP_NDIS* NdisDriverOpen()
@@ -212,10 +209,10 @@ BOOL NdisDriverNextPacket(
         {
             struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + curSize);
 
-            curSize += ALIGN_SIZE(bpf->bh_datalen + bpf->bh_hdrlen, 1024);
+            curSize += bpf->bh_datalen + bpf->bh_hdrlen;
+
             adapter->BufferedPackets++;
         }
-		Sleep(200);
     }
 
     if (adapter->BufferedPackets == 0)
@@ -237,7 +234,7 @@ BOOL NdisDriverNextPacket(
         *dwBytesReceived = packetLen;
 
         adapter->BufferedPackets--;
-        adapter->BufferOffset += ALIGN_SIZE(packetLen, 1024);
+        adapter->BufferOffset += packetLen;
     }
 
     DEBUG_PRINT("<===NdisDriverNextPacket(true)\n");

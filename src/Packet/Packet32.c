@@ -33,7 +33,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#include "win_bpf.h"
+#include "..\shared\win_bpf.h"
 #include <packet32.h>
 
 #include "Packet32-Int.h"
@@ -41,6 +41,16 @@
 
 #include "debug.h"
 #include "Util.h"
+
+#include "Logging.h"
+
+#include "..\shared\MiscUtils.h"
+#include "..\shared\SvcUtils.h"
+#include "..\shared\StrUtils.h"
+
+#define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
+#define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
+#define PCAP_NDIS6_DRIVER_SERVICE_NAME_W    L"PcapNdis6"
 
 #ifndef UNUSED
 #define UNUSED(_x) (_x)
@@ -60,9 +70,22 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <WpcapNames.h>
 
+#include <string>
+
 char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
-char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
-char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
+//char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
+//char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
+
+std::wstring    Packet_DllFileNameW;
+std::wstring    Packet_DllFileVersionW;
+std::wstring    Packet_DriverNameW;
+std::wstring    Packet_DriverVersionW;
+std::wstring    Packet_ProcessNameW;
+
+std::string     Packet_DllFileNameA;
+std::string     Packet_DllFileVersionA;
+std::string     Packet_DriverNameA;
+std::string     Packet_DriverVersionA;
 
 //---------------------------------------------------------------------------
 
@@ -72,56 +95,94 @@ BOOL APIENTRY DllMain(
     __in    LPVOID      lpvReserved)
 {
     BOOLEAN Status=TRUE;
-    TCHAR DllFileName[MAX_PATH];
 
-    UNUSED(lpvReserved);
+    UNREFERENCED_PARAMETER(lpvReserved);
 
     void* fs;
 
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-
-        TRACE_PRINT_DLLMAIN("************Packet32: DllMain************");
-
-#ifdef _DEBUG_TO_FILE
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME,"aegis.reg");
-        
-        // dump a bunch of registry keys useful for debug to file
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}",
-            "adapters.reg");
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip",
-            "tcpip.reg");
-        PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services",
-            "services.reg");
-
-#endif
-        //
-        // Retrieve packet.dll version information from the file
-        //
-        if(GetModuleFileName(hinstDLL, DllFileName, sizeof(DllFileName) / sizeof(DllFileName[0])) > 0)
         {
-            PacketGetFileVersion(DllFileName, PacketLibraryVersion, sizeof(PacketLibraryVersion));
-        }
+            TRACE_PRINT_DLLMAIN("************Packet32: DllMain************");
 
-        strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
-        strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
+            //  Since we do not handle DLL_THREAD_ATTACH/DLL_THREAD_DETACH events
+            //  we need to disable them.
+            DisableThreadLibraryCalls(hinstDLL);
 
-        //
-        // Retrieve driver version information from the file. 
-        //
-        fs = DisableWow64FsRedirection();
-        PacketGetFileVersion(TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"), PacketDriverVersion, sizeof(PacketDriverVersion));
-        RestoreWow64FsRedirection(fs);
+            #ifdef _DEBUG_TO_FILE
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME, "aegis.reg");
 
-        ndis = NdisDriverOpen();
-        break;
+            // dump a bunch of registry keys useful for debug to file
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}",
+                "adapters.reg");
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip",
+                "tcpip.reg");
+            PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services",
+                "services.reg");
+
+            #endif
+
+            Packet_DllFileNameW = UTILS::MISC::GetModuleName(hinstDLL);
+            Packet_DllFileNameA = UTILS::STR::FormatA("%S", Packet_DllFileNameW.c_str());
+
+            Packet_ProcessNameW = UTILS::MISC::GetModuleName(NULL);
+            
+            LOG::Initialize(
+                Packet_ProcessNameW + L".log",
+                HKEY_LOCAL_MACHINE,
+                AEGIS_REGISTRY_KEY_W,
+                DEBUG_LOGGING_REG_VALUE_NAME_W);
+
+            //
+            // Retrieve packet.dll version information from the file
+            //
+
+            Packet_DllFileVersionW = UTILS::MISC::GetFileVersion(Packet_DllFileNameW);
+            Packet_DllFileVersionA = UTILS::STR::FormatA("%S", Packet_DllFileVersionW.c_str());
+
+            RtlZeroMemory(PacketLibraryVersion, sizeof(PacketLibraryVersion));
+
+            SIZE_T  BytesToCopy =
+                Packet_DllFileVersionA.length() > ARRAYSIZE(PacketLibraryVersion) - 1 ?
+                ARRAYSIZE(PacketLibraryVersion) - 1 :
+                Packet_DllFileVersionA.length();
+
+            RtlCopyMemory(
+                PacketLibraryVersion,
+                Packet_DllFileVersionA.c_str(),
+                BytesToCopy);
+
+            //
+            // Retrieve driver version information from the file. 
+            //
+
+            Packet_DriverNameW = L"c:\\windows\\system32\\drivers\\pcap-ndis6.sys";
+            
+            fs = DisableWow64FsRedirection();
+            try
+            {
+                Packet_DriverVersionW = UTILS::MISC::GetFileVersion(Packet_DriverNameW);
+            }
+            catch(...)
+            {
+            }
+            RestoreWow64FsRedirection(fs);
+
+            Packet_DriverNameA = UTILS::STR::FormatA("%S", Packet_DriverNameW.c_str());
+            Packet_DriverVersionA = UTILS::STR::FormatA("%S", Packet_DriverVersionW.c_str());
+
+            ndis = NdisDriverOpen();
+        }break;
         
     case DLL_PROCESS_DETACH:
         if(ndis)
         {
             NdisDriverClose(ndis);
         }
+
+        LOG::Finalize();
+
         break;
         
     default:
@@ -387,128 +448,23 @@ LONG PacketDumpRegistryKey(PCHAR KeyName, PCHAR FileName)
 }
 #endif
 
-/*! 
-  \brief Returns the version of a dll or exe file 
-  \param FileName Name of the file whose version has to be retrieved.
-  \param VersionBuff Buffer that will contain the string with the file version.
-  \param VersionBuffLen Length of the buffer poited by VersionBuff.
-  \return If the function succeeds, the return value is TRUE.
-
-  \note uses the GetFileVersionInfoSize() and GetFileVersionInfo() WIN32 API functions
-*/
-BOOL PacketGetFileVersion(LPTSTR FileName, PCHAR VersionBuff, UINT VersionBuffLen)
-{
-    DWORD   dwVerInfoSize;  // Size of version information block
-    DWORD   dwVerHnd=0;   // An 'ignored' parameter, always '0'
-    LPSTR   lpstrVffInfo;
-    UINT	cbTranslate, dwBytes;
-    TCHAR	SubBlock[64];
-    PVOID	lpBuffer;
-    PCHAR	TmpStr;
-    
-    // Structure used to store enumerated languages and code pages.
-    struct LANGANDCODEPAGE {
-      WORD wLanguage;
-      WORD wCodePage;
-    } *lpTranslate;
-
-    TRACE_ENTER("PacketGetFileVersion");
-
-    printf("  read %s file version\n", FileName);
-
-    // Now lets dive in and pull out the version information:
-    dwVerInfoSize = GetFileVersionInfoSize(FileName, &dwVerHnd);
-    if (dwVerInfoSize) 
-    {
-        lpstrVffInfo = (LPSTR)GlobalAllocPtr(GMEM_MOVEABLE, dwVerInfoSize);
-        if (lpstrVffInfo == NULL)
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to allocate memory");
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        if(!GetFileVersionInfo(FileName, 0, dwVerInfoSize, lpstrVffInfo)) 
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call GetFileVersionInfo");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        // Read the list of languages and code pages.
-        if(!VerQueryValue(lpstrVffInfo,	TEXT("\\VarFileInfo\\Translation"),	(LPVOID*)&lpTranslate, &cbTranslate))
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call VerQueryValue");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-        
-        // Create the file version string for the first (i.e. the only one) language.
-        StringCchPrintf(SubBlock,
-            sizeof(SubBlock)/sizeof(SubBlock[0]),
-            TEXT("\\StringFileInfo\\%04x%04x\\FileVersion"),
-            (*lpTranslate).wLanguage,
-            (*lpTranslate).wCodePage);
-        
-        // Retrieve the file version string for the language.
-        if(!VerQueryValue(lpstrVffInfo, SubBlock, &lpBuffer, &dwBytes))
-        {
-            TRACE_PRINT("PacketGetFileVersion: failed to call VerQueryValue");
-            GlobalFreePtr(lpstrVffInfo);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        // Convert to ASCII
-        TmpStr = WChar2SChar((PWCHAR)lpBuffer);
-
-        if(strlen(TmpStr) >= VersionBuffLen)
-        {
-            TRACE_PRINT("PacketGetFileVersion: Input buffer too small");
-            GlobalFreePtr(lpstrVffInfo);
-            GlobalFreePtr(TmpStr);
-            TRACE_EXIT("PacketGetFileVersion");
-            return FALSE;
-        }
-
-        StringCchCopyA(VersionBuff, VersionBuffLen, TmpStr);
-
-        GlobalFreePtr(lpstrVffInfo);
-        GlobalFreePtr(TmpStr);
-        
-      } 
-    else 
-    {
-        TRACE_PRINT1("PacketGetFileVersion: failed to call GetFileVersionInfoSize, LastError = %8.8x", GetLastError());
-        TRACE_EXIT("PacketGetFileVersion");
-        return FALSE;
-    
-    } 
-    
-    TRACE_EXIT("PacketGetFileVersion");
-    return TRUE;
-}
-
-
 //---------------------------------------------------------------------------
 // PUBLIC API
 //---------------------------------------------------------------------------
 
 PCHAR PacketGetVersion()
 {
-    return PacketLibraryVersion;
+    return const_cast<PCHAR>(Packet_DllFileVersionA.c_str());
 }
 
 PCHAR PacketGetDriverVersion()
 {
-    return PacketDriverVersion;
+    return const_cast<PCHAR>(Packet_DriverVersionA.c_str());
 }
 
 PCHAR PacketGetDriverName()
 {
-    return PacketDriverName;
+    return const_cast<PCHAR>(Packet_DriverNameA.c_str());
 }
 
 BOOL PacketStopDriver()
@@ -570,8 +526,8 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 
                 result->ReadEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, eventNameFull);
 
-                result->ReadTimeOut = 100;
-                PacketSetReadTimeout(result, 100);
+                result->ReadTimeOut = 0;
+                PacketSetReadTimeout(result, 0);				
             }
         }
         
@@ -703,14 +659,26 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
     if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
     {
-        TRACE_PRINT1("   ... NdisDriverNextPacket, timeout=%d", AdapterObject->ReadTimeOut);
+        TRACE_PRINT("   ... NdisDriverNextPacket");
 
-        WaitForSingleObject(AdapterObject->ReadEvent, (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
-        res = (BOOLEAN)NdisDriverNextPacket((PCAP_NDIS_ADAPTER*)AdapterObject->hFile, &lpPacket->Buffer, lpPacket->Length, &lpPacket->ulBytesReceived);
+        WaitForSingleObject(
+            AdapterObject->ReadEvent, 
+            (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+
+        res = (BOOLEAN)NdisDriverNextPacket(
+            (PCAP_NDIS_ADAPTER*)AdapterObject->hFile, 
+            &lpPacket->Buffer, 
+            lpPacket->Length, 
+            &lpPacket->ulBytesReceived);
 
         if(!res)
         {
             PacketCloseAdapter(AdapterObject);
+        }
+
+        if(lpPacket->ulBytesReceived > 0)
+        {
+            Sleep(100);
         }
 
         if (!CheckFilter(AdapterObject, lpPacket))
@@ -984,7 +952,6 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
     TRACE_ENTER("PacketGetAdapterNames");
 
     TRACE_PRINT_OS_INFO();
-    TRACE_PRINT2("Packet DLL version %s, Driver version %s", PacketLibraryVersion, PacketDriverVersion);
     TRACE_PRINT1("PacketGetAdapterNames: BufferSize=%u", *BufferSize);
 
 
@@ -999,7 +966,8 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
     //
     PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
 
-    if (list) {
+    if (list)
+    {
         // 
         // First scan of the list to calculate the offsets and check the sizes
         //

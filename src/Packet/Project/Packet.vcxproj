@@ -67,29 +67,29 @@
     <_ProjectFileVersion>14.0.23107.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x86\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x86\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)build\$(Configuration)\$(Platform)\</OutDir>
-    <IntDir>$(ProjectDir)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>..\;..\..\driver;..\..\..\3dparty\airpcap\include;$(IncludePath)</IncludePath>
     <TargetName>packet-ndis6</TargetName>
@@ -108,6 +108,7 @@
       <CompileAs>CompileAsCpp</CompileAs>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;setupapi.lib;ws2_32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -134,6 +135,7 @@
       <CompileAs>CompileAsCpp</CompileAs>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;setupapi.lib;ws2_32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -154,6 +156,7 @@
       <CompileAs>CompileAsCpp</CompileAs>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;setupapi.lib;ws2_32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -179,6 +182,7 @@
       <CompileAs>CompileAsCpp</CompileAs>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;setupapi.lib;ws2_32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -191,19 +195,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\shared\CSObject.cpp" />
+    <ClCompile Include="..\..\shared\FileLogWriter.cpp" />
+    <ClCompile Include="..\..\shared\LogWriter.cpp" />
+    <ClCompile Include="..\..\shared\MiscUtils.cpp" />
+    <ClCompile Include="..\..\shared\RegUtils.cpp" />
+    <ClCompile Include="..\..\shared\StrUtils.cpp" />
+    <ClCompile Include="..\..\shared\SvcUtils.cpp" />
+    <ClCompile Include="..\..\shared\win_bpf_filter.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
+    </ClCompile>
+    <ClCompile Include="..\Logging.cpp" />
     <ClCompile Include="..\NdisDriver.c" />
     <ClCompile Include="..\Packet32.c" />
     <ClCompile Include="..\Util.c" />
-    <ClCompile Include="..\win_bpf_filter.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\shared\CommonDefs.h" />
+    <ClInclude Include="..\..\shared\CSObject.h" />
+    <ClInclude Include="..\..\shared\FileLogWriter.h" />
+    <ClInclude Include="..\..\shared\LogWriter.h" />
+    <ClInclude Include="..\..\shared\MiscUtils.h" />
+    <ClInclude Include="..\..\shared\RegUtils.h" />
+    <ClInclude Include="..\..\shared\StrUtils.h" />
+    <ClInclude Include="..\..\shared\SvcUtils.h" />
     <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\Logging.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
     <ClInclude Include="..\Util.h" />

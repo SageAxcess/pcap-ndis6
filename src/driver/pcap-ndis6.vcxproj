@@ -24,7 +24,7 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <SampleGuid>{F40772D8-6882-4C62-8849-D5651CC7751C}</SampleGuid>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
     <ProjectName>pcap-ndis6</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -48,7 +48,7 @@
     <OutDir>$(SolutionDir)build\$(Configuration)\x64\</OutDir>
     <ALLOW_DATE_TIME>1</ALLOW_DATE_TIME>
     <TargetName>pcap-ndis6</TargetName>
-    <DiagnosticMode>true</DiagnosticMode>
+    <DiagnosticMode>false</DiagnosticMode>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetVersion>Windows7</TargetVersion>
@@ -69,7 +69,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <OutDir>$(SolutionDir)build\$(Configuration)\x86\</OutDir>
     <TargetName>pcap-ndis6</TargetName>
-    <DiagnosticMode>true</DiagnosticMode>
+    <DiagnosticMode>false</DiagnosticMode>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -88,40 +88,48 @@
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
+    <SupportsPackaging>false</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
-    <SupportsPackaging>true</SupportsPackaging>
+    <SupportsPackaging>false</SupportsPackaging>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
+    <SupportsPackaging>false</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)build\$(Configuration)\$(PlatformShortName)\</OutDir>
     <CharacterSet>Unicode</CharacterSet>
+    <SupportsPackaging>false</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <CodeAnalysisRuleSet>..\..\..\..\..\..\Program Files (x86)\Windows Kits\8.1\CodeAnalysis\DriverRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableInf2cat>false</EnableInf2cat>
     <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <EnableInf2cat>false</EnableInf2cat>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetExt>.sys</TargetExt>
-    <IntDir>$(SolutionDir)int\$(ConfigurationName)\$(Platform)\</IntDir>
+    <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -132,7 +140,7 @@
       <PreprocessorDefinitions Condition="($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7)))">%(PreprocessorDefinitions);NDIS620=1</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
       <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
@@ -161,7 +169,7 @@
       <PreprocessorDefinitions Condition="($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7)))">%(PreprocessorDefinitions);NDIS620=1</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1;_DEBUG=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
       <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
@@ -190,7 +198,7 @@
       <PreprocessorDefinitions Condition="($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7)))">%(PreprocessorDefinitions);NDIS620=1</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
       <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
@@ -219,7 +227,7 @@
       <PreprocessorDefinitions Condition="($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7)))">%(PreprocessorDefinitions);NDIS620=1</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1;_DEBUG=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
       <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
@@ -249,8 +257,13 @@
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\x86\Inf2Cat.exe" /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
+    <Inf>
+      <EnableVerbose>false</EnableVerbose>
+      <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
+    </Inf>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
@@ -271,14 +284,16 @@
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
       <SpecifyDriverVerDirectiveVersion>true</SpecifyDriverVerDirectiveVersion>
       <SpecifyDriverVerDirectiveDate>true</SpecifyDriverVerDirectiveDate>
-      <TimeStamp>1.0.0.0</TimeStamp>
-      <DateStamp>07/11/2017</DateStamp>
+      <TimeStamp>*</TimeStamp>
+      <DateStamp>*</DateStamp>
+      <EnableVerbose>false</EnableVerbose>
     </Inf>
     <MessageCompile>
       <GenerateKernelModeLoggingMacros>true</GenerateKernelModeLoggingMacros>
     </MessageCompile>
     <DriverSign>
-      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+      <FileDigestAlgorithm>
+      </FileDigestAlgorithm>
     </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -291,8 +306,13 @@
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\x86\Inf2Cat.exe" /driver:$(OutDir) /os:6_3_X64,8_X64,Server8_X64,Server2008R2_X64,7_X64,Server2008_X64</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
+    <Inf>
+      <EnableVerbose>false</EnableVerbose>
+      <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
+    </Inf>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
@@ -311,8 +331,7 @@
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
       <SpecifyDriverVerDirectiveVersion>true</SpecifyDriverVerDirectiveVersion>
       <SpecifyDriverVerDirectiveDate>true</SpecifyDriverVerDirectiveDate>
-      <TimeStamp>1.0.0.0</TimeStamp>
-      <DateStamp>07/11/2017</DateStamp>
+      <EnableVerbose>false</EnableVerbose>
     </Inf>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -333,7 +352,10 @@
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
+    <ClCompile Include="KmList.c" />
+    <ClCompile Include="KmLock.c" />
     <ClCompile Include="List.c" />
+    <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -356,7 +378,10 @@
     <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
+    <ClInclude Include="KmList.h" />
+    <ClInclude Include="KmLock.h" />
     <ClInclude Include="List.h" />
+    <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="Packet.h" />
   </ItemGroup>
   <ItemGroup>
@@ -364,7 +389,16 @@
       <PackageRelativeDirectory>
       </PackageRelativeDirectory>
     </FilesToPackage>
-    <Inf Exclude="@(Inf)" Include="*.inf" />
+    <Inf Exclude="@(Inf)" Include="*.inf">
+      <CatalogFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pcap-ndis6.cat</CatalogFileName>
+      <CatalogFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pcap-ndis6.cat</CatalogFileName>
+      <TimeStamp Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">*</TimeStamp>
+      <DateStamp Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">*</DateStamp>
+      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableVerbose>
+      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EnableVerbose>
+      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableVerbose>
+      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableVerbose>
+    </Inf>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

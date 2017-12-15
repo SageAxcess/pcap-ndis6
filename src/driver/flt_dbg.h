@@ -189,6 +189,9 @@ DbgPrintHexDump(
 //
 #define DEBUGP(lev, ...)
 #define DEBUGPDUMP(lev, pBuf, Len)
+#define DEBUGP_FUNC_ENTER(Level)
+#define DEBUGP_FUNC_LEAVE(Level)
+#define DEBUGP_FUNC_LEAVE_WITH_STATUS(Level, Status)
 
 #define FILTER_ASSERT(exp)
 
