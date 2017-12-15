@@ -215,6 +215,7 @@ BOOL NdisDriverNextPacket(
             curSize += ALIGN_SIZE(bpf->bh_datalen + bpf->bh_hdrlen, 1024);
             adapter->BufferedPackets++;
         }
+		Sleep(200);
     }
 
     if (adapter->BufferedPackets == 0)
