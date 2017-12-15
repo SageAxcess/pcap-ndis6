@@ -30,6 +30,13 @@
 
 extern PLIST AdapterList;
 
+typedef struct _ETH_HEADER
+{
+    UCHAR   DstAddr[ETH_LENGTH_OF_ADDRESS];
+    UCHAR   SrcAddr[ETH_LENGTH_OF_ADDRESS];
+    USHORT  EthType;
+} ETH_HEADER, *PETH_HEADER;
+
 typedef struct ADAPTER {
 	char AdapterId[1024];
 	PNDIS_STRING Name;

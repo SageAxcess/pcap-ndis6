@@ -284,9 +284,9 @@ NTSTATUS __stdcall Device_ReadPackets(
     __in    DWORD   BufferSize,
     __out   PDWORD  BytesRead)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
-    DWORD       BytesCopied = 0;
-    DWORD       BytesLeft = BufferSize;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    DWORD           BytesCopied = 0;
+    LONGLONG        BytesLeft = BufferSize;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (Assigned(Client)) &&
@@ -332,7 +332,7 @@ NTSTATUS __stdcall Device_ReadPackets(
             if (Assigned(Item->Next))
             {
                 PPACKET NextPacket = (PPACKET)Item->Next->Data;
-                if (BytesCopied + NextPacket->Size + HeaderSize > BytesLeft)
+                if (BytesCopied + ALIGN_SIZE(NextPacket->Size + HeaderSize, 1024) > BytesLeft)
                 {
                     FILTER_FREE_MEM(Item);
                     break;

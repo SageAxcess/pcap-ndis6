@@ -24,9 +24,6 @@
     <ClCompile Include="..\Util.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_bpf_filter.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\shared\LogWriter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -49,6 +46,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\shared\SvcUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\shared\win_bpf_filter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -19,6 +19,10 @@ namespace UTILS
 {
     namespace STR
     {
+        std::string FormatA(
+            __in    LPCSTR  FormatStr,
+            __in            ...);
+
         std::wstring FormatW(
             __in    LPCWSTR FormatStr,
             __in            ...);

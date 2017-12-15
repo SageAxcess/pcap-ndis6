@@ -27,6 +27,7 @@
 #include "KernelUtil.h"
 
 #include "..\..\driver_version.h"
+#include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
 // Adapter variables
@@ -401,6 +402,68 @@ Protocol_OidRequestCompleteHandler(
 	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%u\n", adapter->PendingOidRequests);
 }
 
+void LockClients(
+    __in    PDEVICE Device,
+    __in    BOOLEAN LockList)
+{
+    PLIST_ITEM  Item;
+
+    RETURN_IF_FALSE(Assigned(Device));
+
+    if (LockList)
+    {
+        NdisAcquireSpinLock(Device->ClientList->Lock);
+    }
+
+    for (Item = Device->ClientList->First;
+        Assigned(Item);
+        Item = Item->Next)
+    {
+        CLIENT* Client = (CLIENT*)Item->Data;
+        if ((Assigned(Client)) &&
+            (Assigned(Client->ReadLock)))
+        {
+            NdisAcquireSpinLock(Client->ReadLock);
+        }
+    }
+};
+
+void UnlockClients(
+    __in    PDEVICE Device,
+    __in    BOOLEAN UnlockList,
+    __in    BOOLEAN SignalEvents)
+{
+    PLIST_ITEM  Item;
+
+    RETURN_IF_FALSE(Assigned(Device));
+
+    for (Item = Device->ClientList->First;
+        Assigned(Item);
+        Item = Item->Next)
+    {
+        CLIENT* Client = (CLIENT*)Item->Data;
+        if ((Assigned(Client)) &&
+            (Assigned(Client->ReadLock)))
+        {
+            NdisReleaseSpinLock(Client->ReadLock);
+        }
+
+        if (SignalEvents)
+        {
+            if ((Assigned(Client->Event)) &&
+                (Assigned(Client->Event->Event)))
+            {
+                KeSetEvent(Client->Event->Event, 0, FALSE);
+            }
+        }
+    }
+
+    if (UnlockList)
+    {
+        NdisReleaseSpinLock(Device->ClientList->Lock);
+    }
+};
+
 void
 _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS)
 Protocol_ReceiveNetBufferListsHandler(
@@ -410,120 +473,96 @@ Protocol_ReceiveNetBufferListsHandler(
 	ULONG                   NumberOfNetBufferLists,
 	ULONG                   ReceiveFlags)
 {
-	//DEBUGP(DL_TRACE, "===>Protocol_ReceiveNetBufferListsHandler...\n");
-	_CRT_UNUSED(PortNumber);
-	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
+	ADAPTER *adapter = (ADAPTER*)ProtocolBindingContext;
+    ULONG   ReturnFlags = 0;
 
-	if (NetBufferLists == NULL || NumberOfNetBufferLists == 0)
-	{
-		return;
-	}
+    _CRT_UNUSED(PortNumber);
 
-	ULONG ReturnFlags = 0;
+    RETURN_IF_FALSE(
+        (Assigned(NetBufferLists)) &&
+        (NumberOfNetBufferLists > 0));
 
 	if (NDIS_TEST_RECEIVE_AT_DISPATCH_LEVEL(ReceiveFlags))
 	{
 		NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
 	}
 
-	if (adapter==NULL || adapter->AdapterHandle == NULL)
-	{
-		return;
-	}
+    RETURN_IF_FALSE(
+        (Assigned(adapter)) &&
+        (adapter->AdapterHandle != NULL));
 
-	if(adapter->Ready==FALSE || adapter->Device == NULL)
-	{
-		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
-		return;
-	}
+    RETURN_IF_FALSE_EX(
+        (adapter->Ready) &&
+        (Assigned(adapter->Device)),
+        NdisReturnNetBufferLists(
+            adapter->AdapterHandle, 
+            NetBufferLists, 
+            ReturnFlags));
 
-	//DEBUGP(DL_TRACE, "   acquire lock for client list\n");
-	NdisAcquireSpinLock(adapter->Device->ClientList->Lock); // No more clients while sending packets
+    LockClients(adapter->Device, TRUE);
+    __try
+    {
+        PNET_BUFFER_LIST    CurrentNbl;
+        LARGE_INTEGER       PacketTimeStamp = GetAdapterTime(adapter);
 
-	// DEBUGP(DL_TRACE, "   iterate clients and lock each\n");
-	// Lock all client receiving queues
-	PLIST_ITEM item = adapter->Device->ClientList->First;
-	while (item)
-	{
-		CLIENT* client = (CLIENT*)item->Data;
-		if (client && client->ReadLock) {
-			NdisAcquireSpinLock(client->ReadLock);
-		}
-		item = item->Next;
-	}
+        for (CurrentNbl = NetBufferLists;
+             Assigned(CurrentNbl);
+             CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
+        {
+            PUCHAR      MdlVA = NULL;
+            PNET_BUFFER NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
+            PMDL        Mdl = NET_BUFFER_CURRENT_MDL(NB);
+            ULONG       Offset = NET_BUFFER_DATA_OFFSET(NB);
+            ULONG       BufferLength = 0;
 
-	//DEBUGP(DL_TRACE, "   iterate lists\n");
-	PNET_BUFFER_LIST nbl = NetBufferLists;
-	while (nbl)
-	{
-		NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(nbl);
-		//TODO: Support for IEEE802.1Q
+            if (Assigned(Mdl))
+            {
+                PLIST_ITEM  Item;
 
-		//DEBUGP(DL_TRACE, "   iterate buffers\n");
-		while (nb)
-		{
-			UINT size = NET_BUFFER_DATA_LENGTH(nb);
+                NdisQueryMdl(
+                    Mdl, 
+                    &MdlVA, 
+                    &BufferLength, 
+                    NormalPagePriority);
 
-			//DEBUGP(DL_TRACE, "     buffer size %u\n", size);
-			if(size>0 && size<MAX_PACKET_SIZE)
-			{				
-				UCHAR *ptr = NdisGetDataBuffer(nb, size, adapter->TmpBuf, 1, 0);
+                BREAK_IF_FALSE(
+                    (Assigned(MdlVA)) &&
+                    (BufferLength > 0));
 
-				if (ptr != NULL)
-				{
-					LARGE_INTEGER timestamp = GetAdapterTime(adapter);
+                BREAK_IF_FALSE(BufferLength > Offset);
 
-					item = adapter->Device->ClientList->First;
-					while (item)
-					{
-						CLIENT* client = (CLIENT*)item->Data;
+                BufferLength -= Offset;
 
-						if (client) {
-							DEBUGP(DL_TRACE, "   adding packet to client, size=%u\n", client->PacketList->Size);
-							if (client->PacketList->Size < MAX_PACKET_QUEUE_SIZE && !client->PacketList->Releasing) //TODO: it seems we lose packets here
-							{
-								AddToList(client->PacketList, CreatePacket(ptr, size, timestamp));
-							}
-						}
+                BREAK_IF_FALSE(BufferLength >= sizeof(ETH_HEADER));
 
-						item = item->Next;
-					}
-				}
-			}
+                for (Item = adapter->Device->ClientList->First;
+                    Assigned(Item);
+                    Item = Item->Next)
+                {
+                    PCLIENT Client = (PCLIENT)Item->Data;
 
-			nb = NET_BUFFER_NEXT_NB(nb);
-		}
+                    if ((Client->PacketList->Size < MAX_PACKET_QUEUE_SIZE) &&
+                        (!Client->PacketList->Releasing)) //TODO: it seems we lose packets here
+                    {
+                        AddToList(
+                            Client->PacketList, 
+                            CreatePacket(MdlVA + Offset, BufferLength, PacketTimeStamp));
+                    }
 
-		nbl = NET_BUFFER_LIST_NEXT_NBL(nbl);
-	}
+                }
+            }
+        }
+    }
+    __finally
+    {
+        UnlockClients(adapter->Device, TRUE, TRUE);
+    }
 	
-	//DEBUGP(DL_TRACE, "   releasing lock for clients and set event\n");
-	// Unlock client receiving queues and set event
-	item = adapter->Device->ClientList->First;
-	while (item)
-	{
-		CLIENT* client = (CLIENT*)item->Data;
-		if(client && client->ReadLock)
-			NdisReleaseSpinLock(client->ReadLock);
-
-		if (client && client->Event && client->Event->Event) {
-			//DEBUGP(DL_TRACE, "   setting event %s\n", client->Event->Name);
-			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-		}
-
-		item = item->Next;
-	}
-
-	//DEBUGP(DL_TRACE, "   release lock for client list\n");
-	NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
-
 	if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
 	{
 		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
 	}
-
-	//DEBUGP(DL_TRACE, "<===Protocol_ReceiveNetBufferListsHandler\n");
-}
+};
 
 void
 _Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE)

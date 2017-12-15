@@ -15,6 +15,43 @@
 #include "CommonDefs.h"
 #include <vector>
 
+std::string UTILS::STR::FormatA(
+    __in    LPCSTR  FormatStr,
+    __in            ...)
+{
+    RETURN_VALUE_IF_FALSE(
+        Assigned(FormatStr),
+        "");
+
+    va_list     ArgList;
+    std::string Result;
+
+    va_start(ArgList, FormatStr);
+    try
+    {
+        int                 NumberOfChars = _vscprintf(FormatStr, ArgList);
+        std::vector<char>   Buffer;
+
+        Buffer.resize(NumberOfChars + 3, 0);
+
+        if (_vsnprintf_s(
+            &Buffer[0],
+            NumberOfChars + 2,
+            NumberOfChars + 1,
+            FormatStr,
+            ArgList) > 0)
+        {
+            Result = std::string(&Buffer[0]);
+        }
+    }
+    catch (...)
+    {
+    }
+    va_end(ArgList);
+
+    return Result;
+};
+
 std::wstring UTILS::STR::FormatW(
     __in    LPCWSTR FormatStr,
     __in            ...)

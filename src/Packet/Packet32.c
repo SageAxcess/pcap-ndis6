@@ -33,7 +33,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#include "win_bpf.h"
+#include "..\shared\win_bpf.h"
 #include <packet32.h>
 
 #include "Packet32-Int.h"
@@ -46,6 +46,7 @@
 
 #include "..\shared\MiscUtils.h"
 #include "..\shared\SvcUtils.h"
+#include "..\shared\StrUtils.h"
 
 #define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
 #define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
@@ -72,13 +73,18 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 #include <string>
 
 char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
-char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
-char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
+//char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
+//char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
 
-std::wstring    Packet_DllFileName;
-std::wstring    Packet_DllFileVersion;
-std::wstring    Packet_DriverName;
-std::wstring    Packet_DriverVersion;
+std::wstring    Packet_DllFileNameW;
+std::wstring    Packet_DllFileVersionW;
+std::wstring    Packet_DriverNameW;
+std::wstring    Packet_DriverVersionW;
+std::string     Packet_DllFileNameA;
+std::string     Packet_DllFileVersionA;
+std::string     Packet_DriverNameA;
+std::string     Packet_DriverVersionA;
+
 //---------------------------------------------------------------------------
 
 BOOL APIENTRY DllMain(
@@ -115,10 +121,11 @@ BOOL APIENTRY DllMain(
 
             #endif
 
-            Packet_DllFileName = UTILS::MISC::GetModuleName(hinstDLL);
+            Packet_DllFileNameW = UTILS::MISC::GetModuleName(hinstDLL);
+            Packet_DllFileNameA = UTILS::STR::FormatA("%S", Packet_DllFileNameW.c_str());
             
             LOG::Initialize(
-                Packet_DllFileName,
+                Packet_DllFileNameW,
                 HKEY_LOCAL_MACHINE,
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
@@ -127,10 +134,20 @@ BOOL APIENTRY DllMain(
             // Retrieve packet.dll version information from the file
             //
 
-            Packet_DllFileVersion = UTILS::MISC::GetFileVersion(Packet_DllFileName);
+            Packet_DllFileVersionW = UTILS::MISC::GetFileVersion(Packet_DllFileNameW);
+            Packet_DllFileVersionA = UTILS::STR::FormatA("%S", Packet_DllFileVersionW.c_str());
 
-            strcpy_s(PacketDriverVersion, sizeof(PacketDriverVersion), "unknown");
-            strcpy_s(PacketDriverName, sizeof(PacketDriverName), "pcap-ndis6");
+            RtlZeroMemory(PacketLibraryVersion, sizeof(PacketLibraryVersion));
+
+            SIZE_T  BytesToCopy =
+                Packet_DllFileVersionA.length() > ARRAYSIZE(PacketLibraryVersion) - 1 ?
+                ARRAYSIZE(PacketLibraryVersion) - 1 :
+                Packet_DllFileVersionA.length();
+
+            RtlCopyMemory(
+                PacketLibraryVersion,
+                Packet_DllFileVersionA.c_str(),
+                BytesToCopy);
 
             //
             // Retrieve driver version information from the file. 
@@ -139,16 +156,14 @@ BOOL APIENTRY DllMain(
             fs = DisableWow64FsRedirection();
             try
             {
-                Packet_DriverName = UTILS::SVC::GetServiceImagePath();
-                PacketGetFileVersion(
-                    TEXT("C:\\Windows\\system32\\drivers\\") TEXT(NPF_DRIVER_NAME) TEXT(".sys"),
-                    PacketDriverVersion,
-                    sizeof(PacketDriverVersion));
+                Packet_DriverNameW = UTILS::SVC::GetServiceImagePath(PCAP_NDIS6_DRIVER_SERVICE_NAME_W);
             }
             catch(...)
             {
             }
             RestoreWow64FsRedirection(fs);
+
+            Packet_DriverNameA = UTILS::STR::FormatA("%S", Packet_DriverNameW.c_str());
 
             ndis = NdisDriverOpen();
         }break;
@@ -432,17 +447,17 @@ LONG PacketDumpRegistryKey(PCHAR KeyName, PCHAR FileName)
 
 PCHAR PacketGetVersion()
 {
-    return PacketLibraryVersion;
+    return const_cast<PCHAR>(Packet_DllFileVersionA.c_str());
 }
 
 PCHAR PacketGetDriverVersion()
 {
-    return PacketDriverVersion;
+    return const_cast<PCHAR>(Packet_DriverVersionA.c_str());
 }
 
 PCHAR PacketGetDriverName()
 {
-    return PacketDriverName;
+    return const_cast<PCHAR>(Packet_DriverNameA.c_str());
 }
 
 BOOL PacketStopDriver()
@@ -930,7 +945,6 @@ BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
     TRACE_ENTER("PacketGetAdapterNames");
 
     TRACE_PRINT_OS_INFO();
-    TRACE_PRINT2("Packet DLL version %s, Driver version %s", PacketLibraryVersion, PacketDriverVersion);
     TRACE_PRINT1("PacketGetAdapterNames: BufferSize=%u", *BufferSize);
 
 

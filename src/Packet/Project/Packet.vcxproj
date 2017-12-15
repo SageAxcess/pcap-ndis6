@@ -198,16 +198,14 @@
     <ClCompile Include="..\..\shared\RegUtils.cpp" />
     <ClCompile Include="..\..\shared\StrUtils.cpp" />
     <ClCompile Include="..\..\shared\SvcUtils.cpp" />
+    <ClCompile Include="..\..\shared\win_bpf_filter.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
+    </ClCompile>
     <ClCompile Include="..\Logging.cpp" />
     <ClCompile Include="..\NdisDriver.c" />
     <ClCompile Include="..\Packet32.c" />
     <ClCompile Include="..\Util.c" />
-    <ClCompile Include="..\win_bpf_filter.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\shared\CommonDefs.h" />

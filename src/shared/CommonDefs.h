@@ -42,6 +42,18 @@
 
 #define RETURN_IF_FALSE(Condition)  RETURN_IF_TRUE(!(Condition))
 
+#define RETURN_IF_TRUE_EX(Condition, AdditionalCommand) \
+{ \
+    if (Condition) \
+    { \
+        (AdditionalCommand); \
+        return; \
+    } \
+}
+
+#define RETURN_IF_FALSE_EX(Condition, AdditionalCommand)    RETURN_IF_TRUE_EX(!(Condition), (AdditionalCommand))
+
+
 #define RETURN_VALUE_IF_TRUE_EX(Condition, Value, AdditionalCommand) \
 { \
     if (Condition) \
