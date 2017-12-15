@@ -28,26 +28,10 @@
 #include "Packet.h"
 #include "KernelUtil.h"
 #include "..\shared\CommonDefs.h"
+
+#include "..\shared\win_bpf.h"
+
 #include <flt_dbg.h>
-
-
-struct timeval {
-	long    tv_sec;         /* seconds */
-	long    tv_usec;        /* and microseconds */
-};
-
-struct bpf_hdr {
-	struct timeval	bh_tstamp;	/* time stamp */
-	ULONG			bh_caplen;	/* length of captured portion */
-	ULONG			bh_datalen;	/* original length of packet */
-	USHORT			bh_hdrlen;	/* length of bpf header (this struct
-									plus alignment padding) */
-};
-
-#ifndef ALIGN_SIZE
-#define ALIGN_SIZE( sizeToAlign, PowerOfTwo )       \
-        (((sizeToAlign) + (PowerOfTwo) - 1) & ~((PowerOfTwo) - 1))
-#endif
 
 extern NDIS_HANDLE         FilterProtocolHandle;
 
@@ -309,10 +293,10 @@ NTSTATUS __stdcall Device_ReadPackets(
              Assigned(Item);
              Item = PopListTop(Client->PacketList))
         {
-            PPACKET         Packet = (PPACKET)Item->Data;
-            USHORT          HeaderSize = ALIGN_SIZE(sizeof(struct bpf_hdr), 4);
-            struct bpf_hdr  bpf;
-            ULONG           TotalPacketSize = ALIGN_SIZE(Packet->Size + HeaderSize, 1024);
+            PPACKET Packet = (PPACKET)Item->Data;
+            USHORT  HeaderSize = (USHORT)sizeof(bpf_hdr);
+            bpf_hdr bpf;
+            ULONG   TotalPacketSize = Packet->Size + HeaderSize;
 
             bpf.bh_caplen = Packet->Size;
             bpf.bh_datalen = Packet->Size;
@@ -332,7 +316,7 @@ NTSTATUS __stdcall Device_ReadPackets(
             if (Assigned(Item->Next))
             {
                 PPACKET NextPacket = (PPACKET)Item->Next->Data;
-                if (BytesCopied + ALIGN_SIZE(NextPacket->Size + HeaderSize, 1024) > BytesLeft)
+                if (BytesCopied + NextPacket->Size + HeaderSize > BytesLeft)
                 {
                     FILTER_FREE_MEM(Item);
                     break;
@@ -367,11 +351,12 @@ cleanup:
  */
 NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
 {
-	NTSTATUS ret = STATUS_UNSUCCESSFUL;
-
-	DEBUGP(DL_TRACE, "===>Device_ReadHandler...\n");
-
-	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
+	NTSTATUS            ret = STATUS_UNSUCCESSFUL;
+    UINT                responseSize = 0;
+    PDEVICE             device = *((PDEVICE *)DeviceObject->DeviceExtension);
+    PIO_STACK_LOCATION  IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
+    UINT                requiredSize;
+    PCLIENT             client = (PCLIENT)IoStackLocation->FileObject->FsContext;
 
 	if(!FilterProtocolHandle || !device || device->Releasing)
 	{
@@ -381,13 +366,6 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 
 		return ret;
 	}
-
-	UINT responseSize = 0;
-	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
-
-	UINT requiredSize;
-
-	CLIENT* client = (CLIENT*)stack->FileObject->FsContext;
 
 	if (!client)
 	{
@@ -403,14 +381,20 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 		if(client->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
 		{
 			requiredSize = sizeof(struct PCAP_NDIS_ADAPTER_INFO);
-		} else
+		}
+        else
 		{
 			requiredSize = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
 		}
 
-		DEBUGP(DL_TRACE, "  sent %u bytes to client, now need %u for buffer. Client provided %u\n", client->BytesSent, requiredSize, stack->Parameters.Read.Length);
+		DEBUGP(
+            DL_TRACE, 
+            "  sent %u bytes to client, now need %u for buffer. Client provided %u\n", 
+            client->BytesSent, 
+            requiredSize, 
+            IoStackLocation->Parameters.Read.Length);
 
-		if (stack->Parameters.Read.Length >= requiredSize)
+		if (IoStackLocation->Parameters.Read.Length >= requiredSize)
 		{
 			UCHAR* dst = (UCHAR*)Irp->UserBuffer;
 
@@ -418,9 +402,12 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 			{
 				MDL *mdl;
 
-				__try {
+				__try
+                {
 					ProbeForWrite(Irp->UserBuffer, requiredSize, 1);
-				} __except(EXCEPTION_EXECUTE_HANDLER) {
+				}
+                __except(EXCEPTION_EXECUTE_HANDLER)
+                {
 					DEBUGP(DL_ERROR, " invalid buffer received at DeviceRead handler");
 
 					ret = STATUS_UNSUCCESSFUL;
@@ -457,7 +444,8 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 					}
 
 					responseSize = requiredSize;
-				} else
+				} 
+                else
 				{
 					ULONG size = sizeof(PCAP_NDIS_ADAPTER_INFO);
 
@@ -512,112 +500,10 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 			}
 		}
 	}
-	else
-	{
-		UCHAR *buf = Irp->UserBuffer;
-
-		DEBUGP(DL_TRACE, "  client provided buf = %d bytes\n", stack->Parameters.Read.Length);
-
-		UINT availableSize = stack->Parameters.Read.Length;
-
-		if(client->PacketList==NULL || client->PacketList->Releasing) //Seems that driver is being unloaded, release is protected with ReadLock so no conflict
-		{
-			ret = STATUS_UNSUCCESSFUL;
-			responseSize = 0;		
-
-			Irp->IoStatus.Status = ret;
-			Irp->IoStatus.Information = responseSize;
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);			
-
-			return ret;
-		}
-
-		UINT size = 0;
-		MDL *mdl = NULL;
-		__try {
-			ProbeForWrite(buf, availableSize, 1);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER) {
-			DEBUGP(DL_ERROR, " invalid buffer received at DeviceRead handler");
-			NdisReleaseSpinLock(client->ReadLock);
-
-			ret = STATUS_UNSUCCESSFUL;
-			responseSize = 0;
-
-			Irp->IoStatus.Status = ret;
-			Irp->IoStatus.Information = responseSize;
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-			return ret;
-		}
-
-		NdisAcquireSpinLock(client->PacketList->Lock);
-
-		mdl = IoAllocateMdl(buf, availableSize, FALSE, FALSE, NULL);
-		if (mdl != NULL)
-		{
-			MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
-		}
-
-		PLIST_ITEM item = PopListTop(client->PacketList);
-
-		while(item)
-		{
-			PPACKET packet = (PPACKET)item->Data;
-
-			USHORT hdrSize = ALIGN_SIZE(sizeof(struct bpf_hdr), 4);
-
-			DEBUGP(DL_TRACE, "  packet size=%d, response size=%d, aligned header size=%d, real header size=%d\n", packet->Size, size, hdrSize, sizeof(struct bpf_hdr));
-
-			struct bpf_hdr bpf;
-			bpf.bh_caplen = packet->Size;
-			bpf.bh_datalen = packet->Size;
-			bpf.bh_hdrlen = hdrSize;
-			bpf.bh_tstamp.tv_sec = (long)(packet->Timestamp.QuadPart / 1000); // Get seconds part
-			bpf.bh_tstamp.tv_usec = (long)(packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
-			
-			RtlCopyBytes(buf, &bpf, sizeof(struct bpf_hdr));
-			RtlCopyBytes(buf + hdrSize, packet->Data, packet->Size);
-
-			size += ALIGN_SIZE(packet->Size + hdrSize, 1024);
-			buf += ALIGN_SIZE(packet->Size + hdrSize, 1024);
-
-			FreePacket(packet);
-
-			if(item->Next!=NULL)
-			{
-				PPACKET next = (PPACKET)item->Next->Data;
-				if(size + next->Size + hdrSize > availableSize)
-				{
-					FILTER_FREE_MEM(item);
-
-					break;
-				}
-			}
-
-			FILTER_FREE_MEM(item);
-			item = PopListTop(client->PacketList);
-		}
-
-		NdisReleaseSpinLock(client->PacketList->Lock);
-
-		if (mdl != NULL)
-		{
-			MmUnlockPages(mdl);
-			IoFreeMdl(mdl);
-		}
-
-		if(client->PacketList->Size>0)
-		{
-			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-		} else
-		{
-			KeResetEvent(client->Event->Event);
-		}
-
-		ret = STATUS_SUCCESS;
-		responseSize = size;
-	}
+    else
+    {
+        ret = STATUS_NOT_SUPPORTED;
+    }
 
 	Irp->IoStatus.Status = ret;
 	Irp->IoStatus.Information = responseSize;

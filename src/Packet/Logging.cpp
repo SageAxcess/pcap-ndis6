@@ -15,6 +15,7 @@
 #include "..\shared\FileLogWriter.h"
 #include "Logging.h"
 #include "..\shared\RegUtils.h"
+#include "..\shared\StrUtils.h"
 
 #include <vector>
 
@@ -69,13 +70,13 @@ DWORD __stdcall LOG::GetLoggingLevel(
 };
 
 BOOL __stdcall LOG::Initialize(
-    __in    const   std::wstring    &AppFileName,
+    __in    const   std::wstring    &LogFileName,
     __in    const   HKEY            RegRootKey,
     __in    const   std::wstring    &RegSubKeyName,
     __in    const   std::wstring    &RegValueName)
 {
     RETURN_VALUE_IF_FALSE(
-        (AppFileName.length() > 0) &&
+        (LogFileName.length() > 0) &&
         (RegRootKey != NULL) &&
         (RegSubKeyName.length() > 0),
         FALSE);
@@ -90,7 +91,7 @@ BOOL __stdcall LOG::Initialize(
     {
         try
         {
-            LogWriter = new CFileLogWriter(AppFileName);
+            LogWriter = new CFileLogWriter(LogFileName);
             Result = TRUE;
         }
         catch (...)

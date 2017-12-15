@@ -47,6 +47,13 @@
 
 #ifdef WIN_NT_DRIVER
 #include <ndis.h>
+
+struct timeval {
+    long    tv_sec;         /* seconds */
+    long    tv_usec;        /* and microseconds */
+};
+
+
 #endif
 
 #ifdef HAVE_BUGGY_TME_SUPPORT
@@ -83,7 +90,7 @@ struct bpf_insn {
  *  Structure for BIOCSETF.
  */
 struct bpf_program {
-	u_int bf_len;
+	unsigned int    bf_len;
 	struct bpf_insn *bf_insns;
 };
  
@@ -125,13 +132,19 @@ struct bpf_version {
 /*
  * Structure prepended to each packet.
  */
-struct bpf_hdr {
-	struct timeval	bh_tstamp;	/* time stamp */
-	bpf_u_int32	bh_caplen;	/* length of captured portion */
-	bpf_u_int32	bh_datalen;	/* original length of packet */
-	u_short		bh_hdrlen;	/* length of bpf header (this struct
-					   plus alignment padding) */
-};
+
+#pragma warning(push)
+#pragma warning(disable: 4324)
+
+typedef __declspec(align(8)) struct bpf_hdr
+{
+	struct timeval  bh_tstamp;	/* time stamp */
+	bpf_u_int32     bh_caplen;	/* length of captured portion */
+	bpf_u_int32     bh_datalen;	/* original length of packet */
+	u_short         bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
+} bpf_hdr, *pbpf_hdr;
+
+#pragma warning(pop)
 
 /*
  * Data-link level type codes.

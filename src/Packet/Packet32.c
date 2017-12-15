@@ -80,6 +80,8 @@ std::wstring    Packet_DllFileNameW;
 std::wstring    Packet_DllFileVersionW;
 std::wstring    Packet_DriverNameW;
 std::wstring    Packet_DriverVersionW;
+std::wstring    Packet_ProcessNameW;
+
 std::string     Packet_DllFileNameA;
 std::string     Packet_DllFileVersionA;
 std::string     Packet_DriverNameA;
@@ -123,9 +125,11 @@ BOOL APIENTRY DllMain(
 
             Packet_DllFileNameW = UTILS::MISC::GetModuleName(hinstDLL);
             Packet_DllFileNameA = UTILS::STR::FormatA("%S", Packet_DllFileNameW.c_str());
+
+            Packet_ProcessNameW = UTILS::MISC::GetModuleName(NULL);
             
             LOG::Initialize(
-                Packet_DllFileNameW,
+                Packet_ProcessNameW + L".log",
                 HKEY_LOCAL_MACHINE,
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
@@ -153,10 +157,12 @@ BOOL APIENTRY DllMain(
             // Retrieve driver version information from the file. 
             //
 
+            Packet_DriverNameW = L"c:\\windows\\system32\\drivers\\pcap-ndis6.sys";
+            
             fs = DisableWow64FsRedirection();
             try
             {
-                Packet_DriverNameW = UTILS::SVC::GetServiceImagePath(PCAP_NDIS6_DRIVER_SERVICE_NAME_W);
+                Packet_DriverVersionW = UTILS::MISC::GetFileVersion(Packet_DriverNameW);
             }
             catch(...)
             {
@@ -164,6 +170,7 @@ BOOL APIENTRY DllMain(
             RestoreWow64FsRedirection(fs);
 
             Packet_DriverNameA = UTILS::STR::FormatA("%S", Packet_DriverNameW.c_str());
+            Packet_DriverVersionA = UTILS::STR::FormatA("%S", Packet_DriverVersionW.c_str());
 
             ndis = NdisDriverOpen();
         }break;

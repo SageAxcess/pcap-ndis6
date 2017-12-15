@@ -199,3 +199,71 @@ std::wstring UTILS::MISC::GetFileVersion(
 
     return std::wstring(reinterpret_cast<PWCHAR>(lpBuffer));
 };
+
+std::wstring UTILS::MISC::ExpandEnvVarsW(
+    __in    const   std::wstring    &String)
+{
+    DWORD                   CharsRequired = 0;
+    std::vector<wchar_t>    Buffer;
+
+    RETURN_VALUE_IF_FALSE(
+        String.length() > 0,
+        L"");
+
+    CharsRequired = ExpandEnvironmentStringsW(String.c_str(), nullptr, 0);
+
+    RETURN_VALUE_IF_FALSE(
+        CharsRequired > 0,
+        L"");
+
+    Buffer.resize(CharsRequired + 1, (wchar_t)0);
+
+    CharsRequired = ExpandEnvironmentStringsW(
+        String.c_str(),
+        reinterpret_cast<LPWSTR>(&Buffer[0]),
+        CharsRequired + 1);
+
+    if (CharsRequired > 0)
+    {
+        return std::wstring(&Buffer[0]);
+    }
+
+    return L"";
+};
+
+std::string UTILS::MISC::ExpandEnvVarsA(
+    __in    const   std::string &String)
+{
+    DWORD               CharsRequired = 0;
+    std::vector<char>   Buffer;
+
+    RETURN_VALUE_IF_FALSE(
+        String.length() > 0,
+        "");
+
+    CharsRequired = ExpandEnvironmentStringsA(String.c_str(), nullptr, 0);
+
+    RETURN_VALUE_IF_FALSE(
+        CharsRequired > 0,
+        "");
+
+    Buffer.resize(CharsRequired + 1, (char)0);
+
+    CharsRequired = ExpandEnvironmentStringsA(
+        String.c_str(),
+        reinterpret_cast<LPSTR>(&Buffer[0]),
+        CharsRequired + 1);
+
+    if (CharsRequired > 0)
+    {
+        return std::string(&Buffer[0]);
+    }
+
+    return "";
+};
+
+std::wstring NormalizeFileNameW(
+    __in    const   std::wstring    &FileName)
+{
+    return FileName;
+};

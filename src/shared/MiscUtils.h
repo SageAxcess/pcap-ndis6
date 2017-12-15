@@ -31,5 +31,15 @@ namespace UTILS
 
         std::wstring GetFileVersion(
             __in    const   std::wstring    &FileName);
+
+        std::wstring ExpandEnvVarsW(
+            __in    const   std::wstring    &String);
+
+        std::string ExpandEnvVarsA(
+            __in    const   std::string &String);
+
+        std::wstring NormalizeFileNameW(
+            __in    const   std::wstring    &FileName);
+
     };
 };
