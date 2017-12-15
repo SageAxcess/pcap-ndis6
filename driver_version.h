@@ -1,4 +1,4 @@
 #define DRIVER_BUILD 32
-#define DRIVER_VER_STRING "1.1.32.10" 
+#define DRIVER_VER_STRING "1.1.47.10" 
 #define DRIVER_BUILD_DESCRIPTION "Built at hp-dv7, 17.10.2017 03:00:00"
 

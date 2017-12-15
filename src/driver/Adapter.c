@@ -485,7 +485,7 @@ void _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS) Protocol_ReceiveNetBuff
 		if(client && client->ReadLock)
 			NdisReleaseSpinLock(client->ReadLock);
 
-		if (client && client->Event && client->Event->Event) {
+		if (client && client->Event && client->Event->Event && client->PacketList->Size>100) {
 			//DEBUGP(DL_TRACE, "   setting event %s\n", client->Event->Name);
 			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 		}

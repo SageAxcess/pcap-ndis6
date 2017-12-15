@@ -344,7 +344,7 @@ NTSTATUS __stdcall Device_ReadPackets(
         NdisReleaseSpinLock(Client->PacketList->Lock);
     }
 
-    if (Client->PacketList->Size > 0)
+    if (Client->PacketList->Size > 100)
     {
         KeSetEvent(Client->Event->Event, 0, FALSE);
     }
@@ -604,7 +604,7 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_R
 			IoFreeMdl(mdl);
 		}
 
-		if(client->PacketList->Size>0)
+		if(client->PacketList->Size>100)
 		{
 			KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
 		} else
