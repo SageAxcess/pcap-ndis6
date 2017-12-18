@@ -22,6 +22,7 @@
 #include <ndis.h>
 #include <minwindef.h>
 #include "List.h"
+#include "Adapter.h"
 
 //////////////////////////////////////////////////////////////////////
 // Device definitions
@@ -30,20 +31,22 @@
 typedef struct DEVICE
 {
 	PUNICODE_STRING Name;
+
 	PUNICODE_STRING SymlinkName;
+
 	PDEVICE_OBJECT  Device;
 
-	struct ADAPTER  *Adapter;
+    PADAPTER        Adapter;
 
 	PNDIS_SPIN_LOCK OpenCloseLock;
-	PLIST           ClientList;
+
+    KM_LIST         ClientList;
 
 	BOOL            Releasing;
+
 	BOOL            IsAdaptersList;
 
-} DEVICE;
-
-typedef struct DEVICE* PDEVICE;
+} DEVICE, *PDEVICE;
 
 //////////////////////////////////////////////////////////////////////
 // Device methods

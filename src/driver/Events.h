@@ -27,17 +27,22 @@
 // Event definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct EVENT
+typedef struct _EVENT
 {
-	char Name[256];
-	PKEVENT Event;
-	HANDLE EventHandle;
-} EVENT;
-typedef struct EVENT* PEVENT;
+    char    Name[256];
+    PKEVENT Event;
+    HANDLE  EventHandle;
+} EVENT, *PEVENT;
 
 //////////////////////////////////////////////////////////////////////
 // Event functions
 //////////////////////////////////////////////////////////////////////
+
+NTSTATUS InitializeEvent(
+    __inout PEVENT  Event);
+
+NTSTATUS FinalizeEvent(
+    __in    PEVENT  Event);
 
 EVENT* CreateEvent();
 BOOL FreeEvent(PEVENT event);

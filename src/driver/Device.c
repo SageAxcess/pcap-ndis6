@@ -135,9 +135,9 @@ BOOL FreeDevice(PDEVICE device)
 	PLIST_ITEM item = device->ClientList->First;
 	while (item)
 	{
-		PCLIENT client = (PCLIENT)item->Data;
+		PCLIENT Client = (PCLIENT)item->Data;
 
-		KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
+        KeSetEvent(Client->Event.Event, 0, FALSE);
 
 		item = item->Next;
 	}
@@ -177,11 +177,17 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
-	if (device->IsAdaptersList || (device->Adapter != NULL && device->Adapter->Ready))
+	if ((device->IsAdaptersList) || 
+        ((device->Adapter != NULL) && (device->Adapter->Ready)))
 	{
-		if (!device->ClientList->Releasing) {
-			CLIENT* client = CreateClient(device, stack->FileObject);			
-			stack->FileObject->FsContext = client;			
+        if (!device->ClientList->Releasing)
+        {
+            PCLIENT NewClient = NULL;
+            NTSTATUS Status = CreateClient(device, stack->FileObject, &NewClient);
+            if (NT_SUCCESS(Status))
+            {
+                stack->FileObject->FsContext = NewClient;
+            }
 		}
 
 		ret = STATUS_SUCCESS;
@@ -212,22 +218,33 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 NTSTATUS
 _Function_class_(DRIVER_DISPATCH)
 _Dispatch_type_(IRP_MJ_CLOSE)
-Device_CloseHandler(PDEVICE_OBJECT DeviceObject, IRP* Irp)
+Device_CloseHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp)
 {
-	DEBUGP(DL_TRACE, "===>Device_CloseHandler...\n");
-	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
-	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PDEVICE             Device = NULL;
+    PIO_STACK_LOCATION  IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
+       
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DeviceObject),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DeviceObject->DeviceExtension),
+        STATUS_INVALID_PARAMETER_1);
 
-	if(!device)
-	{
-		Irp->IoStatus.Status = ret;
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    Device = *((PDEVICE *)DeviceObject->DeviceExtension);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Device),
+        STATUS_UNSUCCESSFUL);
 
-		DEBUGP(DL_TRACE, "<===Device_CloseHandler (no handler), ret=0x%8x\n", ret);
-		return ret;
-	}
+cleanup:
+    Irp->IoStatus.Status = Status;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
+    return Status;
+	
+	
 
 	//NdisAcquireSpinLock(device->OpenCloseLock);
 	if (device->IsAdaptersList)
@@ -280,64 +297,57 @@ NTSTATUS __stdcall Device_ReadPackets(
         STATUS_INVALID_PARAMETER);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        (Assigned(Client->PacketList)) &&
-        (!Client->PacketList->Releasing),
+        !Client->Releasing,
         STATUS_UNSUCCESSFUL);
 
-    NdisAcquireSpinLock(Client->PacketList->Lock);
+    Km_List_Lock(&Client->PacketList);
     __try
     {
         PUCHAR      CurrentPtr = (PUCHAR)Buffer;
-        PLIST_ITEM  Item;
-        for (Item = PopListTop(Client->PacketList);
-             Assigned(Item);
-             Item = PopListTop(Client->PacketList))
+
+        for (PLIST_ENTRY ListEntry = Client->PacketList.Head.Flink, NextEntry = Client->PacketList.Head.Flink;
+             ListEntry != &Client->PacketList.Head;
+             ListEntry = NextEntry, NextEntry = NextEntry->Flink)
         {
-            PPACKET Packet = (PPACKET)Item->Data;
+            PPACKET Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
             USHORT  HeaderSize = (USHORT)sizeof(bpf_hdr);
             bpf_hdr bpf;
-            ULONG   TotalPacketSize = Packet->Size + HeaderSize;
+            ULONG   TotalPacketSize = Packet->DataSize + HeaderSize;
 
-            bpf.bh_caplen = Packet->Size;
-            bpf.bh_datalen = Packet->Size;
+            BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
+
+            bpf.bh_caplen = Packet->DataSize;
+            bpf.bh_datalen = Packet->DataSize;
             bpf.bh_hdrlen = HeaderSize;
             bpf.bh_tstamp.tv_sec = (long)(Packet->Timestamp.QuadPart / 1000); // Get seconds part
             bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
 
             RtlCopyMemory(CurrentPtr, &bpf, sizeof(struct bpf_hdr));
-            RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->Size);
+            RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
 
             BytesCopied += TotalPacketSize;
             CurrentPtr += TotalPacketSize;
             BytesLeft -= TotalPacketSize;
 
+            Km_List_RemoveItemEx(
+                &Client->PacketList,
+                ListEntry,
+                FALSE,
+                FALSE);
+
             FreePacket(Packet);
+        }
 
-            if (Assigned(Item->Next))
-            {
-                PPACKET NextPacket = (PPACKET)Item->Next->Data;
-                if (BytesCopied + NextPacket->Size + HeaderSize > BytesLeft)
-                {
-                    FILTER_FREE_MEM(Item);
-                    break;
-                }
-            }
-
-            FILTER_FREE_MEM(Item);
-        };
+        //  We must not set/clear this event outside of the PacketsList's lock
+        //  since it can result in double reads from usermode otherwise
+        if (Client->PacketList.Count.QuadPart == 0)
+        {
+            KeClearEvent(Client->Event.Event);
+        }
     }
     __finally
     {
-        NdisReleaseSpinLock(Client->PacketList->Lock);
-    }
-
-    if (Client->PacketList->Size > 0)
-    {
-        KeSetEvent(Client->Event->Event, 0, FALSE);
-    }
-    else
-    {
-        KeResetEvent(Client->Event->Event);
+        Km_List_Unlock(&Client->PacketList);
     }
 
     *BytesRead = BytesCopied;
@@ -546,7 +556,6 @@ Device_IoControlHandler(
     PIO_STACK_LOCATION  IoStackLocation = NULL;
     ULONG_PTR           ReturnSize = 0;
     PCLIENT             Client = NULL;
-    UINT                Size = 0;
     LPVOID              InBuffer = NULL;
     LPVOID              OutBuffer = NULL;
     DWORD               InBufferSize = 0;
@@ -579,13 +588,6 @@ Device_IoControlHandler(
         Assigned(Client),
         STATUS_UNSUCCESSFUL);
 
-    Size = (UINT)strlen(Client->Event->Name) + 1;
-    DEBUGP(
-        DL_TRACE, 
-        "    event name length=%u, client provided %u\n", 
-        Size, 
-        IoStackLocation->Parameters.DeviceIoControl.OutputBufferLength);
-
     Status = IOUtils_ValidateAndGetIOBuffers(
         Irp,
         &InBuffer,
@@ -598,11 +600,15 @@ Device_IoControlHandler(
     {
     case IOCTL_GET_EVENT_NAME:
         {
+            ULONG   Size = (ULONG)strlen(Client->Event.Name) + 1;
+
             GOTO_CLEANUP_IF_FALSE_SET_STATUS(
                 OutBufferSize >= Size,
                 STATUS_UNSUCCESSFUL);
             
-            strcpy_s(OutBuffer, Size, Client->Event->Name);
+            RtlZeroMemory(OutBuffer, Size);
+            RtlCopyMemory(OutBuffer, Client->Event.Name, Size - 1);
+
             ReturnSize = Size;
         }break;
 

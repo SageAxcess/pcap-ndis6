@@ -20,37 +20,52 @@
 
 #include "filter.h"
 #include "Packet.h"
+#include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(UCHAR* Data, UINT Size, LARGE_INTEGER Timestamp)
+PACKET* CreatePacket(
+    __in    PVOID           Data,
+    __in    ULONG           DataSize,
+    __in    PLARGE_INTEGER  Timestamp)
 {
-	PACKET* packet = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(PACKET));
-	if(!packet)
-	{
-		return NULL;
-	}
+    PPACKET NewPacket = NULL;
+    ULONG   SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
 
-	packet->Data = FILTER_ALLOC_MEM(FilterDriverObject, Size);
-	RtlCopyBytes(packet->Data, Data, Size); 	//TODO: support for IEEE802.1Q?
-	packet->Size = Size;
-	packet->Timestamp = Timestamp;
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(Data)) &&
+        (DataSize > 0) &&
+        (Assigned(Timestamp)),
+        NULL);
 
-	return packet;
-}
+    NewPacket = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(PACKET, FilterDriverHandle, SizeRequired);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(NewPacket),
+        NULL);
 
-void FreePacket(PACKET* packet)
+    RtlZeroMemory(NewPacket, SizeRequired);
+
+    NewPacket->DataSize = DataSize;
+    RtlCopyMemory(
+        &NewPacket->Timestamp, 
+        Timestamp, 
+        sizeof(LARGE_INTEGER));
+    RtlCopyMemory(
+        &NewPacket->Data,
+        Data,
+        DataSize);
+
+    return NewPacket;
+};
+
+void FreePacket(
+    __in    PPACKET Packet)
 {
-	if(!packet)
-	{
-		return;
-	}
-	if (packet->Data) {
-		FILTER_FREE_MEM(packet->Data);
-	}
-	FILTER_FREE_MEM(packet);
+    RETURN_IF_FALSE(Assigned(Packet));
+
+    FILTER_FREE_MEM(Packet);
 }
 
 void FreePacketList(PLIST list)

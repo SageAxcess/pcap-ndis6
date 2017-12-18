@@ -14,7 +14,6 @@
 #include "..\shared\CommonDefs.h"
 #include "KmList.h"
 
-
 NTSTATUS __stdcall Km_List_Initialize(
     __in    PKM_LIST    List)
 {

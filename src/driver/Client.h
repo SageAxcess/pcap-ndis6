@@ -21,28 +21,47 @@
 #pragma once
 
 #include <ndis.h>
-#include "List.h"
+#include "KmList.h"
+#include "Device.h"
+#include "Events.h"
+#include "KmLock.h"
 
 //////////////////////////////////////////////////////////////////////
 // Client definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct CLIENT {
-	struct DEVICE* Device;
-	PFILE_OBJECT FileObject;
-	struct EVENT* Event;
-	NDIS_HANDLE NetBufferListPool;
-	PLIST PacketList;
-	PNDIS_SPIN_LOCK ReadLock;
-	volatile ULONG PendingSendPackets;
-	ULONG BytesSent;
-}CLIENT;
-typedef struct CLIENT* PCLIENT;
+typedef struct _CLIENT
+{
+    LIST_ENTRY      Link;
+
+    PDEVICE         Device;
+
+    PFILE_OBJECT    FileObject;
+
+    EVENT           Event;
+
+    KM_LIST         PacketList;
+
+    KM_LOCK         ReadLock;
+
+	volatile ULONG  PendingSendPackets;
+
+	ULONG           BytesSent;
+
+    BOOLEAN         Releasing;
+
+} CLIENT, *PCLIENT;
 
 //////////////////////////////////////////////////////////////////////
 // Client methods
 //////////////////////////////////////////////////////////////////////
 
-PCLIENT CreateClient(struct DEVICE* device, PFILE_OBJECT fileObject);
-BOOL FreeClient(PCLIENT client);
+NTSTATUS CreateClient(
+    __in    PDEVICE         Device,
+    __in    PFILE_OBJECT    FileObject,
+    __out   PCLIENT         *Client);
+
+NTSTATUS FreeClient(
+    __in    PCLIENT Client);
+
 void FreeClientList(PLIST list);

@@ -21,105 +21,86 @@
 #include "precomp.h"
 #include "Events.h"
 #include "KernelUtil.h"
+#include "..\shared\CommonDefs.h"
 
 volatile ULONG _curEventId = 0;
 
-EVENT* CreateEvent()
+NTSTATUS InitializeEvent(
+    __inout PEVENT  Event)
 {
-	DEBUGP(DL_TRACE, "===>CreateEvent...\n");
-	EVENT *event = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(EVENT));
-	if(!event)
-	{
-		return NULL;
-	}
-	NdisZeroMemory(event, sizeof(EVENT));
+    NTSTATUS        Status = STATUS_SUCCESS;
+    ULONG           EventId = 0;
+    LARGE_INTEGER   Timestamp = { 0, };
+    char            FullEventName[256];
+    PUNICODE_STRING EventNameU = NULL;
 
-	ULONG eventId = InterlockedIncrement((volatile long*)&_curEventId);
-	LARGE_INTEGER timestamp = KeQueryPerformanceCounter(NULL);	
-	
-	sprintf_s(event->Name, 256, EVENT_NAME_FMT, eventId, timestamp.QuadPart);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Event),
+        STATUS_INVALID_PARAMETER_1);
 
-	char name[256];
-	sprintf_s(name, 256, "\\BaseNamedObjects\\%s", event->Name);
+    RtlZeroMemory(Event, sizeof(EVENT));
 
-	DEBUGP(DL_TRACE, " event name %s\n", name);
+    EventId = InterlockedIncrement((volatile LONG *)&_curEventId);
+    Timestamp = KeQueryPerformanceCounter(NULL);
 
-	PUNICODE_STRING name_u = CreateString(name);
+    sprintf_s(Event->Name, 256, EVENT_NAME_FMT, EventId, Timestamp.QuadPart);
 
-	if(!name_u)
-	{
-		DEBUGP(DL_TRACE, "<===CreateEvent failed to alloc string\n");
-		FILTER_FREE_MEM(event);
-		return NULL;
-	}
+    RtlZeroMemory(FullEventName, sizeof(FullEventName));
 
-	// Second method to create event
-	/*OBJECT_ATTRIBUTES EventAttributes;
-	InitializeObjectAttributes(&EventAttributes, name_u, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE | OBJ_PERMANENT, NULL, NULL);
+    sprintf_s(FullEventName, 256, "\\BaseNamedObjects\\%s", Event->Name);
 
-	NTSTATUS stat = ZwCreateEvent(&event->EventHandle, EVENT_ALL_ACCESS, &EventAttributes, NotificationEvent, FALSE);
-	DEBUGP(DL_TRACE, "  calling ZwCreateEvent, status=%d\n", stat);
+    EventNameU =  CreateString(FullEventName);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventNameU),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-	if (!NT_SUCCESS(stat)) {
-		DEBUGP(DL_TRACE, "<===CreateEvent failed to call ZwCreateEvent\n");
+    Event->Event = IoCreateNotificationEvent(
+        EventNameU,
+        &Event->EventHandle);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Event->Event),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-		FreeString(name_u);
-		FILTER_FREE_MEM(event);
+    KeClearEvent(Event->Event);
 
-		return NULL;
-	}
+cleanup:
 
-	stat = ObReferenceObjectByHandle(event->EventHandle,
-		EVENT_ALL_ACCESS,
-		0,
-		KernelMode,
-		(PVOID*)&event->Event,
-		0);
+    if (Assigned(EventNameU))
+    {
+        FreeString(EventNameU);
+    }
 
-	if (!NT_SUCCESS(stat))
-	{
-		DEBUGP(DL_TRACE, "<===CreateEvent failed\n");
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(Event))
+        {
+            if (Event->EventHandle != NULL)
+            {
+                ZwClose(Event->EventHandle);
+            }
+            RtlZeroMemory(Event, sizeof(EVENT));
+        }
+    }
 
-		FreeString(name_u);
-		FILTER_FREE_MEM(event);
+    return Status;
+};
 
-		return NULL;
-	}*/
-
-	//TODO: better practice here is to create event in user-mode .dll. Kernel driver just assigns name to it and calls ZwOpenEvent/ObReference.../Ke_xxx functions.
-	//      We can keep EventHandle NULL or INVALID_HANDLE_VALUE until other side creates it. If there's no event - do not store anything for this client.
-	event->Event = IoCreateNotificationEvent(name_u, &event->EventHandle);
-	if(event->Event == NULL)
-	{
-		DEBUGP(DL_TRACE, "<===CreateEvent failed to call IoCreateNotificationEvent\n");
-		FreeString(name_u);
-		FILTER_FREE_MEM(event);
-		return NULL;
-	}
-	
-	DEBUGP(DL_TRACE, "  initialize event\n");
-	KeInitializeEvent(event->Event, NotificationEvent, FALSE);
-	DEBUGP(DL_TRACE, "  reset event\n");
-	KeClearEvent(event->Event);
-
-	DEBUGP(DL_TRACE, "  free event name string\n");
-	FreeString(name_u);
-
-	DEBUGP(DL_TRACE, "<===CreateEvent\n");
-
-	return event;
-}
-
-BOOL FreeEvent(PEVENT event)
+NTSTATUS FinalizeEvent(
+    __in    PEVENT  Event)
 {
-	if(!event)
-	{
-		return FALSE;
-	}
+    NTSTATUS    Status = STATUS_SUCCESS;
 
-	//ObDereferenceObject(event->Event);
-	ZwClose(event->EventHandle);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Event),
+        STATUS_INVALID_PARAMETER_1);
 
-	FILTER_FREE_MEM(event);
-	return TRUE;
-}
+    if (Event->EventHandle != NULL)
+    {
+        ZwClose(Event->EventHandle);
+    }
+
+    RtlZeroMemory(Event, sizeof(EVENT));
+
+cleanup:
+    return Status;
+};

@@ -27,70 +27,99 @@
 #include "KernelUtil.h"
 #include <flt_dbg.h>
 
+#include "..\shared\CommonDefs.h"
+
 //////////////////////////////////////////////////////////////////////
 // Client methods
 //////////////////////////////////////////////////////////////////////
 
-PCLIENT CreateClient(PDEVICE device, PFILE_OBJECT fileObject)
+NTSTATUS CreateClient(
+    __in    PDEVICE         Device,
+    __in    PFILE_OBJECT    FileObject,
+    __out   PCLIENT         *Client)
 {
-	DEBUGP(DL_TRACE, "===>CreateClient...\n");
-	CLIENT* client = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(CLIENT));
-	NdisZeroMemory(client, sizeof(CLIENT));
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PCLIENT     NewClient = NULL;
 
-	client->Device = device;
-	client->FileObject = fileObject;
-	client->Event = CreateEvent();
-	client->ReadLock = CreateSpinLock();
-	client->BytesSent = 0;
-	client->PacketList = CreateList();
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Device),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(FileObject),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_INVALID_PARAMETER_3);
 
-	NET_BUFFER_LIST_POOL_PARAMETERS parameters;
-	memset(&parameters, 0, sizeof(NET_BUFFER_LIST_POOL_PARAMETERS));
+    NewClient = FILTER_ALLOC_MEM_TYPED(CLIENT, FilterDriverHandle);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(NewClient),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-	parameters.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
-	parameters.Header.Revision = NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
-	parameters.Header.Size = NDIS_SIZEOF_NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
-	parameters.ProtocolId = NDIS_PROTOCOL_ID_DEFAULT;
-	parameters.fAllocateNetBuffer = TRUE;
-	parameters.ContextSize = 32 + sizeof(UINT32) * 12;
-	parameters.DataSize = MAX_PACKET_SIZE;
-	parameters.PoolTag = FILTER_TAG;
+    RtlZeroMemory(NewClient, sizeof(CLIENT));
 
-	client->NetBufferListPool = NdisAllocateNetBufferListPool(NULL, &parameters);
+    NewClient->Device = Device;
+    NewClient->FileObject = FileObject;
 
-	AddToList(device->ClientList, client);
+    Status = InitializeEvent(&NewClient->Event);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	DEBUGP(DL_TRACE, "<===CreateClient\n");
-	return client;
-}
+    Status = Km_List_Initialize(&NewClient->PacketList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-BOOL FreeClient(PCLIENT client)
+    Status = Km_Lock_Initialize(&NewClient->ReadLock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_List_AddItem(
+        Device->ClientList,
+        &NewClient->Link);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    
+cleanup:
+
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(NewClient))
+        {
+            FinalizeEvent(&NewClient->Event);
+
+            FILTER_FREE_MEM(NewClient);
+        }
+    }
+    else
+    {
+        *Client = NewClient;
+    }
+
+    return Status;
+};
+
+NTSTATUS FreeClient(
+    __in    PCLIENT Client)
 {
-	DEBUGP(DL_TRACE, "===>FreeClient...\n");
-	if(!client)
-	{
-		return FALSE;
-	}
+    NTSTATUS    Status = STATUS_SUCCESS;
 
-	NdisAcquireSpinLock(client->ReadLock);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_INVALID_PARAMETER_1);
 
-	FreePacketList(client->PacketList);	
-	client->PacketList = NULL;
+    Km_Lock_Acquire(&Client->ReadLock);
+    __try
+    {
+        FreePacketList(Client->PacketList);
+    }
+    __finally
+    {
+        Km_Lock_Release(&Client->ReadLock);
+    }
 
-	NdisReleaseSpinLock(client->ReadLock);
+    FinalizeEvent(&Client->Event);
 
-	FreeEvent(client->Event);
-	FreeSpinLock(client->ReadLock);
+    FILTER_FREE_MEM(Client);
 
-	DEBUGP(DL_TRACE, "releasing net buffer list pool 0x%08x\n", client->NetBufferListPool);
-
-	NdisFreeNetBufferListPool(client->NetBufferListPool);
-
-	FILTER_FREE_MEM(client);
-
-	DEBUGP(DL_TRACE, "<===FreeClient\n");
-	return TRUE;
-}
+cleanup:
+    return Status;
+};
 
 void FreeClientList(PLIST list)
 {

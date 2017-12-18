@@ -28,18 +28,24 @@
 // Packet definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct PACKET
+typedef struct _PACKET
 {
-	UCHAR* Data;
-	UINT Size;
-	LARGE_INTEGER Timestamp;
-} PACKET;
-typedef struct PACKET* PPACKET;
+    LIST_ENTRY      Link;
+    LARGE_INTEGER   Timestamp;
+    ULONG           DataSize;
+    UCHAR           Data[1];
+} PACKET, *PPACKET;
 
 //////////////////////////////////////////////////////////////////////
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(UCHAR* Data, UINT Size, LARGE_INTEGER Timestamp);
-void FreePacket(PACKET* packet);
+PACKET* CreatePacket(
+    __in    PVOID           Data,
+    __in    ULONG           DataSize,
+    __in    PLARGE_INTEGER  Timestamp);
+
+void FreePacket(
+    __in    PPACKET Packet);
+
 void FreePacketList(PLIST list);

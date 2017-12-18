@@ -108,57 +108,30 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 	return (ret == NDIS_STATUS_PENDING || ret == NDIS_STATUS_SUCCESS);	
 }
 
-BOOL FreeAdapter(ADAPTER* adapter)
+BOOL FreeAdapter(
+    __in    PADAPTER    Adapter)
 {
-	DEBUGP(DL_TRACE, "===>FreeAdapter...\n");
-	if (!adapter)
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Adapter),
+        FALSE);
+
+    if (Assigned(Adapter->Device))
 	{
-		return FALSE;
+        int i = 0;
+
+		Adapter->Device->Releasing = TRUE;
+
+		FreeDevice(Adapter->Device);
+
+		Adapter->Device = NULL;
 	}
 
-	if (adapter->Device)
-	{
-		adapter->Device->Releasing = TRUE;
+	FreeString(Adapter->Name);
 
-		int i = 0;
-		while (adapter->Device->ClientList->Size > 0)
-		{
-			if (i == 0) {
-				NdisAcquireSpinLock(adapter->Device->ClientList->Lock);
-				PLIST_ITEM item = adapter->Device->ClientList->First;
-				while (item)
-				{
-					CLIENT* client = (CLIENT*)item->Data;
-					if (client && client->Event) {
-						KeSetEvent(client->Event->Event, PASSIVE_LEVEL, FALSE);
-					}
-					item = item->Next;
-				}
-				NdisReleaseSpinLock(adapter->Device->ClientList->Lock);
-			}
+	FILTER_FREE_MEM(Adapter);
 
-			i++;
-			DriverSleep(100); //TODO: wait until adapter->Device stops
-
-			if (i>1000)
-			{
-				break;
-			}
-		}
-
-		FreeDevice(adapter->Device);
-		adapter->Device = NULL;
-	}
-
-	FreeString(adapter->Name);
-
-	//FreeString(adapter->Name);
-
-	FILTER_FREE_MEM(adapter);
-
-	DEBUGP(DL_TRACE, "<===FreeAdapter\n");
 	return TRUE;
-}
+};
 
 BOOL FreeAdapterList(PLIST list)
 {
@@ -256,8 +229,13 @@ Protocol_BindAdapterHandlerEx(
 		ANSI_STRING adapterIdStr;
 		NTSTATUS res = RtlUnicodeStringToAnsiString(&adapterIdStr, adapter->Name, TRUE);
 
-		if(NT_SUCCESS(res) && adapter->Name->Length > 8) {
-			RtlCopyBytes(adapter->AdapterId, adapterIdStr.Buffer + 8, adapterIdStr.Length > 1030 ? 1023 : adapterIdStr.Length - 8);
+		if((NT_SUCCESS(res)) && 
+           (adapter->Name->Length > 8))
+        {
+			RtlCopyBytes(
+                adapter->AdapterId, 
+                adapterIdStr.Buffer + 8, 
+                adapterIdStr.Length > 1030 ? 1023 : adapterIdStr.Length - 8);
 		}
 
 		RtlCopyBytes(adapter->MacAddress, BindParameters->CurrentMacAddress, 6);
@@ -420,10 +398,9 @@ void LockClients(
         Item = Item->Next)
     {
         CLIENT* Client = (CLIENT*)Item->Data;
-        if ((Assigned(Client)) &&
-            (Assigned(Client->ReadLock)))
+        if (Assigned(Client))
         {
-            NdisAcquireSpinLock(Client->ReadLock);
+            Km_Lock_Acquire(&Client->ReadLock);
         }
     }
 };
@@ -442,19 +419,18 @@ void UnlockClients(
         Item = Item->Next)
     {
         CLIENT* Client = (CLIENT*)Item->Data;
-        if ((Assigned(Client)) &&
-            (Assigned(Client->ReadLock)))
-        {
-            NdisReleaseSpinLock(Client->ReadLock);
-        }
 
         if (SignalEvents)
         {
-            if ((Assigned(Client->Event)) &&
-                (Assigned(Client->Event->Event)))
+            if (Assigned(Client->Event.Event))
             {
-                KeSetEvent(Client->Event->Event, 0, FALSE);
+                KeSetEvent(Client->Event.Event, 0, FALSE);
             }
+        }
+
+        if (Assigned(Client))
+        {
+            Km_Lock_Release(&Client->ReadLock);
         }
     }
 
@@ -540,13 +516,24 @@ Protocol_ReceiveNetBufferListsHandler(
                     Item = Item->Next)
                 {
                     PCLIENT Client = (PCLIENT)Item->Data;
+                    PPACKET NewPacket = CreatePacket(
+                        MdlVA + Offset, 
+                        BufferLength, 
+                        &PacketTimeStamp);
 
-                    if ((Client->PacketList->Size < MAX_PACKET_QUEUE_SIZE) &&
-                        (!Client->PacketList->Releasing)) //TODO: it seems we lose packets here
+                    if ((Client->PacketList.Count.QuadPart < MAX_PACKET_QUEUE_SIZE) &&
+                        (!Client->Releasing)) //TODO: it seems we lose packets here
                     {
-                        AddToList(
-                            Client->PacketList, 
-                            CreatePacket(MdlVA + Offset, BufferLength, PacketTimeStamp));
+                        NTSTATUS    InsertStatus = Km_List_AddItemEx(
+                            &Client->PacketList,
+                            &NewPacket->Link,
+                            FALSE,
+                            FALSE);
+
+                        if (NT_SUCCESS(InsertStatus))
+                        {
+                            FreePacket(NewPacket);
+                        }
                     }
 
                 }

@@ -37,37 +37,40 @@ typedef struct _ETH_HEADER
     USHORT  EthType;
 } ETH_HEADER, *PETH_HEADER;
 
-typedef struct ADAPTER {
-	char AdapterId[1024];
-	PNDIS_STRING Name;
-	char DisplayName[1024];
-	UCHAR MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
-	ULONG MtuSize;
-	NDIS_HANDLE AdapterHandle;
+typedef struct _ADAPTER
+{
+	char            AdapterId[1024];
+	PNDIS_STRING    Name;
+	char            DisplayName[1024];
+	UCHAR           MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+	ULONG           MtuSize;
+	NDIS_HANDLE     AdapterHandle;
 	PNDIS_SPIN_LOCK Lock;
 
-	struct DEVICE* Device;
+	struct DEVICE   *Device;
 
-	LARGE_INTEGER BindTimestamp;
+	LARGE_INTEGER   BindTimestamp;
 
-	NDIS_HANDLE BindContext;   // To complete Bind request if necessary
-	NDIS_HANDLE UnbindContext; // To complete Unbind request if necessary
+	NDIS_HANDLE     BindContext;   // To complete Bind request if necessary
+	NDIS_HANDLE     UnbindContext; // To complete Unbind request if necessary
 
-	BOOL Ready;
+	BOOL            Ready;
 
-	volatile ULONG PendingOidRequests;
-	volatile ULONG PendingSendPackets;
+	volatile ULONG  PendingOidRequests;
 
-	char TmpBuf[MAX_PACKET_SIZE];
-} ADAPTER;
-typedef const ADAPTER *PADAPTER;
+	volatile ULONG  PendingSendPackets;
+
+} ADAPTER, *PADAPTER;
 
 //////////////////////////////////////////////////////////////////////
 // Adapter methods
 //////////////////////////////////////////////////////////////////////
 
 BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size);
-BOOL FreeAdapter(ADAPTER* adapter);
+
+BOOL FreeAdapter(
+    __in    PADAPTER    Adapter);
+
 BOOL FreeAdapterList(PLIST list);
 LARGE_INTEGER GetAdapterTime(ADAPTER* adapter); // returns time in milliseconds since adapter was bound
 
