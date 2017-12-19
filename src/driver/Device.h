@@ -21,8 +21,8 @@
 
 #include <ndis.h>
 #include <minwindef.h>
-#include "List.h"
 #include "Adapter.h"
+#include "KmList.h"
 
 //////////////////////////////////////////////////////////////////////
 // Device definitions

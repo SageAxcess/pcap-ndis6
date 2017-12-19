@@ -22,7 +22,7 @@
 
 #include <minwindef.h>
 #include <ntdef.h>
-#include "List.h"
+#include "KmList.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet definitions
@@ -31,9 +31,13 @@
 typedef struct _PACKET
 {
     LIST_ENTRY      Link;
+
     LARGE_INTEGER   Timestamp;
+
     ULONG           DataSize;
+
     UCHAR           Data[1];
+
 } PACKET, *PPACKET;
 
 //////////////////////////////////////////////////////////////////////
@@ -48,4 +52,5 @@ PACKET* CreatePacket(
 void FreePacket(
     __in    PPACKET Packet);
 
-void FreePacketList(PLIST list);
+void ClearPacketList(
+    __in    PKM_LIST    List);

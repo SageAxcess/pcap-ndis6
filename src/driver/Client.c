@@ -71,7 +71,7 @@ NTSTATUS CreateClient(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_List_AddItem(
-        Device->ClientList,
+        &Device->ClientList,
         &NewClient->Link);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     
@@ -106,7 +106,7 @@ NTSTATUS FreeClient(
     Km_Lock_Acquire(&Client->ReadLock);
     __try
     {
-        FreePacketList(Client->PacketList);
+        ClearPacketList(&Client->PacketList);
     }
     __finally
     {
@@ -116,6 +116,93 @@ NTSTATUS FreeClient(
     FinalizeEvent(&Client->Event);
 
     FILTER_FREE_MEM(Client);
+
+cleanup:
+    return Status;
+};
+int __stdcall Client_FindClientCallback(
+    __in    PKM_LIST    List,
+    __in    PVOID       ItemDefinition,
+    __in    PLIST_ENTRY Item)
+{
+    PCLIENT Client1 = (PCLIENT)ItemDefinition;
+    PCLIENT Client2 = CONTAINING_RECORD(Item, CLIENT, Link);
+
+    UNREFERENCED_PARAMETER(List);
+
+    return
+        Client1 == Client2 ? 0 :
+        Client1 > Client2 ? 1 :
+        -1;
+};
+
+NTSTATUS RemoveClientFromList(
+    __in    PKM_LIST    List,
+    __in    PCLIENT     Client)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(List),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_INVALID_PARAMETER_2);
+
+    Status = Km_List_Lock(List);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        PLIST_ENTRY FoundItem = NULL;
+
+        Status = Km_List_FindItemEx(
+            List,
+            (PVOID)Client,
+            Client_FindClientCallback,
+            &FoundItem,
+            FALSE,
+            FALSE);
+        if (NT_SUCCESS(Status))
+        {
+            Status = Km_List_RemoveItemEx(
+                List,
+                FoundItem,
+                FALSE,
+                FALSE);
+        }
+    }
+    __finally
+    {
+        Km_List_Unlock(List);
+    }
+
+cleanup:
+    return Status;
+};
+
+void __stdcall ClearClientsList_ItemCallback(
+    __in    PKM_LIST    List,
+    __in    PLIST_ENTRY Item)
+{
+    UNREFERENCED_PARAMETER(List);
+
+    RETURN_IF_FALSE(Assigned(Item));
+
+    FreeClient(CONTAINING_RECORD(Item, CLIENT, Link));
+};
+
+NTSTATUS ClearClientList(
+    __in    PKM_LIST    List)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(List),
+        STATUS_INVALID_PARAMETER_1);
+
+    Km_List_Clear(
+        List,
+        ClearClientsList_ItemCallback);
 
 cleanup:
     return Status;

@@ -68,30 +68,23 @@ void FreePacket(
     FILTER_FREE_MEM(Packet);
 }
 
-void FreePacketList(PLIST list)
+void __stdcall ClearPacketList_ItemCallback(
+    __in    PKM_LIST    List,
+    __in    PLIST_ENTRY Item)
 {
-	if(!list)
-	{
-		return;
-	}
+    PPACKET Packet = CONTAINING_RECORD(Item, PACKET, Link);
 
-	NdisAcquireSpinLock(list->Lock);
-	list->Releasing = TRUE;
+    UNREFERENCED_PARAMETER(List);
 
-	PLIST_ITEM item = list->First;
-	while (item)
-	{
-		PPACKET packet = (PPACKET)item->Data;
-		if (packet)
-		{
-			FreePacket(packet);
-		}
-		item->Data = NULL;
+    RETURN_IF_FALSE(Assigned(Item));
 
-		item = item->Next;
-	}
+    FreePacket(Packet);
+};
 
-	NdisReleaseSpinLock(list->Lock);
+void ClearPacketList(
+    __in    PKM_LIST    List)
+{
+    RETURN_IF_FALSE(Assigned(List));
 
-	FreeList(list);
-}
+    Km_List_Clear(List, ClearPacketList_ItemCallback);
+};

@@ -117,8 +117,6 @@ BOOL FreeAdapter(
 
     if (Assigned(Adapter->Device))
 	{
-        int i = 0;
-
 		Adapter->Device->Releasing = TRUE;
 
 		FreeDevice(Adapter->Device);
@@ -384,24 +382,22 @@ void LockClients(
     __in    PDEVICE Device,
     __in    BOOLEAN LockList)
 {
-    PLIST_ITEM  Item;
+    PLIST_ENTRY ListEntry = NULL;
 
     RETURN_IF_FALSE(Assigned(Device));
 
     if (LockList)
     {
-        NdisAcquireSpinLock(Device->ClientList->Lock);
+        Km_List_Lock(&Device->ClientList);
     }
 
-    for (Item = Device->ClientList->First;
-        Assigned(Item);
-        Item = Item->Next)
+    for (ListEntry = Device->ClientList.Head.Flink;
+         ListEntry != &Device->ClientList.Head;
+         ListEntry = ListEntry->Flink)
     {
-        CLIENT* Client = (CLIENT*)Item->Data;
-        if (Assigned(Client))
-        {
-            Km_Lock_Acquire(&Client->ReadLock);
-        }
+        PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
+
+        Km_Lock_Acquire(&Client->ReadLock);
     }
 };
 
@@ -410,15 +406,15 @@ void UnlockClients(
     __in    BOOLEAN UnlockList,
     __in    BOOLEAN SignalEvents)
 {
-    PLIST_ITEM  Item;
+    PLIST_ENTRY ListEntry = NULL;
 
     RETURN_IF_FALSE(Assigned(Device));
 
-    for (Item = Device->ClientList->First;
-        Assigned(Item);
-        Item = Item->Next)
+    for (ListEntry = Device->ClientList.Head.Flink;
+        ListEntry != &Device->ClientList.Head;
+        ListEntry = ListEntry->Flink)
     {
-        CLIENT* Client = (CLIENT*)Item->Data;
+        PCLIENT  Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
 
         if (SignalEvents)
         {
@@ -436,7 +432,7 @@ void UnlockClients(
 
     if (UnlockList)
     {
-        NdisReleaseSpinLock(Device->ClientList->Lock);
+        Km_List_Unlock(&Device->ClientList);
     }
 };
 
@@ -493,7 +489,7 @@ Protocol_ReceiveNetBufferListsHandler(
 
             if (Assigned(Mdl))
             {
-                PLIST_ITEM  Item;
+                PLIST_ENTRY ListEntry = NULL;
 
                 NdisQueryMdl(
                     Mdl, 
@@ -511,11 +507,11 @@ Protocol_ReceiveNetBufferListsHandler(
 
                 BREAK_IF_FALSE(BufferLength >= sizeof(ETH_HEADER));
 
-                for (Item = adapter->Device->ClientList->First;
-                    Assigned(Item);
-                    Item = Item->Next)
+                for (ListEntry = adapter->Device->ClientList.Head.Flink;
+                     ListEntry != &adapter->Device->ClientList.Head;
+                     ListEntry = ListEntry->Flink)
                 {
-                    PCLIENT Client = (PCLIENT)Item->Data;
+                    PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
                     PPACKET NewPacket = CreatePacket(
                         MdlVA + Offset, 
                         BufferLength, 

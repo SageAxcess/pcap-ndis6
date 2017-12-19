@@ -74,7 +74,9 @@ DEVICE* CreateDevice(char* name)
 	device->Name = name_u;
 	device->SymlinkName = symlink_name_u;
 	device->OpenCloseLock = CreateSpinLock();
-	device->ClientList = CreateList();
+
+    Km_List_Initialize(&device->ClientList);
+
 	device->Releasing = FALSE;
 	
 	Status = IoCreateDevice(
@@ -109,7 +111,9 @@ cleanup:
         if (Assigned(device))
         {
             FreeSpinLock(device->OpenCloseLock);
-            FreeClientList(device->ClientList);
+
+            ClearClientList(&device->ClientList);
+            
             FILTER_FREE_MEM(device);
         }
     }
@@ -128,26 +132,11 @@ BOOL FreeDevice(PDEVICE device)
 
 	IoDeleteSymbolicLink(device->SymlinkName);
 	IoDeleteDevice(device->Device);
-	DriverSleep(50);
-
-	NdisAcquireSpinLock(device->ClientList->Lock);
-
-	PLIST_ITEM item = device->ClientList->First;
-	while (item)
-	{
-		PCLIENT Client = (PCLIENT)item->Data;
-
-        KeSetEvent(Client->Event.Event, 0, FALSE);
-
-		item = item->Next;
-	}
-
-	NdisReleaseSpinLock(device->ClientList->Lock);
 
 	FreeString(device->Name);
 	FreeString(device->SymlinkName);
 	FreeSpinLock(device->OpenCloseLock);
-	FreeClientList(device->ClientList);
+	ClearClientList(&device->ClientList);
 
 	FILTER_FREE_MEM(device);
 
@@ -159,7 +148,12 @@ BOOL FreeDevice(PDEVICE device)
 // Device callbacks
 /////////////////////////////////////////////////////////////////////
 
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device_CreateHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CREATE)
+Device_CreateHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    PIRP            Irp)
 {
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
@@ -178,9 +172,9 @@ NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_CREATE) Device
 	IO_STACK_LOCATION* stack = IoGetCurrentIrpStackLocation(Irp);
 
 	if ((device->IsAdaptersList) || 
-        ((device->Adapter != NULL) && (device->Adapter->Ready)))
+        ((Assigned(device->Adapter)) && (device->Adapter->Ready)))
 	{
-        if (!device->ClientList->Releasing)
+        if (!device->Releasing)
         {
             PCLIENT NewClient = NULL;
             NTSTATUS Status = CreateClient(device, stack->FileObject, &NewClient);
@@ -238,46 +232,29 @@ Device_CloseHandler(
         Assigned(Device),
         STATUS_UNSUCCESSFUL);
 
+    //NdisAcquireSpinLock(device->OpenCloseLock);
+    if (!Device->IsAdaptersList)
+    {
+        PCLIENT Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
+        if (Assigned(Client))
+        {
+            Status = RemoveClientFromList(
+                &Device->ClientList,
+                Client);
+            if (NT_SUCCESS(Status))
+            {
+                IoStackLocation->FileObject->FsContext = NULL;
+                FreeClient(Client);
+            }
+        }
+    }
+
 cleanup:
     Irp->IoStatus.Status = Status;
     IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
     return Status;
-	
-	
-
-	//NdisAcquireSpinLock(device->OpenCloseLock);
-	if (device->IsAdaptersList)
-	{
-		DEBUGP(DL_TRACE, "   closing all adapters list device\n");
-		ret = STATUS_SUCCESS;
-	}
-	else
-	{
-		DEBUGP(DL_TRACE, "   closing adapter device\n");
-		// Adapter device
-		PCLIENT client = (PCLIENT)stack->FileObject->FsContext;
-
-		if (client)
-		{
-			DEBUGP(DL_TRACE, "   acquire lock for client list and remove\n");
-			RemoveFromListByData(device->ClientList, client);
-
-			FreeClient(client);			
-
-			stack->FileObject->FsContext = NULL;
-
-			ret = STATUS_SUCCESS;
-		}
-	}
-	//NdisReleaseSpinLock(device->OpenCloseLock);
-
-	Irp->IoStatus.Status = ret;
-	IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-	DEBUGP(DL_TRACE, "<===Device_CloseHandler, ret=0x%8x\n", ret);
-	return ret;
-}
+};
 
 NTSTATUS __stdcall Device_ReadPackets(
     __in    PCLIENT Client,

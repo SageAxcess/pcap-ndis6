@@ -64,4 +64,11 @@ NTSTATUS CreateClient(
 NTSTATUS FreeClient(
     __in    PCLIENT Client);
 
+NTSTATUS RemoveClientFromList(
+    __in    PKM_LIST    List,
+    __in    PCLIENT     Client);
+
+NTSTATUS ClearClientList(
+    __in    PKM_LIST    List);
+
 void FreeClientList(PLIST list);
