@@ -208,29 +208,32 @@ typedef WAN_ADAPTER *PWAN_ADAPTER; ///< Describes an opened wan (dialup, VPN...)
   This structure is the most important for the functioning of packet.dll, but the great part of its fields
   should be ignored by the user, since the library offers functions that avoid to cope with low-level parameters	
 */
-typedef struct _ADAPTER  { 
-	HANDLE hFile;				// this is actually a pointer to PCAP_NDIS_ADAPTER, not handle. However, for backward compatibility have to leave it HANDLE
-	int NumWrites;				
-								///< on the wire.
-	HANDLE ReadEvent;			///< A notification event associated with the read calls on the adapter.
-								///< It can be passed to standard Win32 functions (like WaitForSingleObject
-								///< or WaitForMultipleObjects) to wait until the driver's buffer contains some 
-								///< data. It is particularly useful in GUI applications that need to wait 
-								///< concurrently on several events. In Windows NT/2000 the PacketSetMinToCopy()
-								///< function can be used to define the minimum amount of data in the kernel buffer
-								///< that will cause the event to be signalled. 
+typedef struct _ADAPTER
+{ 
+	HANDLE              hFile;                  /// this is actually a pointer to PCAP_NDIS_ADAPTER, not handle. However, for backward compatibility have to leave it HANDLE
+	int                 NumWrites;				
+                                                ///< on the wire.
+	HANDLE              ReadEvent;              ///< A notification event associated with the read calls on the adapter.
+						    		            ///< It can be passed to standard Win32 functions (like WaitForSingleObject
+							    	            ///< or WaitForMultipleObjects) to wait until the driver's buffer contains some 
+								                ///< data. It is particularly useful in GUI applications that need to wait 
+								                ///< concurrently on several events. In Windows NT/2000 the PacketSetMinToCopy()
+								                ///< function can be used to define the minimum amount of data in the kernel buffer
+                                                ///< that will cause the event to be signalled. 
 
-	UINT ReadTimeOut;			///< \internal The amount of time after which a read on the driver will be released and 
-								///< ReadEvent will be signaled, also if no packets were captured
-	CHAR Name[ADAPTER_NAME_LENGTH];
-	PWAN_ADAPTER pWanAdapter;
-	UINT Flags;					///< Adapter's flags. Tell if this adapter must be treated in a different way, using the Netmon API or the dagc API.
+	UINT                ReadTimeOut;            ///< \internal The amount of time after which a read on the driver will be released and 
+                                                ///< ReadEvent will be signaled, also if no packets were captured
+	CHAR                Name[ADAPTER_NAME_LENGTH];
+	PWAN_ADAPTER        pWanAdapter;
+	UINT                Flags;              ///< Adapter's flags. Tell if this adapter must be treated in a different way, using the Netmon API or the dagc API.
 
-	UINT CurrentTimeout;
+	UINT                CurrentTimeout;
 
-	struct MUTEX *FilterLock;
-	struct bpf_program *Filter;	
-}  ADAPTER, *LPADAPTER;
+	struct MUTEX        *FilterLock;
+
+	struct bpf_program  *Filter;	
+
+}  ADAPTER, *PADAPTER, *LPADAPTER;
 
 /*!
   \brief Structure that contains a group of packets coming from the driver.

@@ -70,5 +70,3 @@ NTSTATUS RemoveClientFromList(
 
 NTSTATUS ClearClientList(
     __in    PKM_LIST    List);
-
-void FreeClientList(PLIST list);

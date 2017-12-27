@@ -25,6 +25,7 @@
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
+#include "KmList.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -33,12 +34,81 @@
 // Adapter variables
 //////////////////////////////////////////////////////////////////////
 
-PLIST AdapterList = NULL;
-UINT SelectedMediumIndex = 0;
+KM_LIST AdapterList = { 0, };
+UINT    SelectedMediumIndex = 0;
 
 //////////////////////////////////////////////////////////////////////
 // Adapter methods
 //////////////////////////////////////////////////////////////////////
+
+
+NTSTATUS __stdcall Adapter_Allocate(
+    __in    PNDIS_BIND_PARAMETERS   BindParameters,
+    __in    NDIS_HANDLE             BindContext,
+    __out   PADAPTER                *Adapter)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PADAPTER    NewAdapter = NULL;
+    DWORD       SizeRequired = sizeof(ADAPTER);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(BindParameters),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_3);
+
+    SizeRequired +=
+        Assigned(BindParameters->AdapterName) ?
+        BindParameters->AdapterName->Length + sizeof(wchar_t) :
+        sizeof(wchar_t);
+
+    NewAdapter = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(
+        ADAPTER, 
+        FilterDriverHandle, 
+        SizeRequired);
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(NewAdapter),
+        NDIS_STATUS_FAILURE);
+
+    RtlZeroMemory(NewAdapter, sizeof(ADAPTER));
+
+    NewAdapter->Name.Buffer =
+        (PWCH)((PUCHAR)NewAdapter + sizeof(ADAPTER));
+    NewAdapter->Name.Length = BindParameters->AdapterName->Length;
+    NewAdapter->Name.MaximumLength = NewAdapter->Name.Length;
+
+    if (BindParameters->AdapterName->Length > 0)
+    {
+        RtlCopyMemory(
+            NewAdapter->Name.Buffer,
+            BindParameters->AdapterName->Buffer,
+            BindParameters->AdapterName->Length);
+    }
+    
+    if (BindParameters->MacAddressLength > 0)
+    {
+        NewAdapter->MacAddressSize = BindParameters->MacAddressLength;
+        RtlCopyMemory(
+            NewAdapter->MacAddress,
+            BindParameters->CurrentMacAddress,
+            BindParameters->MacAddressLength);
+    }
+
+    NewAdapter->MtuSize = BindParameters->MtuSize;
+    NewAdapter->BindTimestamp = KeQueryPerformanceCounter(NULL);
+    NewAdapter->BindContext = BindContext;
+
+cleanup:
+
+    if (NT_SUCCESS(Status))
+    {
+        *Adapter = NewAdapter;
+    }
+
+    return Status;
+};
 
 /**
  * Generate OID Request for Adapter
@@ -124,37 +194,40 @@ BOOL FreeAdapter(
 		Adapter->Device = NULL;
 	}
 
-	FreeString(Adapter->Name);
-
 	FILTER_FREE_MEM(Adapter);
 
 	return TRUE;
 };
 
-BOOL FreeAdapterList(PLIST list)
+void _stdcall ClearAdaptersList_ItemCallback(
+    __in    PKM_LIST    List,
+    __in    PLIST_ENTRY Item)
 {
-	DEBUGP(DL_TRACE, "===>FreeAdapterList...\n");
-	NdisAcquireSpinLock(list->Lock);
-	PLIST_ITEM item = list->First;
-	while (item)
-	{
-		ADAPTER* adapter = (ADAPTER*)item->Data;
-		if (adapter)
-		{
-			FreeAdapter(adapter);
-		}
-		item->Data = NULL;
+    PADAPTER    Adapter;
 
-		item = item->Next;
-	}
+    UNREFERENCED_PARAMETER(List);
 
-	NdisReleaseSpinLock(list->Lock);
+    RETURN_IF_FALSE(Assigned(Item));
 
-	//TODO: possible memory leak if something is added to the list before it's released
-	FreeList(list);
-	DEBUGP(DL_TRACE, "<===FreeAdapterList\n");
-	return TRUE;
-}
+    Adapter = CONTAINING_RECORD(Item, ADAPTER, Link);
+
+    FreeAdapter(Adapter);
+};
+
+NTSTATUS ClearAdaptersList(
+    __in    PKM_LIST    List)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(List),
+        STATUS_INVALID_PARAMETER_1);
+
+    Km_List_Clear(List, ClearAdaptersList_ItemCallback);
+
+cleanup:
+    return Status;
+};
 
 // Returns timestamp in milliseconds since adapter started
 LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
@@ -188,72 +261,62 @@ Protocol_BindAdapterHandlerEx(
     __in    NDIS_HANDLE             BindContext,
     __in    PNDIS_BIND_PARAMETERS   BindParameters)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_BindAdapterHandlerEx...\n");
-	_CRT_UNUSED(ProtocolDriverContext);
+    NDIS_STATUS             Status = NDIS_STATUS_SUCCESS;
+    NTSTATUS                Status2 = STATUS_SUCCESS;
+    NDIS_MEDIUM             MediumArray = { NdisMedium802_3 };
+    NDIS_OPEN_PARAMETERS    OpenParameters;
+    PADAPTER                Adapter = NULL;
 
-	NDIS_STATUS ret = NDIS_STATUS_FAILURE;	
+    UNREFERENCED_PARAMETER(ProtocolDriverContext);
 
-	// Check the attributes of the adapter, and process only adapter which should be bound to
-	if (BindParameters->MediaType == NdisMedium802_3 &&
-		BindParameters->MacAddressLength == 6 &&
-		BindParameters->AccessType == NET_IF_ACCESS_BROADCAST &&
-		BindParameters->DirectionType == NET_IF_DIRECTION_SENDRECEIVE &&
-		BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED)
-	{
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(BindParameters),
+        NDIS_STATUS_FAILURE);
 
-		NDIS_OPEN_PARAMETERS parameters;
-		memset(&parameters, 0, sizeof(NDIS_OPEN_PARAMETERS));
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (BindParameters->MediaType == NdisMedium802_3) &&
+        (BindParameters->MacAddressLength == 6) &&
+        (BindParameters->AccessType == NET_IF_ACCESS_BROADCAST) &&
+        (BindParameters->DirectionType == NET_IF_DIRECTION_SENDRECEIVE) &&
+        (BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED),
+        NDIS_STATUS_NOT_SUPPORTED);
 
-		NDIS_MEDIUM medium_array = { NdisMedium802_3 };
+    Status2 = Adapter_Allocate(
+        BindParameters,
+        BindContext,
+        &Adapter);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        NT_SUCCESS(Status2),
+        NDIS_STATUS_RESOURCES);
 
-		parameters.Header.Type = NDIS_OBJECT_TYPE_OPEN_PARAMETERS;
-		parameters.Header.Revision = NDIS_OPEN_PARAMETERS_REVISION_1;
-		parameters.Header.Size = NDIS_SIZEOF_OPEN_PARAMETERS_REVSION_1;
+    RtlZeroMemory(&OpenParameters, sizeof(OpenParameters));
 
-		parameters.AdapterName = BindParameters->AdapterName;
-		parameters.MediumArray = &medium_array;
-		parameters.MediumArraySize = 1;
-		parameters.SelectedMediumIndex = &SelectedMediumIndex;
-		parameters.FrameTypeArray = NULL;
-		parameters.FrameTypeArraySize = 0;
+    OpenParameters.Header.Type = NDIS_OBJECT_TYPE_OPEN_PARAMETERS;
+    OpenParameters.Header.Revision = NDIS_OPEN_PARAMETERS_REVISION_1;
+    OpenParameters.Header.Size = NDIS_SIZEOF_OPEN_PARAMETERS_REVSION_1;
 
-		ADAPTER* adapter = (ADAPTER*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(ADAPTER));
-		NdisZeroMemory(adapter, sizeof(ADAPTER));
+    OpenParameters.AdapterName = BindParameters->AdapterName;
+    OpenParameters.MediumArray = &MediumArray;
+    OpenParameters.MediumArraySize = 1;
+    OpenParameters.SelectedMediumIndex = &SelectedMediumIndex;
 
-		adapter->Name = CopyString(BindParameters->AdapterName);
-		adapter->Ready = FALSE;
-		memset(adapter->AdapterId, 0, 1024);
+    Status = NdisOpenAdapterEx(
+        FilterProtocolHandle,
+        (NDIS_HANDLE)Adapter,
+        &OpenParameters,
+        BindContext,
+        &Adapter->AdapterHandle);
 
-		ANSI_STRING adapterIdStr;
-		NTSTATUS res = RtlUnicodeStringToAnsiString(&adapterIdStr, adapter->Name, TRUE);
+    GOTO_CLEANUP_IF_TRUE(Status == NDIS_STATUS_PENDING);
 
-		if((NT_SUCCESS(res)) && 
-           (adapter->Name->Length > 8))
-        {
-			RtlCopyBytes(
-                adapter->AdapterId, 
-                adapterIdStr.Buffer + 8, 
-                adapterIdStr.Length > 1030 ? 1023 : adapterIdStr.Length - 8);
-		}
+    Adapter->BindContext = NULL;
+    Protocol_OpenAdapterCompleteHandlerEx(
+        (NDIS_HANDLE)Adapter,
+        Status);
 
-		RtlCopyBytes(adapter->MacAddress, BindParameters->CurrentMacAddress, 6);
-
-		adapter->BindTimestamp = KeQueryPerformanceCounter(NULL);
-		adapter->BindContext = BindContext;
-		adapter->MtuSize = BindParameters->MtuSize;
-
-		ret = NdisOpenAdapterEx(FilterProtocolHandle, adapter, &parameters, BindContext, &adapter->AdapterHandle);
-
-		if (ret != NDIS_STATUS_PENDING)
-		{
-			adapter->BindContext = NULL;
-			Protocol_OpenAdapterCompleteHandlerEx(adapter, ret);
-		}
-	}
-
-	DEBUGP(DL_TRACE, "<===Protocol_BindAdapterHandlerEx, ret=0x%8x\n", ret);
-	return ret;
-}
+cleanup:
+    return Status;
+};
 
 NDIS_STATUS
 _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX)
@@ -261,31 +324,28 @@ Protocol_UnbindAdapterHandlerEx(
     __in    NDIS_HANDLE UnbindContext,
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_UnbindAdapterHandlerEx...\n");
+    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
+    NDIS_HANDLE AdapterHandle = Adapter->AdapterHandle;
 
-	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
+    Adapter->AdapterHandle = NULL;
+    Adapter->UnbindContext = UnbindContext;
 
-	NDIS_HANDLE handle = adapter->AdapterHandle;
-	adapter->AdapterHandle = NULL;
-	adapter->UnbindContext = UnbindContext;
+    Km_List_RemoveItem(&AdapterList, &Adapter->Link);
 
-	RemoveFromListByData(AdapterList, adapter);
-
-	while (adapter->PendingOidRequests>0 || adapter->PendingSendPackets>0)
+    while ((Adapter->PendingOidRequests > 0) ||
+            (Adapter->PendingSendPackets > 0))
 	{
 		DriverSleep(50);
 	}
 
-	NDIS_STATUS ret = NdisCloseAdapterEx(handle);
-	if (ret != NDIS_STATUS_PENDING)
+    NDIS_STATUS NdisStatus = NdisCloseAdapterEx(AdapterHandle);
+    if (NdisStatus != NDIS_STATUS_PENDING)
 	{
-		adapter->UnbindContext = NULL;
-		Protocol_CloseAdapterCompleteHandlerEx(adapter);
+        Adapter->UnbindContext = NULL;
+        Protocol_CloseAdapterCompleteHandlerEx((NDIS_HANDLE)Adapter);
 	}
 
-	DEBUGP(DL_TRACE, "<===Protocol_UnbindAdapterHandlerEx, ret=0x%8x\n", ret);
-
-	return ret;
+	return NdisStatus;
 }
 
 void
@@ -296,38 +356,45 @@ Protocol_OpenAdapterCompleteHandlerEx(
 {
 	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx status=0x%8x...\n", Status);
 
-	ADAPTER* adapter = (ADAPTER*) ProtocolBindingContext;
-	if (Status == STATUS_SUCCESS && !AdapterList->Releasing)
-	{
-		DEVICE* device = CreateDevice(adapter->AdapterId);
+    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
 
-		if (device != NULL)
-		{
-			// Get the display name
-			SendOidRequest(adapter, FALSE, OID_GEN_VENDOR_DESCRIPTION, adapter->DisplayName, sizeof(adapter->DisplayName) - 1);
+    if (Status == NDIS_STATUS_SUCCESS)
+    {
+        PDEVICE Device = CreateDevice(&Adapter->Name);
+        if (Assigned(Device))
+        {
+            SendOidRequest(
+                Adapter,
+                FALSE,
+                OID_GEN_VENDOR_DESCRIPTION,
+                Adapter->DisplayName,
+                sizeof(Adapter->DisplayName) - 1);
 
-			device->Adapter = adapter;
-			adapter->Device = device;
+            Device->Adapter = Adapter;
+            Adapter->Device = Device;
 
-			AddToList(AdapterList, adapter);
-		}
+            Km_List_AddItem(
+                &AdapterList,
+                &Adapter->Link);
+        }
 
-		adapter->Ready = TRUE;
-	}
-	else
-	{
-		adapter->AdapterHandle = NULL;
-		FreeAdapter(adapter);
-		adapter = NULL;
-	}
+        Adapter->Ready = TRUE;
+    }
+    else
+    {
+        Adapter->AdapterHandle = NULL;
+        FreeAdapter(Adapter);
+        Adapter = NULL;
+    }
 
-	if (adapter!=NULL && adapter->BindContext!=NULL)
-	{
-		NdisCompleteBindAdapterEx(adapter->BindContext, Status);
-	}
-
-	DEBUGP(DL_TRACE, "<===Protocol_OpenAdapterCompleteHandlerEx\n");
-}
+    if (Assigned(Adapter))
+    {
+        if (Adapter->BindContext != NULL)
+        {
+            NdisCompleteBindAdapterEx(Adapter->BindContext, Status);
+        }
+    }
+};
 
 void
 _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)

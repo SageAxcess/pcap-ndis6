@@ -36,6 +36,9 @@ UNICODE_STRING* CreateString(const char* str);
 UNICODE_STRING* CopyString(PUNICODE_STRING string);
 void FreeString(UNICODE_STRING* string);
 
+PUNICODE_STRING AllocateString(
+    __in    USHORT  StringLengthInBytes);
+
 ///////////////////////////////////////////////////
 // Other helper functions
 ///////////////////////////////////////////////////

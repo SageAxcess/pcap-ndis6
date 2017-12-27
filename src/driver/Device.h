@@ -38,7 +38,7 @@ typedef struct DEVICE
 
     PADAPTER        Adapter;
 
-	PNDIS_SPIN_LOCK OpenCloseLock;
+    KM_LOCK         OpenCloseLock;
 
     KM_LIST         ClientList;
 
@@ -51,8 +51,14 @@ typedef struct DEVICE
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
-DEVICE *CreateDevice(char* name);
-BOOL FreeDevice(PDEVICE device);
+PDEVICE CreateDevice(
+    __in    PUNICODE_STRING Name);
+
+PDEVICE CreateDevice2(
+    __in    LPCWSTR Name);
+
+BOOL FreeDevice(
+    __in    PDEVICE Device);
 
 //////////////////////////////////////////////////////////////////////
 // Device callbacks
@@ -71,12 +77,12 @@ Device_CloseHandler(
     __in    PDEVICE_OBJECT  DeviceObject,
     __in    IRP             *Irp);
 
-NTSTATUS 
-_Function_class_(DRIVER_DISPATCH) 
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
 _Dispatch_type_(IRP_MJ_READ)
 Device_ReadHandler(
     __in    PDEVICE_OBJECT  DeviceObject,
-    __in    IRP             *Irp);
+    __in    PIRP            Irp);
 
 NTSTATUS
 _Function_class_(DRIVER_DISPATCH)

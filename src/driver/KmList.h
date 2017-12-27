@@ -277,7 +277,7 @@ NTSTATUS __stdcall Km_List_Unlock(
     __in    PKM_LIST    List);
 
 #define Km_List_AddItem(List, Item)         Km_List_AddItemEx(List, Item, TRUE, TRUE)
-#define Km_List_RemoveItem(List, Item)      Km_List_RemoveItem(List, Item, TRUE, TRUE)
+#define Km_List_RemoveItem(List, Item)      Km_List_RemoveItemEx(List, Item, TRUE, TRUE)
 #define Km_List_GetCount(List, CountPtr)    Km_List_GetCountEx(List, CountPtr, TRUE, TRUE)
 #define Km_List_Clear(List, ItemCallback)   Km_List_ClearEx(List, ItemCallback, TRUE, TRUE)
 

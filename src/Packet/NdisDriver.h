@@ -19,6 +19,7 @@
 #pragma once
 
 #include "winpcap_ndis.h"
+#include <string>
 
 #define READ_BUFFER_SIZE 32000
 
@@ -43,13 +44,13 @@ typedef struct PCAP_NDIS_ADAPTER
     UINT                    BufferOffset;
     UINT                    BufferedPackets;
     UCHAR                   ReadBuffer[READ_BUFFER_SIZE];
-} PCAP_NDIS_ADAPTER;
+} PCAP_NDIS_ADAPTER, *PPCAP_NDIS_ADAPTER;
 
 typedef struct PCAP_NDIS_ADAPTER_LIST
 {
     int                     count;
     PCAP_NDIS_ADAPTER_INFO  *adapters;
-} PCAP_NDIS_ADAPTER_LIST;
+} PCAP_NDIS_ADAPTER_LIST, *PPCAP_NDIS_ADAPTER_LIST, *LPPCAP_NDIS_ADAPTER_LIST;
 
 // Open channel to ndis driver
 PCAP_NDIS* NdisDriverOpen();
@@ -58,7 +59,13 @@ PCAP_NDIS* NdisDriverOpen();
 void NdisDriverClose(PCAP_NDIS* ndis);
 
 // Open adapter for capture
-PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterId);
+PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
+    __in            PCAP_NDIS   *ndis,
+    __in    const   char        *szAdapterId);
+
+std::wstring NdisDriverGetAdapterEventName(
+    __in            PCAP_NDIS           *Ndis,
+    __in            PCAP_NDIS_ADAPTER   *Adapter);
 
 // Close adapter
 void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter);

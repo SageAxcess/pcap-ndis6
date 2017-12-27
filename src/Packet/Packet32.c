@@ -47,6 +47,7 @@
 #include "..\shared\MiscUtils.h"
 #include "..\shared\SvcUtils.h"
 #include "..\shared\StrUtils.h"
+#include "..\shared\CommonDefs.h"
 
 #define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
 #define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
@@ -474,68 +475,80 @@ BOOL PacketStopDriver()
 
 LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 {
-    if (!ndis) {
+    if (!Assigned(ndis))
+    {
         ndis = NdisDriverOpen();
-        //TODO: use mutex here!
     }
 
-    PCAP_NDIS_ADAPTER_INFO *info = NULL;
-    ADAPTER *result = NULL;
+    RETURN_VALUE_IF_FALSE(
+        Assigned(ndis),
+        nullptr);
 
-    PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
-    if (list) {
-        for (int i = 0; i < list->count; i++)
+    PPCAP_NDIS_ADAPTER_INFO     AdapterInfo = nullptr;
+    LPADAPTER                   Result = nullptr;
+    LPPCAP_NDIS_ADAPTER_LIST    AdapterList = NdisDriverGetAdapterList(ndis);
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterList),
+        nullptr);
+    try
+    {
+        std::string AdapterNameStrA;
+
+        for (int k = 0; k < AdapterList->count; k++)
         {
-            if (!strcmp(list->adapters[i].AdapterId, AdapterNameWA))
+            if (AdapterList->adapters[k].AdapterIdLength > 0)
             {
-                info = &list->adapters[i];
-                break;
+                std::wstring    AdapterIdStr(
+                    AdapterList->adapters[k].AdapterId,
+                    AdapterList->adapters[k].AdapterIdLength / sizeof(wchar_t));
+                std::wstring    AdapterNameStr = UTILS::STR::FormatW(L"%S", AdapterNameWA);
+
+                if (AdapterNameStr == AdapterIdStr)
+                {
+                    AdapterInfo = &AdapterList->adapters[k];
+                    AdapterNameStrA = UTILS::STR::FormatA("%S", AdapterIdStr.c_str());
+                    break;
+                }
             }
         }
 
-        if (info)
+        if (Assigned(AdapterInfo))
         {
-            result = (ADAPTER*)malloc(sizeof(ADAPTER));
-            if(!result)
+            Result = (PADAPTER)malloc(sizeof(ADAPTER));
+            if (Assigned(Result))
             {
-                NdisDriverFreeAdapterList(list);
-                return NULL;
-            }
-            memset(result, 0, sizeof(ADAPTER));
+                RtlZeroMemory(Result, sizeof(ADAPTER));
+                Result->hFile = NdisDriverOpenAdapter(ndis, AdapterNameStrA.c_str());
+                Result->FilterLock = PacketCreateMutex();
+                Result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
-            result->hFile = NdisDriverOpenAdapter(ndis, info->AdapterId);
-            result->FilterLock = PacketCreateMutex();
-            result->Flags = INFO_FLAG_NDIS_ADAPTER;
-            strcpy_s(
-                result->Name, 
-                sizeof(result->Name), 
-                info->AdapterId);
+                RtlCopyMemory(
+                    Result->Name,
+                    AdapterNameStrA.c_str(),
+                    AdapterNameStrA.length() >= ADAPTER_NAME_LENGTH - 1 ?
+                    ADAPTER_NAME_LENGTH - 1 :
+                    AdapterNameStrA.length());
 
-            char eventName[1024] = {0};
-            char eventNameFull[1024] = {0};
+                PPCAP_NDIS_ADAPTER  Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(Result->hFile);
+                std::wstring        AdapterEventName = NdisDriverGetAdapterEventName(ndis, Adapter);
 
-            PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)result->hFile;
-
-            DWORD dwBytesReturned = 0;
-            if (DeviceIoControl(adapter->Handle, (DWORD)IOCTL_GET_EVENT_NAME, &eventName, 1024u, &eventName, 1024u, &dwBytesReturned, NULL) == TRUE)
-            {
-                eventName[dwBytesReturned > 1023 ? 1023 : dwBytesReturned] = 0;
-                sprintf_s(eventNameFull, 1024, "Global\\%s", eventName);
-
-                TRACE_PRINT1("  detected event name %s", eventNameFull);
-
-                result->ReadEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, eventNameFull);
-
-                result->ReadTimeOut = 0;
-                PacketSetReadTimeout(result, 0);				
+                Result->ReadEvent = OpenEventW(
+                    EVENT_ALL_ACCESS, 
+                    FALSE, 
+                    AdapterEventName.c_str());
+                
+                PacketSetReadTimeout(Result, Result->ReadTimeOut);
             }
         }
-        
-        NdisDriverFreeAdapterList(list);
     }
+    catch(...)
+    {
+    }
+    NdisDriverFreeAdapterList(AdapterList);
 
-    return result;
-}
+    return Result;
+};
 
 /*! 
   \brief Closes an adapter.
@@ -554,7 +567,7 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
     }
     NdisDriverCloseAdapter((struct PCAP_NDIS_ADAPTER*)lpAdapter->hFile);
 
-    if(lpAdapter->Filter!=NULL)
+    if(lpAdapter->Filter != NULL)
     {
         TRACE_PRINT1("lock mutex, lock=0x%08x", lpAdapter->FilterLock);
         PacketLockMutex(lpAdapter->FilterLock);
@@ -942,97 +955,84 @@ BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject, ULONG Filter)
   - a double "\0". 
 */
 
-BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize)
+BOOLEAN PacketGetAdapterNames(
+    __out   PTSTR   pStr,
+    __inout PULONG  BufferSize)
 {
-    ULONG	SizeNeeded = 0;
-    ULONG	SizeNames = 0;
-    ULONG	SizeDesc;
-    ULONG	OffDescriptions;
+    RETURN_VALUE_IF_FALSE(
+        Assigned(BufferSize),
+        FALSE);
 
-    TRACE_ENTER("PacketGetAdapterNames");
+    RETURN_VALUE_IF_FALSE(
+        Assigned(ndis),
+        FALSE);
 
-    TRACE_PRINT_OS_INFO();
-    TRACE_PRINT1("PacketGetAdapterNames: BufferSize=%u", *BufferSize);
-
-
-    if(!ndis)
+    BOOLEAN                     Result = FALSE;
+    ULONG                       SizeNeeded = 0;
+    ULONG                       SizeNames = 0;
+    ULONG                       SizeDesc = 0;
+    ULONG                       OffDescriptions = 0;
+    LPPCAP_NDIS_ADAPTER_LIST    AdapterList = NdisDriverGetAdapterList(ndis);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterList),
+        FALSE);
+    try
     {
-        TRACE_PRINT("PacketGetAdapterNames: no ndis driver instance!");
-        return FALSE;
-    }
-
-    //
-    // Create the adapter information list
-    //
-    PCAP_NDIS_ADAPTER_LIST* list = NdisDriverGetAdapterList(ndis);
-
-    if (list)
-    {
-        // 
-        // First scan of the list to calculate the offsets and check the sizes
-        //
-        for (int i = 0; i < list->count;i++)
+        for (int k = 0; k < AdapterList->count; k++)
         {
-            // Update the size variables
-            SizeNeeded += (ULONG)strlen(list->adapters[i].AdapterId) + (ULONG)strlen(list->adapters[i].DisplayName) + 2;
-            SizeNames += (ULONG)strlen(list->adapters[i].AdapterId) + 1;
+            SizeNeeded += 
+                (ULONG)AdapterList->adapters[k].AdapterIdLength / sizeof(wchar_t) + 
+                (ULONG)strlen(AdapterList->adapters[k].DisplayName) + 2;
+
+            SizeNames += AdapterList->adapters[k].AdapterIdLength / sizeof(wchar_t) + 1;
         }
 
-        // Check that we don't overflow the buffer.
-        // Note: 2 is the number of additional separators needed inside the list
-        if (SizeNeeded + 2 > *BufferSize || pStr == NULL)
+        if ((SizeNeeded + 2 > *BufferSize) ||
+            (!Assigned(pStr)))
         {
-            NdisDriverFreeAdapterList(list);
-
-            TRACE_PRINT1("PacketGetAdapterNames: input buffer too small, we need %u bytes", *BufferSize);
-
-            *BufferSize = SizeNeeded + 2;  // Report the required size
-
-            TRACE_EXIT("PacketGetAdapterNames");
+            *BufferSize = SizeNeeded + 2;
             SetLastError(ERROR_INSUFFICIENT_BUFFER);
-            return FALSE;
         }
-
-        OffDescriptions = SizeNames + 1;
-
-        // 
-        // Second scan of the list to copy the information
-        //
-        SizeNames = 0;
-        SizeDesc = 0;
-
-        for (int i = 0; i < list->count; i++)
+        else
         {
-            // Copy the data
-            StringCchCopyA(
-                ((PCHAR)pStr) + SizeNames,
-                *BufferSize - SizeNames,
-                list->adapters[i].AdapterId);
+            RtlZeroMemory(pStr, *BufferSize);
 
-            StringCchCopyA(
-                ((PCHAR)pStr) + OffDescriptions + SizeDesc,
-                *BufferSize - OffDescriptions - SizeDesc,
-                list->adapters[i].DisplayName);
+            OffDescriptions = SizeNames + 1;
+            SizeNames = 0;
+            SizeDesc = 0;
 
-            // Update the size variables
-            SizeNames += (ULONG)strlen(list->adapters[i].AdapterId) + 1;
-            SizeDesc += (ULONG)strlen(list->adapters[i].DisplayName) + 1;
+            for (int k = 0; k < AdapterList->count; k++)
+            {
+                std::wstring    AdapterId(
+                    AdapterList->adapters[k].AdapterId, 
+                    AdapterList->adapters[k].AdapterIdLength / sizeof(wchar_t));
+                std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
+
+                StringCchCopyA(
+                    ((PCHAR)pStr) + SizeNames,
+                    *BufferSize - SizeNames,
+                    AdapterName.c_str());
+
+                StringCchCopyA(
+                    ((PCHAR)pStr) + OffDescriptions + SizeDesc,
+                    *BufferSize - OffDescriptions - SizeDesc,
+                    AdapterList->adapters[k].DisplayName);
+
+                SizeNames += (ULONG)AdapterName.length() + 1;
+                SizeDesc += (ULONG)strlen(AdapterList->adapters[k].DisplayName) + 1;
+            }
+
+            Result = TRUE;
         }
 
-        NdisDriverFreeAdapterList(list);
-
-        // Separate the two lists
-        ((PCHAR)pStr)[SizeNames] = 0;
-
-        // End the list with a further \0
-        ((PCHAR)pStr)[SizeNeeded + 1] = 0;
-
-        TRACE_EXIT("PacketGetAdapterNames");
-        return TRUE;
     }
+    catch (...)
+    {
+    }
+    NdisDriverFreeAdapterList(AdapterList);
 
-    return FALSE;
-}
+    return Result;
+};
 
 /*!
   \brief Returns comprehensive information the addresses of an adapter.

@@ -22,13 +22,13 @@
 
 #include <ndis.h>
 #include <minwindef.h>
-#include "List.h"
+#include "KmList.h"
 
 //////////////////////////////////////////////////////////////////////
 // Adapter definitions
 //////////////////////////////////////////////////////////////////////
 
-extern PLIST AdapterList;
+extern KM_LIST  AdapterList;
 
 typedef struct _ETH_HEADER
 {
@@ -39,25 +39,54 @@ typedef struct _ETH_HEADER
 
 typedef struct _ADAPTER
 {
+    LIST_ENTRY      Link;
+
+    //  Unicode string containing adapter id
+    UNICODE_STRING  Name;
+
+    /*
 	char            AdapterId[1024];
+
 	PNDIS_STRING    Name;
+    */
+
+    //  Adapter display name
 	char            DisplayName[1024];
+
+    //  Size of the data stored in MacAddress field.
+    ULONG           MacAddressSize;
+
+    //  Physical adapter address
 	UCHAR           MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+
+    //  MTU size
 	ULONG           MtuSize;
+
+    //  NDIS adapter handle
 	NDIS_HANDLE     AdapterHandle;
+
+    //  Adapter lock
 	PNDIS_SPIN_LOCK Lock;
 
+    //  Associated device instance
 	struct DEVICE   *Device;
 
+    //  Bind operation timestamp
 	LARGE_INTEGER   BindTimestamp;
 
-	NDIS_HANDLE     BindContext;   // To complete Bind request if necessary
-	NDIS_HANDLE     UnbindContext; // To complete Unbind request if necessary
+    // To complete Bind request if necessary
+	NDIS_HANDLE     BindContext;   
 
+    // To complete Unbind request if necessary
+	NDIS_HANDLE     UnbindContext; 
+
+    //  Readiness flag
 	BOOL            Ready;
 
+    //  Number of pending OID requests
 	volatile ULONG  PendingOidRequests;
 
+    //  Number of pending packet injectio requests
 	volatile ULONG  PendingSendPackets;
 
 } ADAPTER, *PADAPTER;
@@ -71,7 +100,9 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 BOOL FreeAdapter(
     __in    PADAPTER    Adapter);
 
-BOOL FreeAdapterList(PLIST list);
+NTSTATUS ClearAdaptersList(
+    __in    PKM_LIST    List);
+
 LARGE_INTEGER GetAdapterTime(ADAPTER* adapter); // returns time in milliseconds since adapter was bound
 
 //////////////////////////////////////////////////////////////////////

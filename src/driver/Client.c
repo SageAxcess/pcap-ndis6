@@ -207,27 +207,3 @@ NTSTATUS ClearClientList(
 cleanup:
     return Status;
 };
-
-void FreeClientList(PLIST list)
-{
-	DEBUGP(DL_TRACE, "===>FreeClientList...\n");
-
-	list->Releasing = TRUE;
-
-	//Do not need to lock list because device is being closed anyways and there will be no new clients	
-	PLIST_ITEM item = list->First;
-	while(item)
-	{
-		PCLIENT client = (PCLIENT)item->Data;
-		if(client)
-		{
-			FreeClient(client);
-		}
-		item->Data = NULL;
-
-		item = item->Next;
-	}
-
-	FreeList(list);
-	DEBUGP(DL_TRACE, "<===FreeClientList\n");
-}

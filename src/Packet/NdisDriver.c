@@ -26,38 +26,64 @@
 #include "..\shared\CommonDefs.h"
 #include <stdio.h>
 
+#include <string>
+
+#include "..\shared\StrUtils.h"
+
 #ifdef DEBUG_CONSOLE
 #define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
 #else
 #define DEBUG_PRINT(x,...)
 #endif
 
+BOOL NdisDriver_ControlDevice(
+    __in        HANDLE  DeviceHandle,
+    __in        DWORD   ControlCode,
+    __in_opt    LPVOID  InBuffer,
+    __in_opt    DWORD   InBufferSize,
+    __out_opt   LPVOID  OutBuffer,
+    __out_opt   DWORD   OutBufferSize,
+    __out_opt   LPDWORD BytesReturned = NULL,
+    __out_opt   LPDWORD ErrorCode = NULL);
+
 PCAP_NDIS* NdisDriverOpen()
-{	
-    DEBUG_PRINT("===>NdisDriverOpen\n");
+{
+    PCAP_NDIS       *Result = nullptr;
+    HANDLE          FileHandle = INVALID_HANDLE_VALUE;
+    std::wstring    DeviceName = UTILS::STR::FormatW(
+        L"\\\\.\\%s%s",
+        ADAPTER_ID_PREFIX_W,
+        ADAPTER_NAME_FORLIST_W);
 
-    HANDLE hFile = CreateFileA("\\\\.\\" ADAPTER_ID_PREFIX "" ADAPTER_NAME_FORLIST, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);	
-
-    if(hFile == INVALID_HANDLE_VALUE)
+    FileHandle = CreateFileW(
+        DeviceName.c_str(),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        NULL);
+    RETURN_VALUE_IF_FALSE(
+        FileHandle != INVALID_HANDLE_VALUE,
+        nullptr);
+    try
     {
-        DEBUG_PRINT("    unable to open pipe!\n");
-        return NULL; //TODO: install pcap-ndis6.sys?
+        Result = (PCAP_NDIS *)malloc(sizeof(PCAP_NDIS));
+        if (Assigned(Result))
+        {
+            Result->handle = (void *)FileHandle;
+        }
+    }
+    catch (...)
+    {
+    }
+    if (!Assigned(Result))
+    {
+        CloseHandle(FileHandle);
     }
 
-    PCAP_NDIS* ndis = (PCAP_NDIS*)malloc(sizeof(PCAP_NDIS));
-    if(!ndis)
-    {
-        DEBUG_PRINT("    unable to allocate memory!\n");
-        CloseHandle(hFile);
-        return NULL;
-    }
-
-    ndis->handle = hFile;
-
-    DEBUG_PRINT("<===NdisDriverOpen\n");
-
-    return ndis;
-}
+    return Result;
+};
 
 void NdisDriverClose(PCAP_NDIS* ndis)
 {
@@ -74,42 +100,85 @@ void NdisDriverClose(PCAP_NDIS* ndis)
     DEBUG_PRINT("<===NdisDriverClose\n");
 }
 
-PCAP_NDIS_ADAPTER* NdisDriverOpenAdapter(PCAP_NDIS* ndis, const char* szAdapterId)
+PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
+    __in            PCAP_NDIS   *ndis,
+    __in    const   char        *szAdapterId)
 {
-    DEBUG_PRINT("===>NdisDriverOpenAdapter(%s)\n", szAdapterId);
-    if(!ndis)
+    PPCAP_NDIS_ADAPTER  Adapter = nullptr;
+    HANDLE              FileHandle = INVALID_HANDLE_VALUE;
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(ndis),
+        nullptr);
+
+    std::wstring    DeviceName = UTILS::STR::FormatW(
+        L"\\\\.\\%s%S",
+        ADAPTER_ID_PREFIX_W,
+        szAdapterId);
+
+    FileHandle = CreateFileW(
+        DeviceName.c_str(),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        NULL);
+    RETURN_VALUE_IF_FALSE(
+        FileHandle != INVALID_HANDLE_VALUE,
+        nullptr);
+    try
     {
-        return NULL;
+        Adapter = (PPCAP_NDIS_ADAPTER)malloc(sizeof(PCAP_NDIS_ADAPTER));
+        if (Assigned(Adapter))
+        {
+            RtlZeroMemory(Adapter, sizeof(PCAP_NDIS_ADAPTER));
+
+            Adapter->Handle = FileHandle;
+        }
+    }
+    catch(...)
+    {
+
+    }
+    if (!Assigned(Adapter))
+    {
+        CloseHandle(FileHandle);
     }
 
-    char szFileName[1024];
-    sprintf_s(szFileName, 1024, "\\\\.\\" ADAPTER_ID_PREFIX "%s", szAdapterId);
+    return Adapter;
+};
 
-    HANDLE hFile = CreateFileA(szFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-    if (hFile == INVALID_HANDLE_VALUE)
+std::wstring NdisDriverGetAdapterEventName(
+    __in            PCAP_NDIS           *Ndis,
+    __in            PCAP_NDIS_ADAPTER   *Adapter)
+{
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(Ndis)) &&
+        (Assigned(Adapter)),
+        L"");
+
+    char    NameBuffer[1024];
+    DWORD   BytesReturned = 0;
+
+    RtlZeroMemory(NameBuffer, sizeof(NameBuffer));
+
+    if (NdisDriver_ControlDevice(
+        Adapter->Handle,
+        (DWORD)IOCTL_GET_EVENT_NAME,
+        nullptr,
+        0,
+        reinterpret_cast<LPVOID>(NameBuffer),
+        (DWORD)sizeof(NameBuffer) - 1,
+        &BytesReturned))
     {
-        return NULL; //TODO: install?
+        return UTILS::STR::FormatW(
+            L"Global\\%S",
+            NameBuffer);
     }
 
-    PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)malloc(sizeof(struct PCAP_NDIS_ADAPTER));
-    if(!adapter)
-    {
-        DEBUG_PRINT("    unable to allocate memory!\n");
-        CloseHandle(hFile);
-        return NULL;
-    }
-
-    adapter->Handle = hFile;
-    adapter->Stat.Captured = 0;
-    adapter->Stat.Dropped = 0;
-    adapter->Stat.Received = 0;
-    adapter->BufferedPackets = 0;	
-    adapter->BufferOffset = 0;
-
-    DEBUG_PRINT("<===NdisDriverOpenAdapter\n");
-
-    return adapter;
-}
+    return L"";
+};
 
 void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
 {
@@ -135,8 +204,8 @@ BOOL NdisDriver_ControlDevice(
     __in_opt    DWORD   InBufferSize,
     __out_opt   LPVOID  OutBuffer,
     __out_opt   DWORD   OutBufferSize,
-    __out_opt   LPDWORD BytesReturned = NULL,
-    __out_opt   LPDWORD ErrorCode = NULL)
+    __out_opt   LPDWORD BytesReturned,
+    __out_opt   LPDWORD ErrorCode)
 {
     BOOL Result = FALSE;
     RETURN_VALUE_IF_FALSE(

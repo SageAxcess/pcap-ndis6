@@ -106,6 +106,50 @@ void FreeString(UNICODE_STRING* string)
 	FILTER_FREE_MEM(string);
 }
 
+PUNICODE_STRING AllocateString(
+    __in    USHORT  StringLengthInBytes)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PUNICODE_STRING Result = FILTER_ALLOC_MEM_TYPED(UNICODE_STRING, FilterDriverHandle);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Result),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+    RtlZeroMemory(Result, sizeof(UNICODE_STRING));
+
+    if (StringLengthInBytes > 0)
+    {
+        Result->Buffer = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(
+            wchar_t, 
+            FilterDriverHandle, 
+            StringLengthInBytes);
+
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Result->Buffer),
+            STATUS_INSUFFICIENT_RESOURCES);
+
+        RtlZeroMemory(
+            Result->Buffer,
+            StringLengthInBytes);
+
+        Result->Length = Result->MaximumLength = StringLengthInBytes;
+    }
+
+cleanup:
+    
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(Result))
+        {
+            FILTER_FREE_MEM(Result);
+            Result = NULL;
+        }
+    }
+
+    return Result;
+};
+
 ///////////////////////////////////////////////////
 // Other helper functions
 ///////////////////////////////////////////////////

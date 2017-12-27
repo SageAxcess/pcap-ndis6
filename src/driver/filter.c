@@ -52,10 +52,6 @@ DriverEntry(
     PUNICODE_STRING     RegistryPath)
 {
     NDIS_STATUS Status;
-//    NDIS_FILTER_DRIVER_CHARACTERISTICS      FChars;
-//    NDIS_STRING ServiceName  = RTL_CONSTANT_STRING(FILTER_SERVICE_NAME);
-//    NDIS_STRING UniqueName   = RTL_CONSTANT_STRING(FILTER_UNIQUE_NAME);
-//    NDIS_STRING DisplayName = RTL_CONSTANT_STRING(FILTER_DISPLAY_NAME);
     NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
 
     UNREFERENCED_PARAMETER(RegistryPath);
@@ -100,9 +96,12 @@ DriverEntry(
 	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Device_IoControlHandler;
 	
 	DriverObject->DriverUnload = DriverUnload;
-	AdapterList = CreateList();
-	ListAdaptersDevice = CreateDevice(ADAPTER_NAME_FORLIST);
-	if (ListAdaptersDevice) {
+
+    Km_List_Initialize(&AdapterList);
+
+	ListAdaptersDevice = CreateDevice2(ADAPTER_NAME_FORLIST_W);
+	if (ListAdaptersDevice)
+    {
 		ListAdaptersDevice->IsAdaptersList = TRUE;
 	}
 
@@ -128,11 +127,13 @@ void _Function_class_(DRIVER_UNLOAD) DriverUnload(DRIVER_OBJECT* DriverObject)
 	}
 
 	ListAdaptersDevice->Releasing = TRUE;
+
 	DriverSleep(500);
 
 	FreeDevice(ListAdaptersDevice);
-	FreeAdapterList(AdapterList);
-	AdapterList = NULL;
+
+    ClearAdaptersList(&AdapterList);
+
 	DEBUGP(DL_TRACE, "<===DriverUnload");
 }
 

@@ -39,110 +39,160 @@ extern NDIS_HANDLE         FilterProtocolHandle;
 // Device methods
 /////////////////////////////////////////////////////////////////////
 
-DEVICE* CreateDevice(char* name)
+PDEVICE CreateDevice(
+    __in    PUNICODE_STRING Name)
 {
-    char            deviceName[256] = { 0, };
-    char            symlinkName[256] = { 0, };
-    PNDIS_STRING    name_u = NULL;
-    PNDIS_STRING    symlink_name_u = NULL;
+    ULONG           DeviceNameLength = 0;
+    ULONG           SymLinkNameLength = 0;
+    PUNICODE_STRING DeviceName = NULL;
+    PUNICODE_STRING SymLinkName = NULL;
     NTSTATUS        Status = STATUS_SUCCESS;
-    PDEVICE         device = NULL;
-
-    DEBUGP(DL_TRACE, "===>CreateDevice(%s)...\n", name);
-
-	sprintf_s(deviceName, 256, "\\Device\\" ADAPTER_ID_PREFIX "%s", name);
-	sprintf_s(symlinkName, 256, "\\DosDevices\\Global\\" ADAPTER_ID_PREFIX "%s", name);
-
-    name_u = CreateString(deviceName);
+    PDEVICE         Device = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(name_u),
+        Assigned(Name),
+        STATUS_INVALID_PARAMETER_1);
+
+    DeviceNameLength =
+        sizeof(ADAPTER_DEVICE_NAME_PREFIX_W) +
+        Name->Length +
+        sizeof(wchar_t);
+
+    SymLinkNameLength =
+        sizeof(ADAPTER_DEVICE_SYM_LINK_NAME_PREFIX_W) +
+        Name->Length +
+        sizeof(wchar_t);
+
+    DeviceName = AllocateString((USHORT)DeviceNameLength);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DeviceName),
         STATUS_INSUFFICIENT_RESOURCES);
 
-	symlink_name_u = CreateString(symlinkName);
+    Status = RtlAppendUnicodeToString(
+        DeviceName,
+        ADAPTER_DEVICE_NAME_PREFIX_W);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = RtlAppendUnicodeStringToString(
+        DeviceName,
+        Name);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    SymLinkName = AllocateString((USHORT)SymLinkNameLength);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(symlink_name_u),
+        Assigned(SymLinkName),
         STATUS_INSUFFICIENT_RESOURCES);
 
-	device = FILTER_ALLOC_MEM(FilterDriverObject, sizeof(DEVICE));
+    Status = RtlAppendUnicodeToString(
+        SymLinkName, 
+        ADAPTER_DEVICE_SYM_LINK_NAME_PREFIX_W);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = RtlAppendUnicodeStringToString(
+        SymLinkName,
+        Name);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Device = FILTER_ALLOC_MEM_TYPED(DEVICE, FilterDriverHandle);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(device),
+        Assigned(Device),
         STATUS_INSUFFICIENT_RESOURCES);
 	
-    NdisZeroMemory(device, sizeof(DEVICE));
+    RtlZeroMemory(Device, sizeof(DEVICE));
 
-	device->Name = name_u;
-	device->SymlinkName = symlink_name_u;
-	device->OpenCloseLock = CreateSpinLock();
+    Status = Km_Lock_Initialize(&Device->OpenCloseLock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Km_List_Initialize(&device->ClientList);
-
-	device->Releasing = FALSE;
+    Device->Name = DeviceName;
+    Device->SymlinkName = SymLinkName;
 	
+    Status = Km_List_Initialize(&Device->ClientList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
 	Status = IoCreateDevice(
         FilterDriverObject, 
         sizeof(DEVICE *), 
-        name_u, 
+        DeviceName, 
         FILE_DEVICE_TRANSPORT, 
         0, 
         FALSE, 
-        &device->Device);
+        &Device->Device);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 	
-	IoCreateSymbolicLink(symlink_name_u, name_u);
+    Status = IoCreateSymbolicLink(SymLinkName, DeviceName);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	if (device->Device)
+    if (Assigned(Device->Device))
     {
-		*((PDEVICE *)device->Device->DeviceExtension) = device;
-		device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
+		*((PDEVICE *)Device->Device->DeviceExtension) = Device;
+		Device->Device->Flags &= ~DO_DEVICE_INITIALIZING;
 	}
 
 cleanup:
     if (!NT_SUCCESS(Status))
     {
-        if (Assigned(name_u))
+        if (Assigned(DeviceName))
         {
-            FreeString(name_u);
+            FreeString(DeviceName);
         }
-        if (Assigned(symlink_name_u))
+        if (Assigned(SymLinkName))
         {
-            FreeString(symlink_name_u);
+            FreeString(SymLinkName);
         }
-        if (Assigned(device))
-        {
-            FreeSpinLock(device->OpenCloseLock);
 
-            ClearClientList(&device->ClientList);
+        if (Assigned(Device))
+        {
+            ClearClientList(&Device->ClientList);
             
-            FILTER_FREE_MEM(device);
+            FILTER_FREE_MEM(Device);
+
+            Device = NULL;
         }
     }
 
-	return device;
-}
+	return Device;
+};
+
+PDEVICE CreateDevice2(
+    __in    LPCWSTR Name)
+{
+    UNICODE_STRING  NameStr = { 0, };
+
+    RtlInitUnicodeString(&NameStr, Name);
+
+    return CreateDevice(&NameStr);
+};
 
 // Delete a device
-BOOL FreeDevice(PDEVICE device)
+BOOL FreeDevice(
+    __in    PDEVICE Device)
 {
-	DEBUGP(DL_TRACE, "===>FreeDevice...\n");
-	if (device == NULL)
-	{
-		return FALSE;
-	}
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Device),
+        FALSE);
 
-	IoDeleteSymbolicLink(device->SymlinkName);
-	IoDeleteDevice(device->Device);
+    if (Assigned(Device->SymlinkName))
+    {
+        IoDeleteSymbolicLink(Device->SymlinkName);
+        FreeString(Device->SymlinkName);
+    }
 
-	FreeString(device->Name);
-	FreeString(device->SymlinkName);
-	FreeSpinLock(device->OpenCloseLock);
-	ClearClientList(&device->ClientList);
+    if (Assigned(Device->Device))
+    {
+        IoDeleteDevice(Device->Device);
+    }
 
-	FILTER_FREE_MEM(device);
+    if (Assigned(Device->Name))
+    {
+        FreeString(Device->Name);
+    }
+	
+    ClearClientList(&Device->ClientList);
 
-	DEBUGP(DL_TRACE, "<===CreateDevice\n");
+	FILTER_FREE_MEM(Device);
+
 	return TRUE;
-}
+};
 
 //////////////////////////////////////////////////////////////////////
 // Device callbacks
@@ -333,173 +383,127 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Device_GetAdapters(
+    __in    PVOID   Buffer,
+    __in    DWORD   BufferSize,
+    __out   PDWORD  BytesRead)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    DWORD       BytesCopied = 0;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST),
+        STATUS_BUFFER_TOO_SMALL);
+
+    Status = Km_List_Lock(&AdapterList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        DWORD                           BytesRequired = 0;
+        ULARGE_INTEGER                  Count = { 0, };
+        unsigned int                    k;
+        PLIST_ENTRY                     ListEntry;
+        PPCAP_NDIS_ADAPTER_INFO_LIST    List;
+
+        Status = Km_List_GetCountEx(
+            &AdapterList,
+            &Count,
+            FALSE,
+            FALSE);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
+        BytesRequired =
+            (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) +
+            (DWORD)((Count.QuadPart - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO));
+
+        LEAVE_IF_FALSE_SET_STATUS(
+            BytesRequired <= BufferSize,
+            STATUS_BUFFER_TOO_SMALL);
+
+        RtlZeroMemory(Buffer, BufferSize);
+
+        List = (PPCAP_NDIS_ADAPTER_INFO_LIST)Buffer;
+        List->NumberOfAdapters = (unsigned int)Count.QuadPart;
+
+        BytesCopied += sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) - sizeof(PCAP_NDIS_ADAPTER_INFO);
+
+        for (ListEntry = AdapterList.Head.Flink, k = 0;
+             ListEntry != &AdapterList.Head;
+             ListEntry = ListEntry->Flink, k++)
+        {
+            PADAPTER    Adapter = CONTAINING_RECORD(ListEntry, ADAPTER, Link);
+
+            if (Adapter->Name.Length > 0)
+            {
+                ULONG   IdLength =
+                    Adapter->Name.Length > PCAP_NDIS_ADAPTER_ID_SIZE_MAX * sizeof(wchar_t) ?
+                    PCAP_NDIS_ADAPTER_ID_SIZE_MAX * sizeof(wchar_t) :
+                    Adapter->Name.Length;
+
+                RtlCopyMemory(
+                    List->Items[k].AdapterId,
+                    Adapter->Name.Buffer,
+                    IdLength);
+
+                List->Items[k].AdapterIdLength = IdLength;
+            }
+
+            if (Adapter->MacAddressSize > 0)
+            {
+                ULONG   MacLength =
+                    Adapter->MacAddressSize > PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE ?
+                    PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE :
+                    Adapter->MacAddressSize;
+
+                RtlCopyMemory(
+                    List->Items[k].MacAddress,
+                    Adapter->MacAddress,
+                    MacLength);
+            }
+
+            List->Items[k].MtuSize = Adapter->MtuSize;
+
+            BytesCopied += sizeof(PCAP_NDIS_ADAPTER_INFO);
+        }
+    }
+    __finally
+    {
+        Km_List_Unlock(&AdapterList);
+    }
+
+
+cleanup:
+
+    if (Assigned(BytesRead))
+    {
+        *BytesRead = BytesCopied;
+    }
+
+    return Status;
+};
+
 /**
  * Device read callback
  */
-NTSTATUS _Function_class_(DRIVER_DISPATCH) _Dispatch_type_(IRP_MJ_READ) Device_ReadHandler(DEVICE_OBJECT* DeviceObject, IRP* Irp)
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_READ)
+Device_ReadHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    PIRP            Irp)
 {
-	NTSTATUS            ret = STATUS_UNSUCCESSFUL;
-    UINT                responseSize = 0;
-    PDEVICE             device = *((PDEVICE *)DeviceObject->DeviceExtension);
-    PIO_STACK_LOCATION  IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
-    UINT                requiredSize;
-    PCLIENT             client = (PCLIENT)IoStackLocation->FileObject->FsContext;
+    UNREFERENCED_PARAMETER(DeviceObject);
+    UNREFERENCED_PARAMETER(Irp);
 
-	if(!FilterProtocolHandle || !device || device->Releasing)
-	{
-		Irp->IoStatus.Status = ret;
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-		DEBUGP(DL_TRACE, "<===Device_ReadHandler, no device ret=0x%8x\n", ret);
+    Irp->IoStatus.Status = STATUS_NOT_SUPPORTED;
+    Irp->IoStatus.Information = 0;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
-		return ret;
-	}
-
-	if (!client)
-	{
-		Irp->IoStatus.Status = ret;
-		IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-		DEBUGP(DL_TRACE, "<===Device_ReadHandler, no client ret=0x%8x\n", ret);
-		return ret;
-	}
-
-	if (device->IsAdaptersList)
-	{
-		if(client->BytesSent>= sizeof(PCAP_NDIS_ADAPTER_LIST_HDR))
-		{
-			requiredSize = sizeof(struct PCAP_NDIS_ADAPTER_INFO);
-		}
-        else
-		{
-			requiredSize = sizeof(PCAP_NDIS_ADAPTER_LIST_HDR);
-		}
-
-		DEBUGP(
-            DL_TRACE, 
-            "  sent %u bytes to client, now need %u for buffer. Client provided %u\n", 
-            client->BytesSent, 
-            requiredSize, 
-            IoStackLocation->Parameters.Read.Length);
-
-		if (IoStackLocation->Parameters.Read.Length >= requiredSize)
-		{
-			UCHAR* dst = (UCHAR*)Irp->UserBuffer;
-
-			if (dst != NULL)
-			{
-				MDL *mdl;
-
-				__try
-                {
-					ProbeForWrite(Irp->UserBuffer, requiredSize, 1);
-				}
-                __except(EXCEPTION_EXECUTE_HANDLER)
-                {
-					DEBUGP(DL_ERROR, " invalid buffer received at DeviceRead handler");
-
-					ret = STATUS_UNSUCCESSFUL;
-					responseSize = 0;
-
-					Irp->IoStatus.Status = ret;
-					Irp->IoStatus.Information = responseSize;
-					IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-					return ret;
-				}
-
-				mdl = IoAllocateMdl(dst, requiredSize, FALSE, FALSE, NULL);
-				if (mdl != NULL)
-				{
-					MmProbeAndLockPages(mdl, KernelMode, IoWriteAccess);
-				}
-
-				BOOL last = FALSE;
-
-				if(client->BytesSent==0)
-				{
-					PCAP_NDIS_ADAPTER_LIST_HDR hdr;
-					memcpy(hdr.Signature, SIGNATURE, 8);
-					hdr.Count = AdapterList->Size;
-
-					RtlCopyBytes(dst, &hdr, requiredSize);
-
-					DEBUGP(DL_TRACE, "  there are %u adapters\n", hdr.Count);
-
-					if(hdr.Count==0)
-					{
-						last = TRUE;
-					}
-
-					responseSize = requiredSize;
-				} 
-                else
-				{
-					ULONG size = sizeof(PCAP_NDIS_ADAPTER_INFO);
-
-					PLIST_ITEM item = AdapterList->First;
-					while (item)
-					{
-						if(size >= client->BytesSent)
-						{
-							PADAPTER adapter = (PADAPTER)item->Data;
-
-							DEBUGP(DL_TRACE, "  returning adapter %s %s\n", adapter->AdapterId, adapter->DisplayName);
-
-							PCAP_NDIS_ADAPTER_INFO info;
-							RtlCopyBytes(info.MacAddress, adapter->MacAddress, 6);
-							RtlCopyBytes(info.AdapterId, adapter->AdapterId, 256);
-							RtlCopyBytes(info.DisplayName, adapter->DisplayName, 256);
-
-							info.MtuSize = adapter->MtuSize;
-
-							RtlCopyBytes(dst, &info, sizeof(PCAP_NDIS_ADAPTER_INFO));
-
-							responseSize = requiredSize;
-
-							break;
-						}
-
-						size += sizeof(PCAP_NDIS_ADAPTER_INFO);
-						item = item->Next;
-					}
-
-					if (item==NULL || item->Next==NULL)
-					{
-						last = TRUE;
-					}
-				}
-
-				if(last)
-				{
-					client->BytesSent = 0;
-				}
-				else {
-					client->BytesSent += responseSize;
-				}
-
-				ret = STATUS_SUCCESS;
-
-				if (mdl != NULL)
-				{
-					MmUnlockPages(mdl);
-					IoFreeMdl(mdl);
-				}
-			}
-		}
-	}
-    else
-    {
-        ret = STATUS_NOT_SUPPORTED;
-    }
-
-	Irp->IoStatus.Status = ret;
-	Irp->IoStatus.Information = responseSize;
-	IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-	DEBUGP(DL_TRACE, "<===Device_ReadHandler, response size = %d, items in buffer=%d, ret=0x%8x\n", responseSize, client->PacketList->Size, ret);
-
-	return ret;
-}
+    return Irp->IoStatus.Status;
+};
 
 NTSTATUS
 _Function_class_(DRIVER_DISPATCH)
@@ -537,6 +541,7 @@ Device_IoControlHandler(
     LPVOID              OutBuffer = NULL;
     DWORD               InBufferSize = 0;
     DWORD               OutBufferSize = 0;
+    DWORD               BytesRead = 0;
 
     DEBUGP_FUNC_ENTER(DL_TRACE);
 
@@ -591,9 +596,37 @@ Device_IoControlHandler(
 
     case IOCTL_READ_PACKETS:
         {
-            DWORD   BytesRead = 0;
             Status = Device_ReadPackets(
                 Client,
+                OutBuffer,
+                OutBufferSize,
+                &BytesRead);
+            if (NT_SUCCESS(Status))
+            {
+                ReturnSize = BytesRead;
+            }
+        }break;
+
+    case IOCTL_GET_ADAPTERS_COUNT:
+        {
+            ULARGE_INTEGER  NumberOfAdapters;
+
+            GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+                OutBufferSize >= sizeof(DWORD),
+                STATUS_BUFFER_TOO_SMALL);
+
+            Status = Km_List_GetCount(&AdapterList, &NumberOfAdapters);
+            if (NT_SUCCESS(Status))
+            {
+                *((PDWORD)OutBuffer) = (DWORD)NumberOfAdapters.QuadPart;
+                ReturnSize = (ULONG_PTR)sizeof(DWORD);
+            }
+
+        }break;
+
+    case IOCTL_GET_ADAPTERS:
+        {
+            Status = Device_GetAdapters(
                 OutBuffer,
                 OutBufferSize,
                 &BytesRead);
