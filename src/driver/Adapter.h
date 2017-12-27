@@ -44,12 +44,6 @@ typedef struct _ADAPTER
     //  Unicode string containing adapter id
     UNICODE_STRING  Name;
 
-    /*
-	char            AdapterId[1024];
-
-	PNDIS_STRING    Name;
-    */
-
     //  Adapter display name
 	char            DisplayName[1024];
 
