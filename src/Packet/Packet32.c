@@ -972,6 +972,7 @@ BOOLEAN PacketGetAdapterNames(
     ULONG                       SizeNames = 0;
     ULONG                       SizeDesc = 0;
     ULONG                       OffDescriptions = 0;
+    DWORD                       LastError = ERROR_SUCCESS;
     LPPCAP_NDIS_ADAPTER_LIST    AdapterList = NdisDriverGetAdapterList(ndis);
     RETURN_VALUE_IF_FALSE(
         Assigned(AdapterList),
@@ -991,7 +992,6 @@ BOOLEAN PacketGetAdapterNames(
             (!Assigned(pStr)))
         {
             *BufferSize = SizeNeeded + 2;
-            SetLastError(ERROR_INSUFFICIENT_BUFFER);
         }
         else
         {
@@ -1030,6 +1030,11 @@ BOOLEAN PacketGetAdapterNames(
     {
     }
     NdisDriverFreeAdapterList(AdapterList);
+
+    if (!Result)
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+    }
 
     return Result;
 };
