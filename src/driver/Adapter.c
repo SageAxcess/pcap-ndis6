@@ -41,7 +41,6 @@ UINT    SelectedMediumIndex = 0;
 // Adapter methods
 //////////////////////////////////////////////////////////////////////
 
-
 NTSTATUS __stdcall Adapter_Allocate(
     __in    PNDIS_BIND_PARAMETERS   BindParameters,
     __in    NDIS_HANDLE             BindContext,
