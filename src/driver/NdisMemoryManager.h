@@ -57,10 +57,6 @@ PVOID __stdcall Ndis_MM_AllocMem(
 NTSTATUS __stdcall Ndis_MM_FreeMem(
     __in    PVOID   MemoryBlock);
 
-PVOID __stdcall Ndis_MM_ReAllocMem(
-    __in    PVOID   MemoryBlock,
-    __in    SIZE_T  NewSize);
-
 #define NdisMM_AllocMem(Manager, Size)                      Ndis_MM_AllocMem((Manager), (Size))
 #define NdisMM_AllocMemTypedWithSize(Manager, Type, Size)   (Type *)NdisMM_AllocMem((Manager), (Size))
 #define NdisMM_AllocMemTyped(Manager, Type)                 NdisMM_AllocMemTypedWithSize((Manager), Type, sizeof(Type))
