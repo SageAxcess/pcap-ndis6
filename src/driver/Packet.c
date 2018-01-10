@@ -20,13 +20,15 @@
 
 #include "filter.h"
 #include "Packet.h"
+#include "NdisMemoryManager.h"
 #include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(
+PPACKET CreatePacket(
+    __in    PNDIS_MM        MemoryManager,
     __in    PVOID           Data,
     __in    ULONG           DataSize,
     __in    PLARGE_INTEGER  Timestamp)
@@ -35,12 +37,16 @@ PACKET* CreatePacket(
     ULONG   SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
 
     RETURN_VALUE_IF_FALSE(
+        (Assigned(MemoryManager)) &&
         (Assigned(Data)) &&
         (DataSize > 0) &&
         (Assigned(Timestamp)),
         NULL);
 
-    NewPacket = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(PACKET, FilterDriverHandle, SizeRequired);
+    NewPacket = NdisMM_AllocMemTypedWithSize(
+        MemoryManager,
+        PACKET,
+        SizeRequired);
     RETURN_VALUE_IF_FALSE(
         Assigned(NewPacket),
         NULL);
@@ -65,8 +71,8 @@ void FreePacket(
 {
     RETURN_IF_FALSE(Assigned(Packet));
 
-    FILTER_FREE_MEM(Packet);
-}
+    NdisMM_FreeMem(Packet);
+};
 
 void __stdcall ClearPacketList_ItemCallback(
     __in    PKM_LIST    List,

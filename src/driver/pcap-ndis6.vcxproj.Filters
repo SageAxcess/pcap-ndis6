@@ -18,7 +18,6 @@
     <ClInclude Include="Client.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Device.h" />
-    <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="Packet.h" />
@@ -26,6 +25,8 @@
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="NdisMemoryManager.h" />
+    <ClInclude Include="KmTypes.h" />
+    <ClInclude Include="filter.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

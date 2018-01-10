@@ -26,7 +26,8 @@
 volatile ULONG _curEventId = 0;
 
 NTSTATUS InitializeEvent(
-    __inout PEVENT  Event)
+    __in    PNDIS_MM    MemoryManager,
+    __inout PEVENT      Event)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
     ULONG           EventId = 0;
@@ -35,8 +36,11 @@ NTSTATUS InitializeEvent(
     PUNICODE_STRING EventNameU = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Event),
+        Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Event),
+        STATUS_INVALID_PARAMETER_2);
 
     RtlZeroMemory(Event, sizeof(EVENT));
 
@@ -49,7 +53,9 @@ NTSTATUS InitializeEvent(
 
     sprintf_s(FullEventName, 256, "\\BaseNamedObjects\\%s", Event->Name);
 
-    EventNameU =  CreateString(FullEventName);
+    EventNameU = CreateString(
+        MemoryManager,
+        FullEventName);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(EventNameU),
         STATUS_INSUFFICIENT_RESOURCES);

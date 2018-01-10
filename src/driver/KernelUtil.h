@@ -20,24 +20,26 @@
 #pragma once
 
 #include <ndis.h>
-
-///////////////////////////////////////////////////
-// Lock helper functions
-///////////////////////////////////////////////////
-
-NDIS_SPIN_LOCK *CreateSpinLock();
-void FreeSpinLock(PNDIS_SPIN_LOCK lock);
+#include "NdisMemoryManager.h"
 
 ///////////////////////////////////////////////////
 // String helper functions
 ///////////////////////////////////////////////////
 
-UNICODE_STRING* CreateString(const char* str);
-UNICODE_STRING* CopyString(PUNICODE_STRING string);
-void FreeString(UNICODE_STRING* string);
+PUNICODE_STRING CreateString(
+    __in            PNDIS_MM    MemoryManager,
+    __in    const   char        *Str);
+
+PUNICODE_STRING CopyString(
+    __in    PNDIS_MM        MemoryManager,
+    __in    PUNICODE_STRING SourceString);
+
+void FreeString(
+    __in    PUNICODE_STRING String);
 
 PUNICODE_STRING AllocateString(
-    __in    USHORT  StringLengthInBytes);
+    __in    PNDIS_MM    MemoryManager,
+    __in    USHORT      StringLengthInBytes);
 
 ///////////////////////////////////////////////////
 // Other helper functions

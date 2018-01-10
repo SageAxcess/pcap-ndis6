@@ -33,13 +33,13 @@
 
 #include <flt_dbg.h>
 
-extern NDIS_HANDLE         FilterProtocolHandle;
-
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
 
 PDEVICE CreateDevice(
+    __in    PDRIVER_OBJECT  DriverObject,
+    __in    PNDIS_MM        MemoryManager,
     __in    PUNICODE_STRING Name)
 {
     ULONG           DeviceNameLength = 0;
@@ -50,8 +50,14 @@ PDEVICE CreateDevice(
     PDEVICE         Device = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Name),
+        Assigned(DriverObject),
         STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MemoryManager),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Name),
+        STATUS_INVALID_PARAMETER_3);
 
     DeviceNameLength =
         sizeof(ADAPTER_DEVICE_NAME_PREFIX_W) +
@@ -63,7 +69,9 @@ PDEVICE CreateDevice(
         Name->Length +
         sizeof(wchar_t);
 
-    DeviceName = AllocateString((USHORT)DeviceNameLength);
+    DeviceName = AllocateString(
+        MemoryManager,
+        (USHORT)DeviceNameLength);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DeviceName),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -78,7 +86,9 @@ PDEVICE CreateDevice(
         Name);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    SymLinkName = AllocateString((USHORT)SymLinkNameLength);
+    SymLinkName = AllocateString(
+        MemoryManager,
+        (USHORT)SymLinkNameLength);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(SymLinkName),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -93,7 +103,9 @@ PDEVICE CreateDevice(
         Name);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Device = FILTER_ALLOC_MEM_TYPED(DEVICE, FilterDriverHandle);
+    Device = NdisMM_AllocMemTyped(
+        MemoryManager,
+        DEVICE);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Device),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -110,7 +122,7 @@ PDEVICE CreateDevice(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
 	Status = IoCreateDevice(
-        FilterDriverObject, 
+        DriverObject, 
         sizeof(DEVICE *), 
         DeviceName, 
         FILE_DEVICE_TRANSPORT, 
@@ -144,7 +156,7 @@ cleanup:
         {
             ClearClientList(&Device->ClientList);
             
-            FILTER_FREE_MEM(Device);
+            NdisMM_FreeMem(Device);
 
             Device = NULL;
         }
@@ -154,13 +166,18 @@ cleanup:
 };
 
 PDEVICE CreateDevice2(
-    __in    LPCWSTR Name)
+    __in    PDRIVER_OBJECT  DriverObject,
+    __in    PNDIS_MM        MemoryManager,
+    __in    LPCWSTR         Name)
 {
     UNICODE_STRING  NameStr = { 0, };
 
     RtlInitUnicodeString(&NameStr, Name);
 
-    return CreateDevice(&NameStr);
+    return CreateDevice(
+        DriverObject,
+        MemoryManager,
+        &NameStr);
 };
 
 // Delete a device
@@ -189,7 +206,7 @@ BOOL FreeDevice(
 	
     ClearClientList(&Device->ClientList);
 
-	FILTER_FREE_MEM(Device);
+	NdisMM_FreeMem(Device);
 
 	return TRUE;
 };
@@ -384,21 +401,25 @@ cleanup:
 };
 
 NTSTATUS __stdcall Device_GetAdapters(
-    __in    PVOID   Buffer,
-    __in    DWORD   BufferSize,
-    __out   PDWORD  BytesRead)
+    __in    PDRIVER_DATA    Data,
+    __in    PVOID           Buffer,
+    __in    DWORD           BufferSize,
+    __out   PDWORD          BytesRead)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
     DWORD       BytesCopied = 0;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Buffer),
+        Assigned(Data),
         STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         BufferSize >= (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST),
         STATUS_BUFFER_TOO_SMALL);
 
-    Status = Km_List_Lock(&AdapterList);
+    Status = Km_List_Lock(&Data->AdaptersList);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
@@ -409,7 +430,7 @@ NTSTATUS __stdcall Device_GetAdapters(
         PPCAP_NDIS_ADAPTER_INFO_LIST    List;
 
         Status = Km_List_GetCountEx(
-            &AdapterList,
+            &Data->AdaptersList,
             &Count,
             FALSE,
             FALSE);
@@ -430,8 +451,8 @@ NTSTATUS __stdcall Device_GetAdapters(
 
         BytesCopied += sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) - sizeof(PCAP_NDIS_ADAPTER_INFO);
 
-        for (ListEntry = AdapterList.Head.Flink, k = 0;
-             ListEntry != &AdapterList.Head;
+        for (ListEntry = Data->AdaptersList.Head.Flink, k = 0;
+             ListEntry != &Data->AdaptersList.Head;
              ListEntry = ListEntry->Flink, k++)
         {
             PADAPTER    Adapter = CONTAINING_RECORD(ListEntry, ADAPTER, Link);
@@ -471,7 +492,7 @@ NTSTATUS __stdcall Device_GetAdapters(
     }
     __finally
     {
-        Km_List_Unlock(&AdapterList);
+        Km_List_Unlock(&Data->AdaptersList);
     }
 
 
@@ -555,11 +576,20 @@ Device_IoControlHandler(
         STATUS_UNSUCCESSFUL);
 
     Device = *((PDEVICE *)DeviceObject->DeviceExtension);
-    IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Device),
+        STATUS_UNSUCCESSFUL);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        !Device->DriverData->DriverUnload,
+        STATUS_UNSUCCESSFUL);
 
     GOTO_CLEANUP_IF_TRUE_SET_STATUS(
         Device->Releasing,
         STATUS_UNSUCCESSFUL);
+
+    IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
 
     GOTO_CLEANUP_IF_TRUE_SET_STATUS(
         Device->IsAdaptersList,
@@ -615,7 +645,7 @@ Device_IoControlHandler(
                 OutBufferSize >= sizeof(DWORD),
                 STATUS_BUFFER_TOO_SMALL);
 
-            Status = Km_List_GetCount(&AdapterList, &NumberOfAdapters);
+            Status = Km_List_GetCount(&Device->DriverData->AdaptersList, &NumberOfAdapters);
             if (NT_SUCCESS(Status))
             {
                 *((PDWORD)OutBuffer) = (DWORD)NumberOfAdapters.QuadPart;
@@ -627,6 +657,7 @@ Device_IoControlHandler(
     case IOCTL_GET_ADAPTERS:
         {
             Status = Device_GetAdapters(
+                Device->DriverData,
                 OutBuffer,
                 OutBufferSize,
                 &BytesRead);
@@ -648,25 +679,6 @@ cleanup:
         Irp->IoStatus.Status = Status;
         Irp->IoStatus.Information = ReturnSize;
         IoCompleteRequest(Irp, IO_NO_INCREMENT);
-    }
-
-    if (NT_SUCCESS(Status))
-    {
-        DEBUGP(
-            DL_TRACE, 
-            "<===Device_IoControlHandler, ReturnSize = %u, Status = %x\n", 
-            ReturnSize, 
-            Status);
-    }
-    else
-    {
-        DEBUGP(
-            DL_TRACE,
-            "<===Device_IoControlHandler, failed. DeviceObject = %p, Irp = %p, Client = %p, Status = %x\n",
-            DeviceObject,
-            Irp,
-            Client,
-            Status);
     }
 
     return Status;

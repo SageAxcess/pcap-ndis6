@@ -374,11 +374,12 @@
     <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Device.h" />
-    <ClInclude Include="DeviceConnection.h" />
     <ClInclude Include="Events.h" />
+    <ClInclude Include="filter.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
+    <ClInclude Include="KmTypes.h" />
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="Packet.h" />
   </ItemGroup>

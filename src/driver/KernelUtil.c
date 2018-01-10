@@ -27,91 +27,96 @@
 #include <flt_dbg.h>
 
 ///////////////////////////////////////////////////
-// Lock helper functions
-///////////////////////////////////////////////////
-
-NDIS_SPIN_LOCK *CreateSpinLock()
-{
-	NDIS_SPIN_LOCK *lock = (NDIS_SPIN_LOCK*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(NDIS_SPIN_LOCK));
-	NdisZeroMemory(lock, sizeof(NDIS_SPIN_LOCK));
-	NdisAllocateSpinLock(lock);
-	return lock;
-}
-
-void FreeSpinLock(PNDIS_SPIN_LOCK lock)
-{
-	if(!lock)
-	{
-		return;
-	}
-	FILTER_FREE_LOCK(lock);
-	FILTER_FREE_MEM(lock);
-}
-
-
-///////////////////////////////////////////////////
 // String helper functions
 ///////////////////////////////////////////////////
 
-UNICODE_STRING* CreateString(const char* str)
+PUNICODE_STRING CreateString(
+    __in            PNDIS_MM    MemoryManager,
+    __in    const   char        *Str)
 {
-	DEBUGP(DL_TRACE, "===>CreateString(%s)...\n", str);
-	if(!str)
-	{
-		return NULL;
-	}
-	UNICODE_STRING* string = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
-	if(!string)
-	{
-		return NULL;
-	}
+    PUNICODE_STRING NewString = NULL;
+    USHORT          StrLen = 0;
 
-	NdisZeroMemory(string, sizeof(UNICODE_STRING));
-	// Disable warning C6102: Using '*string' from failed function call at line '69'. 
-	// Anyways, memory is allocated
-#pragma warning( disable:6102 )
-	NdisInitializeString(string, (unsigned char*)str);
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(Str)),
+        NULL);
 
-	DEBUGP(DL_TRACE, "<===CreateString\n");
-	return string;
+    StrLen = (USHORT)strlen(Str);
+
+    NewString = AllocateString(
+        MemoryManager,
+        StrLen);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(NewString),
+        NULL);
+
+    RtlCopyMemory(
+        NewString->Buffer,
+        Str,
+        StrLen);
+
+    NewString->Length = StrLen;
+
+	return NewString;
 }
 
-UNICODE_STRING* CopyString(PUNICODE_STRING string)
+PUNICODE_STRING CopyString(
+    __in    PNDIS_MM        MemoryManager,
+    __in    PUNICODE_STRING SourceString)
 {
-	if(!string)
-	{
-		return NULL;
-	}
+    PUNICODE_STRING Result = NULL;
 
-	UNICODE_STRING* res = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
-	if(!res)
-	{
-		return NULL;
-	}
-	res->Length = 0;
-	res->MaximumLength = string->MaximumLength;
-	res->Buffer = FILTER_ALLOC_MEM(FilterDriverObject, string->MaximumLength);
-	RtlUnicodeStringCopy(res, string);
-	return res;
-}
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(SourceString)),
+        NULL);
 
-void FreeString(UNICODE_STRING* string)
+    Result = AllocateString(
+        MemoryManager, 
+        SourceString->MaximumLength);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Result),
+        NULL);
+    
+    if (SourceString->Length > 0)
+    {
+        RtlCopyMemory(
+            Result->Buffer,
+            SourceString->Buffer,
+            SourceString->Length);
+
+        Result->Length = SourceString->Length;
+    }
+
+    return Result;
+};
+
+void FreeString(
+    __in    PUNICODE_STRING String)
 {
-	if(!string)
-	{
-		return;
-	}
-	
-	NdisFreeString(*string);
-	FILTER_FREE_MEM(string);
+    RETURN_IF_FALSE(Assigned(String));
+
+    if (Assigned(String->Buffer))
+    {
+        NdisMM_FreeMem(String->Buffer);
+    }
+
+    NdisMM_FreeMem(String);
 }
 
 PUNICODE_STRING AllocateString(
-    __in    USHORT  StringLengthInBytes)
+    __in    PNDIS_MM    MemoryManager,
+    __in    USHORT      StringLengthInBytes)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
-    PUNICODE_STRING Result = FILTER_ALLOC_MEM_TYPED(UNICODE_STRING, FilterDriverHandle);
+    PUNICODE_STRING Result = NULL;
 
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MemoryManager),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+    Result = NdisMM_AllocMemTyped(MemoryManager, UNICODE_STRING);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Result),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -120,9 +125,9 @@ PUNICODE_STRING AllocateString(
 
     if (StringLengthInBytes > 0)
     {
-        Result->Buffer = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(
-            wchar_t, 
-            FilterDriverHandle, 
+        Result->Buffer = NdisMM_AllocMemTypedWithSize(
+            MemoryManager,
+            wchar_t,
             StringLengthInBytes);
 
         GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -133,7 +138,7 @@ PUNICODE_STRING AllocateString(
             Result->Buffer,
             StringLengthInBytes);
 
-        Result->Length = Result->MaximumLength = StringLengthInBytes;
+        Result->MaximumLength = StringLengthInBytes;
     }
 
 cleanup:
@@ -142,7 +147,7 @@ cleanup:
     {
         if (Assigned(Result))
         {
-            FILTER_FREE_MEM(Result);
+            NdisMM_FreeMem(Result);
             Result = NULL;
         }
     }

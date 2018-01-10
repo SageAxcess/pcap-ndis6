@@ -23,6 +23,7 @@
 #include <minwindef.h>
 #include <ntdef.h>
 #include "KmList.h"
+#include "NdisMemoryManager.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet definitions
@@ -44,7 +45,8 @@ typedef struct _PACKET
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(
+PPACKET CreatePacket(
+    __in    PNDIS_MM        MemoryManager,
     __in    PVOID           Data,
     __in    ULONG           DataSize,
     __in    PLARGE_INTEGER  Timestamp);

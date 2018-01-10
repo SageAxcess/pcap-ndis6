@@ -23,6 +23,8 @@
 #include <ndis.h>
 #include <minwindef.h>
 
+#include "NdisMemoryManager.h"
+
 //////////////////////////////////////////////////////////////////////
 // Event definitions
 //////////////////////////////////////////////////////////////////////
@@ -39,7 +41,8 @@ typedef struct _EVENT
 //////////////////////////////////////////////////////////////////////
 
 NTSTATUS InitializeEvent(
-    __inout PEVENT  Event);
+    __in    PNDIS_MM    MemoryManager,
+    __inout PEVENT      Event);
 
 NTSTATUS FinalizeEvent(
     __in    PEVENT  Event);

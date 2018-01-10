@@ -26,6 +26,7 @@
 #include "Packet.h"
 #include "KernelUtil.h"
 #include "KmList.h"
+#include "NdisMemoryManager.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -42,6 +43,7 @@ UINT    SelectedMediumIndex = 0;
 //////////////////////////////////////////////////////////////////////
 
 NTSTATUS __stdcall Adapter_Allocate(
+    __in    PNDIS_MM                MemoryManager,
     __in    PNDIS_BIND_PARAMETERS   BindParameters,
     __in    NDIS_HANDLE             BindContext,
     __out   PADAPTER                *Adapter)
@@ -51,22 +53,24 @@ NTSTATUS __stdcall Adapter_Allocate(
     DWORD       SizeRequired = sizeof(ADAPTER);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(BindParameters),
+        Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(BindParameters),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
-        STATUS_INVALID_PARAMETER_3);
+        STATUS_INVALID_PARAMETER_4);
 
     SizeRequired +=
         Assigned(BindParameters->AdapterName) ?
         BindParameters->AdapterName->Length + sizeof(wchar_t) :
         sizeof(wchar_t);
 
-    NewAdapter = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(
-        ADAPTER, 
-        FilterDriverHandle, 
+    NewAdapter = NdisMM_AllocMemTypedWithSize(
+        MemoryManager,
+        ADAPTER,
         SizeRequired);
-
     RETURN_VALUE_IF_FALSE(
         Assigned(NewAdapter),
         NDIS_STATUS_FAILURE);
@@ -115,20 +119,34 @@ cleanup:
  * https://msdn.microsoft.com/ru-ru/windows/hardware/drivers/network/generating-oid-requests-from-an-ndis-filter-driver
  * https://msdn.microsoft.com/ru-ru/windows/hardware/drivers/network/miniport-adapter-oid-requests
 */
-BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT size)
+BOOL SendOidRequest(
+    __in    PADAPTER    adapter,
+    __in    BOOL        set,
+    __in    NDIS_OID    oid,
+    __in    void        *data,
+    __in    UINT        size)
 {
-	DEBUGP(DL_TRACE, "===>SendOidRequest set=%d oid=%u...\n", set, oid);
-	if (!adapter || !data || size <= 0)
-	{
-		return FALSE;
-	}
+    NDIS_OID_REQUEST    *request = NULL;
 
-	NDIS_OID_REQUEST* request = (NDIS_OID_REQUEST*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(NDIS_OID_REQUEST));
-	if(!request)
-	{
-		return FALSE;
-	}
-	NdisZeroMemory(request, sizeof(NDIS_OID_REQUEST));
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(adapter)) &&
+        (Assigned(data)) &&
+        (size > 0),
+        FALSE);
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(adapter->DriverData),
+        FALSE);
+
+    request = NdisMM_AllocMemTyped(
+        &adapter->DriverData->MemoryManager,
+        NDIS_OID_REQUEST);
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(request),
+        FALSE);
+	
+    NdisZeroMemory(request, sizeof(NDIS_OID_REQUEST));
 
 	request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
 	request->Header.Revision = NDIS_OID_REQUEST_REVISION_1;
@@ -138,14 +156,23 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 	{
 		request->RequestType = NdisRequestSetInformation;
 		request->DATA.SET_INFORMATION.Oid = oid;
-		request->DATA.SET_INFORMATION.InformationBuffer = FILTER_ALLOC_MEM(FilterDriverObject, size);
+        request->DATA.SET_INFORMATION.InformationBuffer = NdisMM_AllocMem(
+            &adapter->DriverData->MemoryManager,
+            size);
+
 		if(!request->DATA.SET_INFORMATION.InformationBuffer)
 		{
-			FILTER_FREE_MEM(request);
+            NdisMM_FreeMem(request);
 			return FALSE;
 		}
-		memcpy(request->DATA.SET_INFORMATION.InformationBuffer, data, size);
+
+        RtlCopyMemory(
+            request->DATA.SET_INFORMATION.InformationBuffer,
+            data,
+            size);
+
 		request->DATA.SET_INFORMATION.InformationBufferLength = size;
+
 	} else
 	{
 		request->RequestType = NdisRequestQueryInformation;
@@ -154,27 +181,28 @@ BOOL SendOidRequest(PADAPTER adapter, BOOL set, NDIS_OID oid, void *data, UINT s
 		request->DATA.QUERY_INFORMATION.InformationBufferLength = size;
 	}
 
-	if (adapter->AdapterHandle == NULL)
-	{
-		return FALSE;
-	}
+    RETURN_VALUE_IF_FALSE(
+        adapter->AdapterHandle != NULL,
+        FALSE);
 
-	InterlockedIncrement((volatile long*)&adapter->PendingOidRequests);
+	InterlockedIncrement((volatile LONG *)&adapter->PendingOidRequests);
 
 	NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, request);
-	if(ret!=NDIS_STATUS_PENDING)
+	if(ret != NDIS_STATUS_PENDING)
 	{
-		InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
+		InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
 
 		if (set)
 		{
-			FILTER_FREE_MEM(request->DATA.SET_INFORMATION.InformationBuffer);
+            NdisMM_FreeMem(request->DATA.SET_INFORMATION.InformationBuffer);
 		}
-		FILTER_FREE_MEM(request);
+
+        NdisMM_FreeMem(request);
 	}
 
-	DEBUGP(DL_TRACE, "<===SendOidRequest ret=0x%8x\n", ret);
-	return (ret == NDIS_STATUS_PENDING || ret == NDIS_STATUS_SUCCESS);	
+	return 
+        (ret == NDIS_STATUS_PENDING) || 
+        (ret == NDIS_STATUS_SUCCESS);	
 }
 
 BOOL FreeAdapter(
@@ -193,7 +221,7 @@ BOOL FreeAdapter(
 		Adapter->Device = NULL;
 	}
 
-	FILTER_FREE_MEM(Adapter);
+    NdisMM_FreeMem(Adapter);
 
 	return TRUE;
 };
@@ -229,19 +257,18 @@ cleanup:
 };
 
 // Returns timestamp in milliseconds since adapter started
-LARGE_INTEGER GetAdapterTime(ADAPTER* adapter)
+LARGE_INTEGER GetAdapterTime(
+    __in    PADAPTER    Adapter)
 {
 	LARGE_INTEGER Result = { 0 };
+    LARGE_INTEGER Freq;
+    LARGE_INTEGER Ticks = KeQueryPerformanceCounter(&Freq);
 
-	if (!adapter)
-	{
-		return Result;
-	}
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Adapter),
+        Result);
 
-	LARGE_INTEGER Freq;
-	LARGE_INTEGER Ticks = KeQueryPerformanceCounter(&Freq);
-	
-	Result.QuadPart = Ticks.QuadPart - adapter->BindTimestamp.QuadPart;
+	Result.QuadPart = Ticks.QuadPart - Adapter->BindTimestamp.QuadPart;
 
 	Result.QuadPart *= 1000;
 	Result.QuadPart /= Freq.QuadPart;
@@ -265,11 +292,11 @@ Protocol_BindAdapterHandlerEx(
     NDIS_MEDIUM             MediumArray = { NdisMedium802_3 };
     NDIS_OPEN_PARAMETERS    OpenParameters;
     PADAPTER                Adapter = NULL;
-
-    UNREFERENCED_PARAMETER(ProtocolDriverContext);
+    PDRIVER_DATA            Data = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(BindParameters),
+        (ProtocolDriverContext != NULL) &&
+        (Assigned(BindParameters)),
         NDIS_STATUS_FAILURE);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -280,7 +307,10 @@ Protocol_BindAdapterHandlerEx(
         (BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED),
         NDIS_STATUS_NOT_SUPPORTED);
 
+    Data = (PDRIVER_DATA)ProtocolDriverContext;
+
     Status2 = Adapter_Allocate(
+        &Data->MemoryManager,
         BindParameters,
         BindContext,
         &Adapter);
@@ -300,7 +330,7 @@ Protocol_BindAdapterHandlerEx(
     OpenParameters.SelectedMediumIndex = &SelectedMediumIndex;
 
     Status = NdisOpenAdapterEx(
-        FilterProtocolHandle,
+        Data->Ndis.ProtocolHandle,
         (NDIS_HANDLE)Adapter,
         &OpenParameters,
         BindContext,
@@ -353,13 +383,14 @@ Protocol_OpenAdapterCompleteHandlerEx(
     __in    NDIS_HANDLE ProtocolBindingContext,
     __in    NDIS_STATUS Status)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_OpenAdapterCompleteHandlerEx status=0x%8x...\n", Status);
-
     PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
 
     if (Status == NDIS_STATUS_SUCCESS)
     {
-        PDEVICE Device = CreateDevice(&Adapter->Name);
+        PDEVICE Device = CreateDevice(
+            Adapter->DriverData->Other.DriverObject,
+            &Adapter->DriverData->MemoryManager,
+            &Adapter->Name);
         if (Assigned(Device))
         {
             SendOidRequest(
@@ -419,30 +450,34 @@ Protocol_OidRequestCompleteHandler(
     __in    NDIS_OID_REQUEST    *OidRequest,
     __in    NDIS_STATUS         Status)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_OidRequestCompleteHandler...\n");
-	_CRT_UNUSED(Status);
-	if(!OidRequest)
+    /*
+        A handle to a protocol driver-allocated context area in which the protocol driver 
+        maintains per-binding run-time state. 
+        The driver supplied this handle when it called the NdisOpenAdapterEx function.
+    */
+    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
+    BOOL        CanRelease = FALSE;
+
+    UNREFERENCED_PARAMETER(Status);
+
+    RETURN_IF_FALSE(Assigned(OidRequest));
+
+	if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
+        (OidRequest->DATA.QUERY_INFORMATION.Oid == OID_GEN_VENDOR_DESCRIPTION))
 	{
-		return;
+        CanRelease = FALSE;
 	}
 
-	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
-	BOOL canRelease = TRUE;
-
-	if (OidRequest->RequestType == NdisRequestQueryInformation && OidRequest->DATA.QUERY_INFORMATION.Oid == OID_GEN_VENDOR_DESCRIPTION)
+    if ((CanRelease) &&
+        (Assigned(OidRequest->DATA.SET_INFORMATION.InformationBuffer)))
 	{
-		canRelease = FALSE;
+        NdisMM_FreeMem(OidRequest->DATA.SET_INFORMATION.InformationBuffer);
 	}
 
-	if (canRelease && OidRequest->DATA.SET_INFORMATION.InformationBuffer)
-	{
-		FILTER_FREE_MEM(OidRequest->DATA.SET_INFORMATION.InformationBuffer);
-	}
+    NdisMM_FreeMem(OidRequest);
 
-	FILTER_FREE_MEM(OidRequest);
-	InterlockedDecrement((volatile long*)&adapter->PendingOidRequests);
-	DEBUGP(DL_TRACE, "<===Protocol_OidRequestCompleteHandler, pending=%u\n", adapter->PendingOidRequests);
-}
+    InterlockedDecrement((volatile LONG *)&Adapter->PendingOidRequests);
+};
 
 void LockClients(
     __in    PDEVICE Device,
@@ -579,6 +614,7 @@ Protocol_ReceiveNetBufferListsHandler(
                 {
                     PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
                     PPACKET NewPacket = CreatePacket(
+                        &adapter->DriverData->MemoryManager,
                         MdlVA + Offset, 
                         BufferLength, 
                         &PacketTimeStamp);

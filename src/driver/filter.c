@@ -22,6 +22,10 @@
 #include "KernelUtil.h"
 #include "Device.h"
 #include "Adapter.h"
+#include "KmTypes.h"
+#include "NdisMemoryManager.h"
+
+#include "..\shared\CommonDefs.h"
 
 // This directive puts the DriverEntry function into the INIT segment of the
 // driver.  To conserve memory, the code will be discarded when the driver's
@@ -32,18 +36,57 @@
 //
 // Global variables
 //
-//TODO: check which are used, write description in comments, rename so it's readable!
-PDRIVER_OBJECT      FilterDriverObject;
-NDIS_HANDLE         FilterDriverHandle;
-NDIS_HANDLE         FilterProtocolHandle;
-NDIS_HANDLE         FilterProtocolObject;
-NDIS_HANDLE         NdisFilterDeviceHandle = NULL;
-PDEVICE_OBJECT      NdisDeviceObject = NULL;
 
-FILTER_LOCK         FilterListLock;
-LIST_ENTRY          FilterModuleList;
+DRIVER_DATA DriverData;
 
-PDEVICE             ListAdaptersDevice = NULL;
+NTSTATUS __stdcall RegisterNdisProtocol(
+    __inout PDRIVER_DATA    Data)
+{
+    NTSTATUS                                Status = STATUS_SUCCESS;
+    NDIS_STATUS                             NdisStatus = NDIS_STATUS_SUCCESS;
+    NDIS_PROTOCOL_DRIVER_CHARACTERISTICS    Chars;
+    NDIS_STRING                             ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+    RtlZeroMemory(&Chars, sizeof(Chars));
+
+    Chars.Header.Type = NDIS_OBJECT_TYPE_PROTOCOL_DRIVER_CHARACTERISTICS;
+
+    Chars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
+    Chars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
+
+    Chars.MajorNdisVersion = 6;
+    Chars.MinorNdisVersion = 20;
+    Chars.Name = ProtocolName;
+
+    Chars.SetOptionsHandler = Protocol_SetOptionsHandler;
+    Chars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
+    Chars.UnbindAdapterHandlerEx = Protocol_UnbindAdapterHandlerEx;
+    Chars.OpenAdapterCompleteHandlerEx = Protocol_OpenAdapterCompleteHandlerEx;
+    Chars.CloseAdapterCompleteHandlerEx = Protocol_CloseAdapterCompleteHandlerEx;
+    Chars.NetPnPEventHandler = Protocol_NetPnPEventHandler;
+    Chars.UninstallHandler = Protocol_UninstallHandler;
+    Chars.OidRequestCompleteHandler = Protocol_OidRequestCompleteHandler;
+    Chars.StatusHandlerEx = Protocol_StatusHandlerEx;
+    Chars.ReceiveNetBufferListsHandler = Protocol_ReceiveNetBufferListsHandler;
+    Chars.SendNetBufferListsCompleteHandler = Protocol_SendNetBufferListsCompleteHandler;
+    Chars.DirectOidRequestCompleteHandler = Protocol_DirectOidRequestCompleteHandler;
+    
+    NdisStatus = NdisRegisterProtocolDriver(
+        (NDIS_HANDLE)Data,
+        &Chars,
+        &Data->Ndis.ProtocolHandle);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        NdisStatus == NDIS_STATUS_SUCCESS,
+        STATUS_UNSUCCESSFUL);
+
+cleanup:
+    return Status;
+};
 
 _Use_decl_annotations_
 NTSTATUS
@@ -51,110 +94,94 @@ DriverEntry(
     PDRIVER_OBJECT      DriverObject,
     PUNICODE_STRING     RegistryPath)
 {
-    NDIS_STATUS Status;
-    NDIS_STRING ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
+    NTSTATUS    Status = STATUS_SUCCESS;
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
-    DEBUGP(DL_TRACE, "===>DriverEntry...\n");
+    RtlZeroMemory(
+        &DriverData,
+        sizeof(DriverData));
 
-    FilterDriverObject = DriverObject;
+    Status = RegisterNdisProtocol(&DriverData);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	NDIS_PROTOCOL_DRIVER_CHARACTERISTICS pChars;
-	NdisZeroMemory(&pChars, sizeof(NDIS_PROTOCOL_DRIVER_CHARACTERISTICS));
+    Status = Ndis_MM_Initialize(
+        &DriverData.MemoryManager,
+        &DriverData.Ndis.ProtocolHandle,
+        HighPoolPriority,
+        NDIS_FLT_MEMORY_TAG);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	pChars.Header.Type = NDIS_OBJECT_TYPE_PROTOCOL_DRIVER_CHARACTERISTICS;
+    DriverData.Other.DriverObject = DriverObject;
 
-	pChars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-	pChars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
+    Status = Km_List_Initialize(&DriverData.AdaptersList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-	pChars.MajorNdisVersion = 6;
-	pChars.MinorNdisVersion = 20;
-	pChars.Name = ProtocolName;
+    DriverData.ListAdaptersDevice = CreateDevice2(
+        DriverObject,
+        &DriverData.MemoryManager,
+        ADAPTER_NAME_FORLIST_W);
 
-	pChars.SetOptionsHandler = Protocol_SetOptionsHandler;
-	pChars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
-	pChars.UnbindAdapterHandlerEx = Protocol_UnbindAdapterHandlerEx;
-	pChars.OpenAdapterCompleteHandlerEx = Protocol_OpenAdapterCompleteHandlerEx;
-	pChars.CloseAdapterCompleteHandlerEx = Protocol_CloseAdapterCompleteHandlerEx;
-	pChars.NetPnPEventHandler = Protocol_NetPnPEventHandler;
-	pChars.UninstallHandler = Protocol_UninstallHandler;
-	pChars.OidRequestCompleteHandler = Protocol_OidRequestCompleteHandler;
-	pChars.StatusHandlerEx = Protocol_StatusHandlerEx;
-	pChars.ReceiveNetBufferListsHandler = Protocol_ReceiveNetBufferListsHandler;
-	pChars.SendNetBufferListsCompleteHandler = Protocol_SendNetBufferListsCompleteHandler;
-	pChars.DirectOidRequestCompleteHandler = Protocol_DirectOidRequestCompleteHandler;
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DriverData.ListAdaptersDevice),
+        STATUS_INSUFFICIENT_RESOURCES);
 
-	Status = NdisRegisterProtocolDriver(NULL, &pChars, &FilterProtocolHandle);
+    DriverData.ListAdaptersDevice->IsAdaptersList = TRUE;
 
-	NdisZeroMemory(DriverObject->MajorFunction, sizeof(DriverObject->MajorFunction));
+    RtlZeroMemory(
+        DriverObject->MajorFunction,
+        sizeof(DriverObject->MajorFunction));
 
-	DriverObject->MajorFunction[IRP_MJ_CREATE] = Device_CreateHandler;
-	DriverObject->MajorFunction[IRP_MJ_CLOSE] = Device_CloseHandler;
-	DriverObject->MajorFunction[IRP_MJ_READ] = Device_ReadHandler;
-	DriverObject->MajorFunction[IRP_MJ_WRITE] = Device_WriteHandler;
-	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Device_IoControlHandler;
-	
-	DriverObject->DriverUnload = DriverUnload;
+    DriverObject->MajorFunction[IRP_MJ_CREATE] = Device_CreateHandler;
+    DriverObject->MajorFunction[IRP_MJ_CLOSE] = Device_CloseHandler;
+    DriverObject->MajorFunction[IRP_MJ_READ] = Device_ReadHandler;
+    DriverObject->MajorFunction[IRP_MJ_WRITE] = Device_WriteHandler;
+    DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Device_IoControlHandler;
 
-    Km_List_Initialize(&AdapterList);
+    DriverObject->DriverUnload = DriverUnload;
 
-	ListAdaptersDevice = CreateDevice2(ADAPTER_NAME_FORLIST_W);
-	if (ListAdaptersDevice)
+cleanup:
+
+    if (!NT_SUCCESS(Status))
     {
-		ListAdaptersDevice->IsAdaptersList = TRUE;
-	}
+        Ndis_MM_Finalize(&DriverData.MemoryManager);
+        if (DriverData.Ndis.ProtocolHandle != NULL)
+        {
+            NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
+            DriverData.Ndis.ProtocolHandle = NULL;
+        }
 
-	if(Status!=NDIS_STATUS_SUCCESS)
-	{
-		DriverUnload(DriverObject);
-	}
+        RtlZeroMemory(
+            &DriverData,
+            sizeof(DriverData));
+    }
 
-    DEBUGP(DL_TRACE, "<===DriverEntry, Status = %8x\n", Status);
     return Status;
-}
+};
 
-void _Function_class_(DRIVER_UNLOAD) DriverUnload(DRIVER_OBJECT* DriverObject)
+void
+_Function_class_(DRIVER_UNLOAD)
+DriverUnload(DRIVER_OBJECT* DriverObject)
 {
-	DEBUGP(DL_TRACE, "===>DriverUnload");
+    _CRT_UNUSED(DriverObject);
 
-	_CRT_UNUSED(DriverObject);
+    InterlockedExchange(
+        &DriverData.DriverUnload,
+        TRUE);
 
-	if (FilterProtocolHandle != NULL)
-	{
-		NdisDeregisterProtocolDriver(FilterProtocolHandle);
-		FilterProtocolHandle = NULL;
-	}
+    Ndis_MM_Finalize(&DriverData.MemoryManager);
 
-	ListAdaptersDevice->Releasing = TRUE;
+    if (DriverData.Ndis.ProtocolHandle != NULL)
+    {
+        NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
+        DriverData.Ndis.ProtocolHandle = NULL;
+    }
 
-	DriverSleep(500);
+    FreeDevice(DriverData.ListAdaptersDevice);
 
-	FreeDevice(ListAdaptersDevice);
+    ClearAdaptersList(&DriverData.AdaptersList);
 
-    ClearAdaptersList(&AdapterList);
-
-	DEBUGP(DL_TRACE, "<===DriverUnload");
-}
-
-PVOID FilterAllocMem(NDIS_HANDLE NdisHandle, UINT Size)
-{
-	_CRT_UNUSED(NdisHandle);
-
-	PVOID Result = NULL;
-	NDIS_STATUS ret = NdisAllocateMemoryWithTag(&Result, Size, FILTER_ALLOC_TAG);
-	if(ret!=NDIS_STATUS_SUCCESS)
-	{
-		return NULL;
-	}
-
-	//DEBUGP(DL_TRACE, "FilterAllocMem, size=%u, result=0x%08x\n", Size, Result);
-
-	return Result;
-}
-
-void FilterFreeMem(PVOID Data)
-{
-	//DEBUGP(DL_TRACE, "FilterFreeMem 0x%08x\n", Data);
-	NdisFreeMemory(Data, 0, 0);
+    RtlZeroMemory(
+        &DriverData,
+        sizeof(DriverData));
 }

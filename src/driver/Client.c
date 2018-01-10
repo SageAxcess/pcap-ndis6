@@ -45,13 +45,18 @@ NTSTATUS CreateClient(
         Assigned(Device),
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Device->DriverData),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(FileObject),
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Client),
         STATUS_INVALID_PARAMETER_3);
 
-    NewClient = FILTER_ALLOC_MEM_TYPED(CLIENT, FilterDriverHandle);
+    NewClient = NdisMM_AllocMemTyped(
+        &Device->DriverData->MemoryManager,
+        CLIENT);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewClient),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -61,7 +66,9 @@ NTSTATUS CreateClient(
     NewClient->Device = Device;
     NewClient->FileObject = FileObject;
 
-    Status = InitializeEvent(&NewClient->Event);
+    Status = InitializeEvent(
+        &Device->DriverData->MemoryManager,
+        &NewClient->Event);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_List_Initialize(&NewClient->PacketList);
@@ -83,7 +90,7 @@ cleanup:
         {
             FinalizeEvent(&NewClient->Event);
 
-            FILTER_FREE_MEM(NewClient);
+            NdisMM_FreeMem(NewClient);
         }
     }
     else
@@ -115,7 +122,7 @@ NTSTATUS FreeClient(
 
     FinalizeEvent(&Client->Event);
 
-    FILTER_FREE_MEM(Client);
+    NdisMM_FreeMem(Client);
 
 cleanup:
     return Status;
