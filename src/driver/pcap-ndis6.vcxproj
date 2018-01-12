@@ -249,7 +249,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -267,7 +267,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
       <GenerateWindowsMetadata>true</GenerateWindowsMetadata>
     </Link>
     <ClCompile>
@@ -298,7 +298,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -316,7 +316,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -336,6 +336,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
+    <ClCompile Include="BfeStateWatcher.c" />
     <ClCompile Include="Client.c" />
     <ClCompile Include="Device.c" />
     <ClCompile Include="Events.c" />
@@ -364,6 +365,7 @@
       <PreCompiledHeader>Create</PreCompiledHeader>
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="WfpFlt.c" />
     <ClCompile Include="WfpMemoryManager.c" />
     <ResourceCompile Include="filter.rc" />
   </ItemGroup>
@@ -374,6 +376,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\CommonDefs.h" />
+    <ClInclude Include="BfeStateWatcher.h" />
     <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="Device.h" />

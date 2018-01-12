@@ -16,6 +16,8 @@
     <ClCompile Include="KmThreads.c" />
     <ClCompile Include="KmMemoryManager.c" />
     <ClCompile Include="WfpMemoryManager.c" />
+    <ClCompile Include="WfpFlt.c" />
+    <ClCompile Include="BfeStateWatcher.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -34,6 +36,7 @@
     <ClInclude Include="KmThreads.h" />
     <ClInclude Include="KmMemoryManagery.h" />
     <ClInclude Include="WfpMemoryManager.h" />
+    <ClInclude Include="BfeStateWatcher.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

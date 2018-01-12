@@ -13,4 +13,15 @@
 
 #pragma once
 
+#include <fwpsk.h>
+#include <fwpmk.h>
 
+#include "KmMemoryManagery.h"
+
+NTSTATUS __stdcall Wfp_Initialize(
+    __in    PDRIVER_OBJECT      DriverObject,
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __out   PHANDLE             Instance);
+
+NTSTATUS __stdcall Wfp_Finalize(
+    __in    HANDLE  Instance);
