@@ -11,26 +11,27 @@
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
 
-#ifndef NDIS_MEMORY_MANAGER_H
-#define NDIS_MEMORY_MANAGER_H
+#ifndef WFP_MEMORY_MANAGER_H
+#define WFP_MEMORY_MANAGER_H
 
-#include <ndis.h>
+#include <ntddk.h>
+#include "..\shared\CommonDefs.h"
 #include "KmMemoryManagery.h"
 
-NTSTATUS __stdcall Ndis_MM_Initialize(
+NTSTATUS __stdcall Wfp_MM_Initialize(
     __in    PKM_MEMORY_MANAGER  Manager,
-    __in    NDIS_HANDLE         NdisHandle,
     __in    EX_POOL_PRIORITY    PoolPriority,
+    __in    POOL_TYPE           PoolType,
     __in    ULONG               MemoryTag);
 
-NTSTATUS __stdcall Ndis_MM_Cleanup(
+NTSTATUS __stdcall Wfp_MM_Cleanup(
     __in    PKM_MEMORY_MANAGER  Manager);
 
-PVOID __stdcall Ndis_MM_AllocMem(
+PVOID __stdcall Wfp_MM_AllocMem(
     __in    PKM_MEMORY_MANAGER  Manager,
     __in    SIZE_T              Size);
 
-NTSTATUS __stdcall Ndis_MM_FreeMem(
+NTSTATUS __stdcall Wfp_MM_FreeMem(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PVOID               Ptr);
 

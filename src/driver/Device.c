@@ -39,7 +39,7 @@
 
 PDEVICE CreateDevice(
     __in    PDRIVER_OBJECT  DriverObject,
-    __in    PNDIS_MM        MemoryManager,
+    __in    PDRIVER_DATA    Data,
     __in    PUNICODE_STRING Name)
 {
     ULONG           DeviceNameLength = 0;
@@ -53,7 +53,7 @@ PDEVICE CreateDevice(
         Assigned(DriverObject),
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(MemoryManager),
+        Assigned(Data),
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Name),
@@ -70,7 +70,7 @@ PDEVICE CreateDevice(
         sizeof(wchar_t);
 
     DeviceName = AllocateString(
-        MemoryManager,
+        &Data->Ndis.MemoryManager,
         (USHORT)DeviceNameLength);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DeviceName),
@@ -87,7 +87,7 @@ PDEVICE CreateDevice(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     SymLinkName = AllocateString(
-        MemoryManager,
+        &Data->Ndis.MemoryManager,
         (USHORT)SymLinkNameLength);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(SymLinkName),
@@ -103,8 +103,8 @@ PDEVICE CreateDevice(
         Name);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Device = NdisMM_AllocMemTyped(
-        MemoryManager,
+    Device = Km_MM_AllocMemTyped(
+        &Data->Ndis.MemoryManager,
         DEVICE);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Device),
@@ -117,6 +117,7 @@ PDEVICE CreateDevice(
 
     Device->Name = DeviceName;
     Device->SymlinkName = SymLinkName;
+    Device->DriverData = Data;
 	
     Status = Km_List_Initialize(&Device->ClientList);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -145,18 +146,24 @@ cleanup:
     {
         if (Assigned(DeviceName))
         {
-            FreeString(DeviceName);
+            FreeString(
+                &Data->Ndis.MemoryManager,
+                DeviceName);
         }
         if (Assigned(SymLinkName))
         {
-            FreeString(SymLinkName);
+            FreeString(
+                &Data->Ndis.MemoryManager,
+                SymLinkName);
         }
 
         if (Assigned(Device))
         {
             ClearClientList(&Device->ClientList);
             
-            NdisMM_FreeMem(Device);
+            Km_MM_FreeMem(
+                &Data->Ndis.MemoryManager,
+                Device);
 
             Device = NULL;
         }
@@ -167,7 +174,7 @@ cleanup:
 
 PDEVICE CreateDevice2(
     __in    PDRIVER_OBJECT  DriverObject,
-    __in    PNDIS_MM        MemoryManager,
+    __in    PDRIVER_DATA    Data,
     __in    LPCWSTR         Name)
 {
     UNICODE_STRING  NameStr = { 0, };
@@ -176,7 +183,7 @@ PDEVICE CreateDevice2(
 
     return CreateDevice(
         DriverObject,
-        MemoryManager,
+        Data,
         &NameStr);
 };
 
@@ -187,11 +194,16 @@ BOOL FreeDevice(
     RETURN_VALUE_IF_FALSE(
         Assigned(Device),
         FALSE);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Device->DriverData),
+        FALSE);
 
     if (Assigned(Device->SymlinkName))
     {
         IoDeleteSymbolicLink(Device->SymlinkName);
-        FreeString(Device->SymlinkName);
+        FreeString(
+            &Device->DriverData->Ndis.MemoryManager,
+            Device->SymlinkName);
     }
 
     if (Assigned(Device->Device))
@@ -201,12 +213,16 @@ BOOL FreeDevice(
 
     if (Assigned(Device->Name))
     {
-        FreeString(Device->Name);
+        FreeString(
+            &Device->DriverData->Ndis.MemoryManager,
+            Device->Name);
     }
 	
     ClearClientList(&Device->ClientList);
 
-	NdisMM_FreeMem(Device);
+    Km_MM_FreeMem(
+        &Device->DriverData->Ndis.MemoryManager,
+        Device);
 
 	return TRUE;
 };

@@ -26,8 +26,8 @@
 volatile ULONG _curEventId = 0;
 
 NTSTATUS InitializeEvent(
-    __in    PNDIS_MM    MemoryManager,
-    __inout PEVENT      Event)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __inout PEVENT              Event)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
     ULONG           EventId = 0;
@@ -73,7 +73,9 @@ cleanup:
 
     if (Assigned(EventNameU))
     {
-        FreeString(EventNameU);
+        FreeString(
+            MemoryManager,
+            EventNameU);
     }
 
     if (!NT_SUCCESS(Status))

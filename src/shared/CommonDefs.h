@@ -108,6 +108,30 @@
 
 #define LEAVE_IF_FALSE_SET_STATUS(Condition, StatusValue)   LEAVE_IF_TRUE_SET_STATUS(!(Condition), (StatusValue))
 
+#define LEAVE_IF_TRUE_EX(Condition, AdditionalCommand) \
+{ \
+    if (Condition) \
+    { \
+        (AdditionalCommand); \
+        __leave; \
+    } \
+}
+
+#define LEAVE_IF_FALSE_EX(Condition, AdditionalCommand) LEAVE_IF_TRUE_EX(!(Condition), (AdditionalCommand))
+
+#define LEAVE_IF_TRUE_SET_STATUS_EX(Condition, StatusValue, AdditionalCommand) \
+{ \
+    if (Condition) \
+    { \
+        Status = (StatusValue); \
+        (AdditionalCommand); \
+        __leave; \
+    } \
+}
+
+#define LEAVE_IF_FALSE_SET_STATUS_EX(Condition, StatusValue, AdditionalCommand) \
+    LEAVE_IF_TRUE_SET_STATUS_EX(!(Condition), (StatusValue), (AdditionalCommand))
+
 #define BREAK_IF_TRUE(Condition) \
 { \
     if (Condition) \

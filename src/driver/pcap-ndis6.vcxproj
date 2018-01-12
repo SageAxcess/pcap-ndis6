@@ -354,6 +354,8 @@
     <ClCompile Include="KernelUtil.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
+    <ClCompile Include="KmMemoryManager.c" />
+    <ClCompile Include="KmThreads.c" />
     <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c">
@@ -362,6 +364,7 @@
       <PreCompiledHeader>Create</PreCompiledHeader>
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="WfpMemoryManager.c" />
     <ResourceCompile Include="filter.rc" />
   </ItemGroup>
   <ItemGroup>
@@ -379,9 +382,13 @@
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
+    <ClInclude Include="KmMemoryManagery.h" />
+    <ClInclude Include="KmThreads.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="Packet.h" />
+    <ClInclude Include="WfpFlt.h" />
+    <ClInclude Include="WfpMemoryManager.h" />
   </ItemGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

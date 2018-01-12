@@ -32,23 +32,25 @@
 
 typedef struct _CLIENT
 {
-    LIST_ENTRY      Link;
+    LIST_ENTRY          Link;
 
-    PDEVICE         Device;
+    PKM_MEMORY_MANAGER  MemoryManager;
 
-    PFILE_OBJECT    FileObject;
+    PDEVICE             Device;
 
-    EVENT           Event;
+    PFILE_OBJECT        FileObject;
 
-    KM_LIST         PacketList;
+    EVENT               Event;
 
-    KM_LOCK         ReadLock;
+    KM_LIST             PacketList;
 
-	volatile ULONG  PendingSendPackets;
+    KM_LOCK             ReadLock;
 
-	ULONG           BytesSent;
+	volatile ULONG      PendingSendPackets;
 
-    BOOLEAN         Releasing;
+	ULONG               BytesSent;
+
+    BOOLEAN             Releasing;
 
 } CLIENT, *PCLIENT;
 

@@ -35,12 +35,12 @@
 /////////////////////////////////////////////////////////////////////
 PDEVICE CreateDevice(
     __in    PDRIVER_OBJECT  DriverObject,
-    __in    PNDIS_MM        MemoryManager,
+    __in    PDRIVER_DATA    Data,
     __in    PUNICODE_STRING Name);
 
 PDEVICE CreateDevice2(
     __in    PDRIVER_OBJECT  DriverObject,
-    __in    PNDIS_MM        MemoryManager,
+    __in    PDRIVER_DATA    Data,
     __in    LPCWSTR         Name);
 
 BOOL FreeDevice(

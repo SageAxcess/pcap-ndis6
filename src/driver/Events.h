@@ -41,8 +41,8 @@ typedef struct _EVENT
 //////////////////////////////////////////////////////////////////////
 
 NTSTATUS InitializeEvent(
-    __in    PNDIS_MM    MemoryManager,
-    __inout PEVENT      Event);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __inout PEVENT              Event);
 
 NTSTATUS FinalizeEvent(
     __in    PEVENT  Event);

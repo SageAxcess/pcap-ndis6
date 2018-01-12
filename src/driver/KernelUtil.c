@@ -31,8 +31,8 @@
 ///////////////////////////////////////////////////
 
 PUNICODE_STRING CreateString(
-    __in            PNDIS_MM    MemoryManager,
-    __in    const   char        *Str)
+    __in            PKM_MEMORY_MANAGER  MemoryManager,
+    __in    const   char                *Str)
 {
     PUNICODE_STRING NewString = NULL;
     USHORT          StrLen = 0;
@@ -62,8 +62,8 @@ PUNICODE_STRING CreateString(
 }
 
 PUNICODE_STRING CopyString(
-    __in    PNDIS_MM        MemoryManager,
-    __in    PUNICODE_STRING SourceString)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     SourceString)
 {
     PUNICODE_STRING Result = NULL;
 
@@ -93,21 +93,28 @@ PUNICODE_STRING CopyString(
 };
 
 void FreeString(
-    __in    PUNICODE_STRING String)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     String)
 {
-    RETURN_IF_FALSE(Assigned(String));
+    RETURN_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(String)));
 
     if (Assigned(String->Buffer))
     {
-        NdisMM_FreeMem(String->Buffer);
+        Km_MM_FreeMem(
+            MemoryManager,
+            String->Buffer);
     }
 
-    NdisMM_FreeMem(String);
-}
+    Km_MM_FreeMem(
+        MemoryManager,
+        String);
+};
 
 PUNICODE_STRING AllocateString(
-    __in    PNDIS_MM    MemoryManager,
-    __in    USHORT      StringLengthInBytes)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    USHORT              StringLengthInBytes)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
     PUNICODE_STRING Result = NULL;
@@ -116,7 +123,9 @@ PUNICODE_STRING AllocateString(
         Assigned(MemoryManager),
         STATUS_INSUFFICIENT_RESOURCES);
 
-    Result = NdisMM_AllocMemTyped(MemoryManager, UNICODE_STRING);
+    Result = Km_MM_AllocMemTyped(
+        MemoryManager,
+        UNICODE_STRING);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Result),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -125,7 +134,7 @@ PUNICODE_STRING AllocateString(
 
     if (StringLengthInBytes > 0)
     {
-        Result->Buffer = NdisMM_AllocMemTypedWithSize(
+        Result->Buffer = Km_MM_AllocMemTypedWithSize(
             MemoryManager,
             wchar_t,
             StringLengthInBytes);
@@ -147,7 +156,9 @@ cleanup:
     {
         if (Assigned(Result))
         {
-            NdisMM_FreeMem(Result);
+            Km_MM_FreeMem(
+                MemoryManager,
+                Result);
             Result = NULL;
         }
     }

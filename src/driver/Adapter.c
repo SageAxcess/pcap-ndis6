@@ -26,7 +26,7 @@
 #include "Packet.h"
 #include "KernelUtil.h"
 #include "KmList.h"
-#include "NdisMemoryManager.h"
+#include "KmMemoryManagery.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -43,7 +43,7 @@ UINT    SelectedMediumIndex = 0;
 //////////////////////////////////////////////////////////////////////
 
 NTSTATUS __stdcall Adapter_Allocate(
-    __in    PNDIS_MM                MemoryManager,
+    __in    PKM_MEMORY_MANAGER      MemoryManager,
     __in    PNDIS_BIND_PARAMETERS   BindParameters,
     __in    NDIS_HANDLE             BindContext,
     __out   PADAPTER                *Adapter)
@@ -67,7 +67,7 @@ NTSTATUS __stdcall Adapter_Allocate(
         BindParameters->AdapterName->Length + sizeof(wchar_t) :
         sizeof(wchar_t);
 
-    NewAdapter = NdisMM_AllocMemTypedWithSize(
+    NewAdapter = Km_MM_AllocMemTypedWithSize(
         MemoryManager,
         ADAPTER,
         SizeRequired);
@@ -137,9 +137,8 @@ BOOL SendOidRequest(
     RETURN_VALUE_IF_FALSE(
         Assigned(adapter->DriverData),
         FALSE);
-
-    request = NdisMM_AllocMemTyped(
-        &adapter->DriverData->MemoryManager,
+    request = Km_MM_AllocMemTyped(
+        &adapter->DriverData->Ndis.MemoryManager,
         NDIS_OID_REQUEST);
 
     RETURN_VALUE_IF_FALSE(
@@ -156,13 +155,15 @@ BOOL SendOidRequest(
 	{
 		request->RequestType = NdisRequestSetInformation;
 		request->DATA.SET_INFORMATION.Oid = oid;
-        request->DATA.SET_INFORMATION.InformationBuffer = NdisMM_AllocMem(
-            &adapter->DriverData->MemoryManager,
+        request->DATA.SET_INFORMATION.InformationBuffer = Km_MM_AllocMem(
+            &adapter->DriverData->Ndis.MemoryManager,
             size);
 
 		if(!request->DATA.SET_INFORMATION.InformationBuffer)
 		{
-            NdisMM_FreeMem(request);
+            Km_MM_FreeMem(
+                &adapter->DriverData->Ndis.MemoryManager,
+                request);
 			return FALSE;
 		}
 
@@ -194,10 +195,14 @@ BOOL SendOidRequest(
 
 		if (set)
 		{
-            NdisMM_FreeMem(request->DATA.SET_INFORMATION.InformationBuffer);
+            Km_MM_FreeMem(
+                &adapter->DriverData->Ndis.MemoryManager,
+                request->DATA.SET_INFORMATION.InformationBuffer);
 		}
 
-        NdisMM_FreeMem(request);
+        Km_MM_FreeMem(
+            &adapter->DriverData->Ndis.MemoryManager,
+            request);
 	}
 
 	return 
@@ -208,9 +213,16 @@ BOOL SendOidRequest(
 BOOL FreeAdapter(
     __in    PADAPTER    Adapter)
 {
+    PKM_MEMORY_MANAGER  MemoryManager = NULL;
+
     RETURN_VALUE_IF_FALSE(
         Assigned(Adapter),
         FALSE);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Adapter->DriverData),
+        FALSE);
+
+    MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
 
     if (Assigned(Adapter->Device))
 	{
@@ -221,7 +233,9 @@ BOOL FreeAdapter(
 		Adapter->Device = NULL;
 	}
 
-    NdisMM_FreeMem(Adapter);
+    Km_MM_FreeMem(
+        MemoryManager,
+        Adapter);
 
 	return TRUE;
 };
@@ -310,7 +324,7 @@ Protocol_BindAdapterHandlerEx(
     Data = (PDRIVER_DATA)ProtocolDriverContext;
 
     Status2 = Adapter_Allocate(
-        &Data->MemoryManager,
+        &Data->Ndis.MemoryManager,
         BindParameters,
         BindContext,
         &Adapter);
@@ -389,7 +403,7 @@ Protocol_OpenAdapterCompleteHandlerEx(
     {
         PDEVICE Device = CreateDevice(
             Adapter->DriverData->Other.DriverObject,
-            &Adapter->DriverData->MemoryManager,
+            Adapter->DriverData,
             &Adapter->Name);
         if (Assigned(Device))
         {
@@ -460,6 +474,8 @@ Protocol_OidRequestCompleteHandler(
 
     UNREFERENCED_PARAMETER(Status);
 
+    RETURN_IF_FALSE(
+        Assigned(Adapter->DriverData));
     RETURN_IF_FALSE(Assigned(OidRequest));
 
 	if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
@@ -471,10 +487,14 @@ Protocol_OidRequestCompleteHandler(
     if ((CanRelease) &&
         (Assigned(OidRequest->DATA.SET_INFORMATION.InformationBuffer)))
 	{
-        NdisMM_FreeMem(OidRequest->DATA.SET_INFORMATION.InformationBuffer);
+        Km_MM_FreeMem(
+            &Adapter->DriverData->Ndis.MemoryManager,
+            OidRequest->DATA.SET_INFORMATION.InformationBuffer);
 	}
 
-    NdisMM_FreeMem(OidRequest);
+    Km_MM_FreeMem(
+        &Adapter->DriverData->Ndis.MemoryManager,
+        OidRequest);
 
     InterlockedDecrement((volatile LONG *)&Adapter->PendingOidRequests);
 };
@@ -614,7 +634,7 @@ Protocol_ReceiveNetBufferListsHandler(
                 {
                     PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
                     PPACKET NewPacket = CreatePacket(
-                        &adapter->DriverData->MemoryManager,
+                        &adapter->DriverData->Ndis.MemoryManager,
                         MdlVA + Offset, 
                         BufferLength, 
                         &PacketTimeStamp);

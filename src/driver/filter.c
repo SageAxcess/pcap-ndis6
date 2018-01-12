@@ -106,8 +106,8 @@ DriverEntry(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Ndis_MM_Initialize(
-        &DriverData.MemoryManager,
-        &DriverData.Ndis.ProtocolHandle,
+        &DriverData.Ndis.MemoryManager,
+        DriverData.Ndis.ProtocolHandle,
         HighPoolPriority,
         NDIS_FLT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -119,7 +119,7 @@ DriverEntry(
 
     DriverData.ListAdaptersDevice = CreateDevice2(
         DriverObject,
-        &DriverData.MemoryManager,
+        &DriverData,
         ADAPTER_NAME_FORLIST_W);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -144,7 +144,7 @@ cleanup:
 
     if (!NT_SUCCESS(Status))
     {
-        Ndis_MM_Finalize(&DriverData.MemoryManager);
+        Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
         if (DriverData.Ndis.ProtocolHandle != NULL)
         {
             NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
@@ -169,7 +169,7 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         &DriverData.DriverUnload,
         TRUE);
 
-    Ndis_MM_Finalize(&DriverData.MemoryManager);
+    Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
     if (DriverData.Ndis.ProtocolHandle != NULL)
     {

@@ -27,19 +27,20 @@
 ///////////////////////////////////////////////////
 
 PUNICODE_STRING CreateString(
-    __in            PNDIS_MM    MemoryManager,
-    __in    const   char        *Str);
+    __in            PKM_MEMORY_MANAGER  MemoryManager,
+    __in    const   char                *Str);
 
 PUNICODE_STRING CopyString(
-    __in    PNDIS_MM        MemoryManager,
-    __in    PUNICODE_STRING SourceString);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     SourceString);
 
 void FreeString(
-    __in    PUNICODE_STRING String);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     String);
 
 PUNICODE_STRING AllocateString(
-    __in    PNDIS_MM    MemoryManager,
-    __in    USHORT      StringLengthInBytes);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    USHORT              StringLengthInBytes);
 
 ///////////////////////////////////////////////////
 // Other helper functions

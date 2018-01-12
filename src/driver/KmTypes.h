@@ -105,15 +105,19 @@ typedef struct _ADAPTER
 
 typedef struct _DRIVER_DATA
 {
-    NDIS_MM             MemoryManager;
-
     LONG                DriverUnload;
 
     struct Ndis
     {
-        NDIS_HANDLE DriverHandle;
-        NDIS_HANDLE ProtocolHandle;
+        KM_MEMORY_MANAGER   MemoryManager;
+        NDIS_HANDLE         DriverHandle;
+        NDIS_HANDLE         ProtocolHandle;
     } Ndis;
+
+    struct Wfp
+    {
+        HANDLE  Instance;
+    } Wfp;
 
     struct Other
     {

@@ -28,10 +28,10 @@
 //////////////////////////////////////////////////////////////////////
 
 PPACKET CreatePacket(
-    __in    PNDIS_MM        MemoryManager,
-    __in    PVOID           Data,
-    __in    ULONG           DataSize,
-    __in    PLARGE_INTEGER  Timestamp)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PVOID               Data,
+    __in    ULONG               DataSize,
+    __in    PLARGE_INTEGER      Timestamp)
 {
     PPACKET NewPacket = NULL;
     ULONG   SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
@@ -43,7 +43,7 @@ PPACKET CreatePacket(
         (Assigned(Timestamp)),
         NULL);
 
-    NewPacket = NdisMM_AllocMemTypedWithSize(
+    NewPacket = Km_MM_AllocMemTypedWithSize(
         MemoryManager,
         PACKET,
         SizeRequired);
@@ -63,6 +63,8 @@ PPACKET CreatePacket(
         Data,
         DataSize);
 
+    NewPacket->MemoryManager = MemoryManager;
+
     return NewPacket;
 };
 
@@ -70,8 +72,11 @@ void FreePacket(
     __in    PPACKET Packet)
 {
     RETURN_IF_FALSE(Assigned(Packet));
+    RETURN_IF_FALSE(Assigned(Packet->MemoryManager));
 
-    NdisMM_FreeMem(Packet);
+    Km_MM_FreeMem(
+        Packet->MemoryManager,
+        Packet);
 };
 
 void __stdcall ClearPacketList_ItemCallback(

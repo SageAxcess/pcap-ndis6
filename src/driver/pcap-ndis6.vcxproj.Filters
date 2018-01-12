@@ -13,6 +13,9 @@
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="NdisMemoryManager.c" />
+    <ClCompile Include="KmThreads.c" />
+    <ClCompile Include="KmMemoryManager.c" />
+    <ClCompile Include="WfpMemoryManager.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -27,6 +30,10 @@
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="filter.h" />
+    <ClInclude Include="WfpFlt.h" />
+    <ClInclude Include="KmThreads.h" />
+    <ClInclude Include="KmMemoryManagery.h" />
+    <ClInclude Include="WfpMemoryManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
