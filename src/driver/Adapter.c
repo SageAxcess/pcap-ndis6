@@ -26,7 +26,7 @@
 #include "Packet.h"
 #include "KernelUtil.h"
 #include "KmList.h"
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"

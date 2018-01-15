@@ -15,7 +15,7 @@
 #define NDIS_MEMORY_MANAGER_H
 
 #include <ndis.h>
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 NTSTATUS __stdcall Ndis_MM_Initialize(
     __in    PKM_MEMORY_MANAGER  Manager,

@@ -14,7 +14,7 @@
 #ifndef KM_THREADS_H
 #define KM_THREADS_H
 
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 #pragma pack(push, 1)
 

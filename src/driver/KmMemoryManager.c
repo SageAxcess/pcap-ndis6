@@ -11,7 +11,7 @@
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
 
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 NTSTATUS __stdcall Km_MM_Initialize(
     __in    PKM_MEMORY_MANAGER          Manager,

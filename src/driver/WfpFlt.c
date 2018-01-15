@@ -12,7 +12,18 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "WfpFlt.h"
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
+#include "BfeStateWatcher.h"
+#include "WfpUtils.h"
+#include "..\shared\CommonDefs.h"
+
+#include <Fwpsk.h>
+
+/*
+    ----------------------------------------------------------------------
+    Types
+    ----------------------------------------------------------------------
+*/
 
 typedef struct _WFP_CALLOUT_DEFINITION
 {
@@ -26,6 +37,84 @@ typedef struct _WFP_CALLOUT_DEFINITION
         FWPS_CALLOUT_FLOW_DELETE_NOTIFY_FN  FlowDeleteNotify;
     } Callbacks;
 } WFP_CALLOUT_DEFINITION, *PWFP_CALLOUT_DEFINITION;
+
+typedef struct _WFP_CALLOUT_REG_ITEM
+{
+    ULONG32		CalloutRegId;
+    GUID		LayerGUID;
+    UINT16		LayerId;
+    UINT64      FilterId;
+} WFP_CALLOUT_REG_ITEM, *PWFP_CALLOUT_REG_ITEM;
+
+typedef struct _WFP_CALLOUT_REG_INFO
+{
+    ULONG					MaxCount;
+    ULONG					Count;
+    PWFP_CALLOUT_REG_ITEM   Items;
+} WFP_CALLOUT_REG_INFO, *PWFP_CALLOUT_REG_INFO;
+
+typedef struct _WFP_DATA
+{
+    //  Memory manager
+    PKM_MEMORY_MANAGER  MemoryManager;
+
+    //  Driver object received in DriverEntry routine
+    PDRIVER_OBJECT      DriverObject;
+
+    //  Device object (used for callouts registration)
+    PDEVICE_OBJECT      DeviceObject;
+
+    //  Device object
+
+    struct BFEInfo
+    {
+        //  Transport level injection handle
+        //  Note: wfp requires separate injection
+        //        handles for ipv6/ipv4 packet inspection
+        HANDLE  TransportInjectionHandle;
+
+        //  Handle to BFE engine
+        HANDLE  EngineHandle;
+
+        struct SubLayer
+        {
+            //  Boolean flag that identifies whether the sublayer was added
+            BOOLEAN Added;
+
+            //  Sublayer key
+            GUID    Guid;
+
+        } SubLayer;
+
+        //  Handle to BFE state watcher instance
+        HANDLE  BFEStateWatcher;
+
+    } BFEInfo;
+
+    //  Callouts registration information
+    WFP_CALLOUT_REG_INFO        CalloutRegInfo;
+
+    //  Boolean value representing the current state
+    ULONG                       FilteringActive;
+
+    //  Event callback routine
+    PWFP_NETWORK_EVENT_CALLBACK EventCallback;
+
+} WFP_DATA, *PWFP_DATA;
+
+/*
+    ----------------------------------------------------------------------
+    Various macros
+    ----------------------------------------------------------------------
+*/
+
+#define WFP_SUBLAYER_NAME_W         L"ChangeDynamix Inspection sublayer"
+#define WFP_SUBLAYER_DESC_W         L"ChangeDynamix sublayer for inspection callouts"
+
+#define WFP_DEVICE_NAME_W           L"4FA9893C-A44A-4474-A9B9-ACDE01F32AFB"
+
+#define WFP_GENERIC_CALLOUT_NAME_W  L"ChangeDynamix inspection callout"
+#define WFP_GENERIC_CALLOUT_DESC_W  L"ChangeDynamix inspection callout"
 
 #define WFP_DECLARE_CALLOUT_CALLBACK1(CallbackName) \
     void CallbackName( \
@@ -60,17 +149,64 @@ typedef struct _WFP_CALLOUT_DEFINITION
         FWPS_LAYER_ALE_AUTH_CONNECT_V6, \
         Wfp_ALE_Connect_Callback)
 
+/*
+    ----------------------------------------------------------------------
+    Forward declarations
+    ----------------------------------------------------------------------
+*/
+
+void __stdcall Wfp_BFEStateChangeCallback(
+    __inout PVOID               Context,
+    __in    FWPM_SERVICE_STATE  NewState);
+
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback);
 
-NTSTATUS Wfp_Generic_NotifyCallback(
+NTSTATUS __stdcall Wfp_Generic_NotifyCallback(
     __in            FWPS_CALLOUT_NOTIFY_TYPE    NotifyType,
     __in    const   GUID                        *FilterKey,
-    __in    const   FWPS_FILTER1                *Filter);
+    __in    const   FWPS_FILTER                 *Filter);
 
-void Wfp_Generic_FlowDeleteNotifyCallback(
+void __stdcall Wfp_Generic_FlowDeleteNotifyCallback(
     __in	UINT16	LayerId,
     __in	UINT32	CalloutId,
     __in	UINT64	FlowContext);
+
+NTSTATUS __stdcall Wfp_StartFiltering(
+    __in    PWFP_DATA   Data);
+
+NTSTATUS __stdcall Wfp_StopFiltering(
+    __in    PWFP_DATA   Data);
+
+NTSTATUS __stdcall Wfp_RegisterCallouts(
+    __in            PWFP_DATA               Data,
+    __in    const   WFP_CALLOUT_DEFINITION  *CalloutDefinitions,
+    __in            ULONG                   NumberOfDefinitions);
+
+NTSTATUS Wfp_RegisterCalloutsSub(
+    __in            PWFP_DATA               Data,
+    __in    const   WFP_CALLOUT_DEFINITION  *CalloutDefinition,
+    __in            PDEVICE_OBJECT          DeviceObject,
+    __out           PUINT32                 CalloutId,
+    __out           PGUID                   CalloutKey,
+    __out           PUINT64                 FilterId);
+
+NTSTATUS Wfp_AddDefaultFilteringRule(
+    __in            PWFP_DATA   Data,
+    __in            PWCHAR      FilterName,
+    __in            PWCHAR      FilterDesc,
+    __in    const   GUID        *LayerKey,
+    __in    const   GUID        *CalloutKey,
+    __out           PUINT64     FilterId);
+
+NTSTATUS Wfp_AllocateAndAssociateFlowContext(
+    __in    PWFP_DATA           Data,
+    __in    PNETWORK_EVENT_INFO Info);
+
+/*
+    ----------------------------------------------------------------------
+    Constants
+    ----------------------------------------------------------------------
+*/
 
 const WFP_CALLOUT_DEFINITION Wfp_Callout_Definitions[] =
 {
@@ -78,46 +214,45 @@ const WFP_CALLOUT_DEFINITION Wfp_Callout_Definitions[] =
     WFP_ALE_AUTH_CONNECT_V6_CALLOUT_DEFINITION
 };
 
-typedef struct _WFP_CALLOUT_REG_ITEM
+const ULONG Wfp_Callouts_Count = ARRAYSIZE(Wfp_Callout_Definitions);
+
+/*
+    ----------------------------------------------------------------------
+    Implementations
+    ----------------------------------------------------------------------
+*/
+
+
+void __stdcall Wfp_BFEStateChangeCallback(
+    __inout PVOID               Context,
+    __in    FWPM_SERVICE_STATE  NewState)
 {
-    ULONG32		CalloutRegId;
-    GUID		LayerGUID;
-    UINT16		LayerId;
-    UINT64      FilterId;
-} WFP_CALLOUT_REG_ITEM, *PWFP_CALLOUT_REG_ITEM;
+    RETURN_IF_FALSE(Assigned(Context));
 
-typedef struct _WFP_CALLOUT_REG_INFO
-{
-    ULONG					MaxCount;
-    ULONG					Count;
-    PWFP_CALLOUT_REG_ITEM   Items;
-} WFP_CALLOUT_REG_INFO, *PWFP_CALLOUT_REG_INFO;
-
-typedef struct _WFP_DATA
-{
-    PKM_MEMORY_MANAGER  MemoryManager;
-
-    PDRIVER_OBJECT      DriverObject;
-
-    struct BFEInfo
+    switch (NewState)
     {
-        HANDLE  TransportInjectionHandle;
-        HANDLE  EngineHandle;
-        GUID    SubLayerGuid;
-        HANDLE  BFEChangeHandle;
-    } BFEInfo;
+    case FWPM_SERVICE_RUNNING:
+        {
+            Wfp_StartFiltering((PWFP_DATA)Context);
+        }break;
 
-    PWFP_CALLOUT_REG_INFO   CalloutRegInfo;
-
-} WFP_DATA, *PWFP_DATA;
+    case FWPM_SERVICE_STOP_PENDING:
+        {
+            Wfp_StopFiltering((PWFP_DATA)Context);
+        }break;
+    };
+};
 
 NTSTATUS __stdcall Wfp_Initialize(
-    __in    PDRIVER_OBJECT      DriverObject,
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __out   PHANDLE             Instance)
+    __in    PDRIVER_OBJECT              DriverObject,
+    __in    PKM_MEMORY_MANAGER          MemoryManager,
+    __in    PWFP_NETWORK_EVENT_CALLBACK EventCallback,
+    __out   PHANDLE                     Instance)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
-    PWFP_DATA   NewWfp = NULL;
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PWFP_DATA           NewWfp = NULL;
+    FWPM_SERVICE_STATE  BFEState;
+    UNICODE_STRING      WfpDeviceName = RTL_CONSTANT_STRING(WFP_DEVICE_NAME_W);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DriverObject),
@@ -126,8 +261,11 @@ NTSTATUS __stdcall Wfp_Initialize(
         Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Instance),
+        Assigned(EventCallback),
         STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Instance),
+        STATUS_INVALID_PARAMETER_4);
 
     NewWfp = Km_MM_AllocMemTyped(
         MemoryManager,
@@ -138,10 +276,77 @@ NTSTATUS __stdcall Wfp_Initialize(
 
     RtlZeroMemory(NewWfp, sizeof(WFP_DATA));
 
+    Status = ExUuidCreate(&NewWfp->BFEInfo.SubLayer.Guid);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    NewWfp->CalloutRegInfo.Items = Km_MM_AllocArray(
+        MemoryManager,
+        WFP_CALLOUT_REG_ITEM,
+        Wfp_Callouts_Count);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(NewWfp->CalloutRegInfo.Items),
+        STATUS_INSUFFICIENT_RESOURCES);
+    RtlZeroMemory(
+        NewWfp->CalloutRegInfo.Items,
+        sizeof(WFP_CALLOUT_REG_ITEM) * Wfp_Callouts_Count);
+    NewWfp->CalloutRegInfo.MaxCount = Wfp_Callouts_Count;
+
+    Status = IoCreateDevice(
+        DriverObject,
+        0,
+        &WfpDeviceName,
+        FILE_DEVICE_UNKNOWN,
+        0,
+        FALSE,
+        &NewWfp->DeviceObject);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     NewWfp->DriverObject = DriverObject;
     NewWfp->MemoryManager = MemoryManager;
-    
+
+    Status = BfeStateWatcher_Initialize(
+        DriverObject,
+        MemoryManager,
+        Wfp_BFEStateChangeCallback,
+        NewWfp,
+        &NewWfp->BFEInfo.BFEStateWatcher);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    BFEState = FwpmBfeStateGet();
+
+    if (BFEState == FWPM_SERVICE_RUNNING)
+    {
+        Wfp_StartFiltering(NewWfp);
+    }
+
 cleanup:
+
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(NewWfp))
+        {
+            if (Assigned(NewWfp->DeviceObject))
+            {
+                IoDeleteDevice(NewWfp->DeviceObject);
+            }
+
+            if (Assigned(NewWfp->CalloutRegInfo.Items))
+            {
+                Km_MM_FreeMem(
+                    MemoryManager,
+                    NewWfp->CalloutRegInfo.Items);
+            }
+
+            Km_MM_FreeMem(
+                MemoryManager,
+                NewWfp);
+        }
+    }
+    else
+    {
+        *Instance = (HANDLE)NewWfp;
+    }
+
     return Status;
 };
 
@@ -156,6 +361,451 @@ NTSTATUS __stdcall Wfp_Finalize(
         STATUS_INVALID_PARAMETER_1);
 
     Data = (PWFP_DATA)Instance;
+
+    BfeStateWatcher_Finalize(Data->BFEInfo.BFEStateWatcher);
+
+    Wfp_StopFiltering(Data);
+
+    if (Assigned(Data->CalloutRegInfo.Items))
+    {
+        Km_MM_FreeMem(
+            Data->MemoryManager,
+            Data->CalloutRegInfo.Items);
+    }
+
+    if (Assigned(Data->DeviceObject))
+    {
+        IoDeleteDevice(Data->DeviceObject);
+    }
+
+    Km_MM_FreeMem(
+        Data->MemoryManager,
+        Data);
+
+cleanup:
+    return Status;
+};
+
+WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PWFP_DATA           Data = NULL;
+    ULONG               Flags = 0;
+    PNETWORK_EVENT_INFO Info = NULL;
+
+    /*
+        __in        const FWPS_INCOMING_VALUES          *InFixedValues, \
+        __in        const FWPS_INCOMING_METADATA_VALUES *InMetaValues, \
+        __inout     PVOID                               LayerData, \
+        __in_opt    const void                          *ClassifyContext, \
+        __in        const FWPS_FILTER1                  *Filter, \
+        __in        UINT64                              FlowContext, \
+        __out       FWPS_CLASSIFY_OUT                   *ClassifyOut)
+    */
+
+    RETURN_IF_FALSE(
+        (Assigned(InFixedValues)) &&
+        (Assigned(InMetaValues)) &&
+        (Assigned(Filter)) &&
+        (Assigned(ClassifyOut)));
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Filter->context != 0,
+        STATUS_INVALID_PARAMETER);
+
+    Data = (PWFP_DATA)((ULONG_PTR)Filter->context);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        IsBitFlagSet(ClassifyOut->rights, FWPS_RIGHT_ACTION_WRITE),
+        STATUS_UNSUCCESSFUL);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Data->FilteringActive,
+        STATUS_UNSUCCESSFUL);
+
+    Info = Km_MM_AllocMemTyped(
+        Data->MemoryManager,
+        NETWORK_EVENT_INFO);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Info),
+        STATUS_INSUFFICIENT_RESOURCES);
+    __try
+    {
+        Status = WfpUtils_FillNetworkEventInfo(
+            InFixedValues,
+            InMetaValues,
+            Info);
+        if (NT_SUCCESS(Status))
+        {
+            Data->EventCallback(Info);
+        }
+    }
+    __finally
+    {
+        Km_MM_FreeMem(
+            Data->MemoryManager,
+            Info);
+    }
+
+    ClassifyOut->actionType = FWP_ACTION_PERMIT;
+
+cleanup:
+    return;
+};
+
+NTSTATUS __stdcall Wfp_Generic_NotifyCallback(
+    __in            FWPS_CALLOUT_NOTIFY_TYPE    NotifyType,
+    __in    const   GUID                        *FilterKey,
+    __in    const   FWPS_FILTER                 *Filter)
+{
+    UNREFERENCED_PARAMETER(NotifyType);
+    UNREFERENCED_PARAMETER(FilterKey);
+    UNREFERENCED_PARAMETER(Filter);
+    return STATUS_SUCCESS;
+};
+
+void __stdcall Wfp_Generic_FlowDeleteNotifyCallback(
+    __in	UINT16	LayerId,
+    __in	UINT32	CalloutId,
+    __in	UINT64	FlowContext)
+{
+    UNREFERENCED_PARAMETER(LayerId);
+    UNREFERENCED_PARAMETER(CalloutId);
+    UNREFERENCED_PARAMETER(FlowContext);
+};
+
+NTSTATUS __stdcall Wfp_StartFiltering(
+    __in    PWFP_DATA   Data)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = FwpsInjectionHandleCreate(
+        AF_UNSPEC,
+        FWPS_INJECTION_TYPE_TRANSPORT,
+        &Data->BFEInfo.TransportInjectionHandle);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Wfp_RegisterCallouts(
+        Data,
+        Wfp_Callout_Definitions,
+        Wfp_Callouts_Count);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    InterlockedExchange(
+        (volatile LONG *)&Data->FilteringActive,
+        TRUE);
+
+cleanup:
+
+    if (!NT_SUCCESS(Status))
+    {
+        if (Assigned(Data))
+        {
+            if (Data->BFEInfo.TransportInjectionHandle != NULL)
+            {
+                FwpsInjectionHandleDestroy(Data->BFEInfo.TransportInjectionHandle);
+                Data->BFEInfo.TransportInjectionHandle = NULL;
+            }
+        }
+    }
+
+    return Status;
+};
+
+NTSTATUS __stdcall Wfp_StopFiltering(
+    __in    PWFP_DATA   Data)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Wfp_RegisterCallouts(
+    __in            PWFP_DATA               Data,
+    __in    const   WFP_CALLOUT_DEFINITION  *CalloutDefinitions,
+    __in            ULONG                   NumberOfDefinitions)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    FWPM_SUBLAYER   SubLayer = { 0, };
+    BOOLEAN         EngineOpened = FALSE;
+    BOOLEAN         TransactionInProgress = FALSE;
+    FWPM_SESSION    Session = { 0, };
+    ULONG           k;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutDefinitions),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        NumberOfDefinitions > 0,
+        STATUS_INVALID_PARAMETER_3);
+
+    Session.flags = FWPM_SESSION_FLAG_DYNAMIC;
+
+    Status = FwpmEngineOpen(
+        NULL,
+        RPC_C_AUTHN_WINNT,
+        NULL,
+        &Session,
+        &Data->BFEInfo.EngineHandle);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    EngineOpened = TRUE;
+
+    Status = FwpmTransactionBegin(
+        Data->BFEInfo.EngineHandle,
+        0);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    TransactionInProgress = TRUE;
+
+    SubLayer.subLayerKey = Data->BFEInfo.SubLayer.Guid;
+    SubLayer.displayData.name = WFP_SUBLAYER_NAME_W;
+    SubLayer.displayData.description = WFP_SUBLAYER_DESC_W;
+    SubLayer.flags = 0;
+    SubLayer.weight = 0;
+
+    Status = FwpmSubLayerAdd(
+        Data->BFEInfo.EngineHandle,
+        &SubLayer,
+        NULL);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    Data->BFEInfo.SubLayer.Added = TRUE;
+
+    /* Now start registering the callouts. */
+    for (k = 0; k < NumberOfDefinitions; k++)
+    {
+        GUID    CalloutKey = { 0, };
+
+        Status = Wfp_RegisterCalloutsSub(
+            Data,
+            &CalloutDefinitions[k],
+            Data->DeviceObject,
+            &Data->CalloutRegInfo.Items[k].CalloutRegId,
+            &CalloutKey,
+            &Data->CalloutRegInfo.Items[k].FilterId);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+        RtlCopyMemory(
+            &Data->CalloutRegInfo.Items[k].LayerGUID,
+            &CalloutKey,
+            sizeof(GUID));
+
+        Data->CalloutRegInfo.Items[k].LayerId = CalloutDefinitions[k].LayerId;
+        Data->CalloutRegInfo.Count++;
+    }
+
+    Status = FwpmTransactionCommit(Data->BFEInfo.EngineHandle);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    TransactionInProgress = FALSE;
+
+cleanup:
+    if (!NT_SUCCESS(Status))
+    {
+        if (TransactionInProgress)
+        {
+            FwpmTransactionAbort(Data->BFEInfo.EngineHandle);
+        }
+
+        if (Data->BFEInfo.SubLayer.Added)
+        {
+            FwpmSubLayerDeleteByKey(
+                Data->BFEInfo.EngineHandle,
+                &Data->BFEInfo.SubLayer.Guid);
+            Data->BFEInfo.SubLayer.Added = FALSE;
+        }
+
+        if (EngineOpened)
+        {
+            FwpmEngineClose(Data->BFEInfo.EngineHandle);
+            Data->BFEInfo.EngineHandle = NULL;
+        }
+
+        if (Assigned(Data->CalloutRegInfo.Items))
+        {
+            RtlZeroMemory(
+                Data->CalloutRegInfo.Items,
+                sizeof(WFP_CALLOUT_REG_INFO) * Data->CalloutRegInfo.MaxCount);
+        }
+    }
+
+    return Status;
+};
+
+NTSTATUS Wfp_RegisterCalloutsSub(
+    __in            PWFP_DATA               Data,
+    __in    const   WFP_CALLOUT_DEFINITION  *CalloutDefinition,
+    __in            PDEVICE_OBJECT          DeviceObject,
+    __out           PUINT32                 CalloutId,
+    __out           PGUID                   CalloutKey,
+    __out           PUINT64                 FilterId)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    FWPS_CALLOUT1       sCallout = { 0, };
+    FWPM_CALLOUT        mCallout = { 0, };
+    FWPM_DISPLAY_DATA   DisplayData = { 0, };
+    BOOLEAN             Registered = FALSE;
+    GUID                NewGuid;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutDefinition),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutDefinition->CalloutLayer),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DeviceObject),
+        STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutId),
+        STATUS_INVALID_PARAMETER_4);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutKey),
+        STATUS_INVALID_PARAMETER_5);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(FilterId),
+        STATUS_INVALID_PARAMETER_6);
+
+    Status = ExUuidCreate(&NewGuid);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    RtlCopyMemory(
+        CalloutKey,
+        &NewGuid,
+        sizeof(NewGuid));
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutDefinition->Callbacks.Classify),
+        STATUS_INVALID_PARAMETER_MIX);
+    RtlCopyMemory(
+        &sCallout.calloutKey,
+        &NewGuid,
+        sizeof(NewGuid));
+
+    sCallout.classifyFn = CalloutDefinition->Callbacks.Classify;
+    sCallout.notifyFn = CalloutDefinition->Callbacks.Notify;
+    sCallout.flowDeleteFn = CalloutDefinition->Callbacks.FlowDeleteNotify;
+
+    Status = FwpsCalloutRegister(
+        DeviceObject,
+        &sCallout,
+        CalloutId);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Registered = TRUE;
+
+    DisplayData.name = WFP_GENERIC_CALLOUT_NAME_W;
+    DisplayData.description = WFP_GENERIC_CALLOUT_DESC_W;
+
+    mCallout.calloutKey = NewGuid;
+    mCallout.displayData = DisplayData;
+    mCallout.applicableLayer = *(CalloutDefinition->CalloutLayer);
+    mCallout.flags |= FWPM_CALLOUT_FLAG_USES_PROVIDER_CONTEXT;
+
+    Status = FwpmCalloutAdd(
+        Data->BFEInfo.EngineHandle,
+        &mCallout,
+        NULL,
+        NULL);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Wfp_AddDefaultFilteringRule(
+        Data,
+        WFP_GENERIC_CALLOUT_NAME_W,
+        WFP_GENERIC_CALLOUT_DESC_W,
+        CalloutDefinition->CalloutLayer,
+        &NewGuid,
+        FilterId);
+    if (!NT_SUCCESS(Status))
+    {
+        FwpsCalloutUnregisterById(*CalloutId);
+        *CalloutId = 0;
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Wfp_AddDefaultFilteringRule(
+    __in            PWFP_DATA   Data,
+    __in            PWCHAR      FilterName,
+    __in            PWCHAR      FilterDesc,
+    __in    const   GUID        *LayerKey,
+    __in    const   GUID        *CalloutKey,
+    __out           PUINT64     FilterId)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    FWPM_FILTER Filter = { 0, };
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(LayerKey),
+        STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutKey),
+        STATUS_INVALID_PARAMETER_4);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(FilterId),
+        STATUS_INVALID_PARAMETER_5);
+
+    Filter.numFilterConditions = 0;
+
+    Filter.layerKey = *LayerKey;
+    Filter.subLayerKey = Data->BFEInfo.SubLayer.Guid;
+
+    Filter.displayData.name = FilterName;
+    Filter.displayData.description = FilterDesc;
+
+    /* We want all sorts of calls to come to us. */
+    Filter.action.type = FWP_ACTION_CALLOUT_TERMINATING;
+    Filter.action.calloutKey = *CalloutKey;
+
+    Filter.weight.type = FWP_EMPTY;
+
+    Filter.rawContext = (UINT_PTR)Data;
+
+    Status = FwpmFilterAdd(
+        Data->BFEInfo.EngineHandle,
+        &Filter,
+        NULL,
+        FilterId);
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Wfp_AllocateAndAssociateFlowContext(
+    __in    PWFP_DATA           Data,
+    __in    PNETWORK_EVENT_INFO Info,
+    )
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Info),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Data->FilteringActive,
+        STATUS_UNSUCCESSFUL);
 
 cleanup:
     return Status;

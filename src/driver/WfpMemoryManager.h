@@ -16,7 +16,7 @@
 
 #include <ntddk.h>
 #include "..\shared\CommonDefs.h"
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 NTSTATUS __stdcall Wfp_MM_Initialize(
     __in    PKM_MEMORY_MANAGER  Manager,

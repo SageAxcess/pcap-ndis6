@@ -23,7 +23,7 @@
 #include <minwindef.h>
 #include <ntdef.h>
 #include "KmList.h"
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet definitions

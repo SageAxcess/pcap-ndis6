@@ -16,12 +16,19 @@
 #include <fwpsk.h>
 #include <fwpmk.h>
 
-#include "KmMemoryManagery.h"
+#include "KmTypes.h"
+
+#include "KmMemoryManager.h"
+
+typedef void(__stdcall _WFP_NETWORK_EVENT_CALLBACK)(
+    __in    PNETWORK_EVENT_INFO Info);
+typedef _WFP_NETWORK_EVENT_CALLBACK WFP_NETWORK_EVENT_CALLBACK, *PWFP_NETWORK_EVENT_CALLBACK;
 
 NTSTATUS __stdcall Wfp_Initialize(
-    __in    PDRIVER_OBJECT      DriverObject,
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __out   PHANDLE             Instance);
+    __in    PDRIVER_OBJECT              DriverObject,
+    __in    PKM_MEMORY_MANAGER          MemoryManager,
+    __in    PWFP_NETWORK_EVENT_CALLBACK EventCallback,
+    __out   PHANDLE                     Instance);
 
 NTSTATUS __stdcall Wfp_Finalize(
     __in    HANDLE  Instance);

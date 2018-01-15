@@ -14,7 +14,7 @@
 #ifndef BFE_STATE_WATCHER_H
 #define BFE_STATE_WATCHER_H
 
-#include "KmMemoryManagery.h"
+#include "KmMemoryManager.h"
 
 #include <fwpmk.h>
 

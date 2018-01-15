@@ -16,6 +16,7 @@
 
 #include <ndis.h>
 #include "KmLock.h"
+#include "KmList.h"
 #include "NdisMemoryManager.h"
 
 typedef struct _ADAPTER     ADAPTER, *PADAPTER;
@@ -50,6 +51,64 @@ typedef struct _ETH_HEADER
     UCHAR   SrcAddr[ETH_LENGTH_OF_ADDRESS];
     USHORT  EthType;
 } ETH_HEADER, *PETH_HEADER;
+
+typedef struct _IP_ADDRESS_V4
+{
+    union
+    {
+        unsigned char   b[4];
+        unsigned short  s[2];
+        unsigned long   l;
+    };
+} IP_ADDRESS_V4, *PIP_ADDRESS_V4;
+
+typedef struct _IP_ADDRESS_V6
+{
+    union
+    {
+        unsigned char       b[16];
+        unsigned short      s[8];
+        unsigned long       l[4];
+        unsigned long long  q[2];
+    };
+} IP_ADDRESS_V6, *PIP_ADDRESS_V6;
+
+typedef struct _IP_ADDRESS
+{
+    union
+    {
+        IP_ADDRESS_V4   v4;
+        IP_ADDRESS_V6   v6;
+    };
+} IP_ADDRESS, *PIP_ADDRESS;
+
+#define NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE    MAX_PATH * 2
+
+typedef struct _NETWORK_EVENT_INFO
+{
+    USHORT  IpProtocol;
+    USHORT  AddressFamily;
+
+    struct Local
+    {
+        IP_ADDRESS  Address;
+        USHORT      Port;
+    } Local;
+
+    struct Remote
+    {
+        IP_ADDRESS  Address;
+        USHORT      Port;
+    } Remote;
+
+    struct Process
+    {
+        unsigned long long  Id;
+        unsigned long       NameSize;
+        wchar_t             NameBuffer[NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE];
+    } Process;
+
+} NETWORK_EVENT_INFO, *PNETWORK_EVENT_INFO;
 
 typedef struct _ADAPTER
 {
