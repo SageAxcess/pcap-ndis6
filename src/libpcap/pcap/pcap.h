@@ -165,6 +165,14 @@ struct pcap_pkthdr {
 	bpf_u_int32 len;	/* length this packet (off wire) */
 };
 
+
+struct pcap_pkthdr2 {
+	struct timeval ts;	/* time stamp */
+	bpf_u_int32 caplen;	/* length of portion present */
+	bpf_u_int32 len;	/* length this packet (off wire) */
+	uint64_t pid;		/* process id */
+};
+
 /*
  * As returned by the pcap_stats()
  */

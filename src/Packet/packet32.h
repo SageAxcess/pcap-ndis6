@@ -148,6 +148,21 @@ struct bpf_hdr
 								///< of the packet.
 };
 
+struct bpf_hdr2 
+{
+	struct timeval	bh_tstamp;	///< The timestamp associated with the captured packet. 
+								///< It is stored in a TimeVal structure.
+	UINT	bh_caplen;			///< Length of captured portion. The captured portion <b>can be different</b>
+								///< from the original packet, because it is possible (with a proper filter)
+								///< to instruct the driver to capture only a portion of the packets.
+	UINT	bh_datalen;			///< Original length of packet
+	USHORT		bh_hdrlen;		///< Length of bpf header (this struct plus alignment padding). In some cases,
+								///< a padding could be added between the end of this structure and the packet
+								///< data for performance reasons. This filed can be used to retrieve the actual data 
+								///< of the packet.
+	ULONGLONG	bh_pid;		/* process id */
+};
+
 /*!
   \brief Dump packet header.
 
@@ -251,6 +266,18 @@ typedef struct _PACKET {
 	BOOLEAN      bIoComplete;	///< \deprecated Still present for compatibility with old applications.
 }  PACKET, *LPPACKET;
 
+typedef struct _PACKETEX {  
+	HANDLE       hEvent;		///< \deprecated Still present for compatibility with old applications.
+	OVERLAPPED   OverLapped;	///< \deprecated Still present for compatibility with old applications.
+	PVOID        Buffer;		///< Buffer with containing the packets. See the PacketReceivePacket() for
+								///< details about the organization of the data in this buffer
+	UINT         Length;		///< Length of the buffer
+	DWORD        ulBytesReceived;	///< Number of valid bytes present in the buffer, i.e. amount of data
+									///< received by the last call to PacketReceivePacket()
+	BOOLEAN      bIoComplete;	///< \deprecated Still present for compatibility with old applications.
+	UINT64		 ProcessId;
+}  PACKETEX, *LPPACKETEX;
+
 /*!
   \brief Structure containing an OID request.
 
@@ -311,6 +338,7 @@ LPPACKET PacketAllocatePacket(void);
 VOID PacketInitPacket(LPPACKET lpPacket,PVOID  Buffer,UINT  Length);
 VOID PacketFreePacket(LPPACKET lpPacket);
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync);
+BOOLEAN PacketReceivePacketEx(LPADAPTER AdapterObject,LPPACKETEX lpPacket,BOOLEAN Sync);
 BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject,ULONG Filter);
 BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize);
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries);

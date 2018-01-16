@@ -12,6 +12,7 @@ EXPORTS
 		PacketInitPacket
 		PacketFreePacket
 		PacketReceivePacket
+		PacketReceivePacketEx
 		PacketCloseAdapter
 		PacketSetHwFilter
 		PacketGetAdapterNames
