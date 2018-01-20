@@ -19,6 +19,7 @@
     <ClCompile Include="WfpFlt.c" />
     <ClCompile Include="BfeStateWatcher.c" />
     <ClCompile Include="WfpUtils.c" />
+    <ClCompile Include="KmConnections.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -39,6 +40,7 @@
     <ClInclude Include="BfeStateWatcher.h" />
     <ClInclude Include="KmMemoryManager.h" />
     <ClInclude Include="WfpUtils.h" />
+    <ClInclude Include="KmConnections.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

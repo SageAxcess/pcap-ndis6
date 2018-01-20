@@ -20,6 +20,7 @@
 #pragma once
 
 #include <ndis.h>
+#include "KmTypes.h"
 #include "NdisMemoryManager.h"
 
 ///////////////////////////////////////////////////
@@ -47,6 +48,18 @@ PUNICODE_STRING AllocateString(
 ///////////////////////////////////////////////////
 
 void DriverSleep(long msec);
+
+///////////////////////////////////////////////////
+// Network eEvent info helpers
+///////////////////////////////////////////////////
+NTSTATUS __stdcall NetEventInfo_Allocate(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __out   PNETWORK_EVENT_INFO *EventInfo);
+
+NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo);
 
 ///////////////////////////////////////////////////
 // IO buffer helpers

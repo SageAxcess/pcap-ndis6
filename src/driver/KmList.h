@@ -242,6 +242,43 @@ NTSTATUS __stdcall Km_List_FindItemEx(
     __in        BOOLEAN                             LockList);
 
 /*
+    Km_List_ExtractEntriesEx routine.
+
+    Purpose:
+        Extracts one or more entries from the list
+        begining with the first entry.
+
+    Parameters:
+        List            - Pointer to KM_LIST structure representing the list.
+        DestinationList - Pointer to LIST_ENTRY structure representing
+                          the destination list.
+        Count           - Pointer to ULARGE_INTEGER structure
+                          with the number of entries to extract on input
+                          and number of items extracted on output.
+                          If the number of items is 0 the 
+                          function fails. If Count equals to MAXULONGLONG
+                          value then the function extracts all the entries
+                          from the list.
+        CheckParams     - A boolean value that specifies whether the routine
+                          should check the parameters it's being supplied by the caller.
+        LockList        - A boolean value that specifies whether the routine
+                          should perform the operation in a thread-safe way.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The List parameter is NULL.
+        STATUS_INVALID_PARAMETER_2  - The DestinationList parameters is NULL.
+        STATUS_INVALID_PARAMETER_3  - The Count parameter is NULL or the
+                                      value it points to is zero.
+*/
+NTSTATUS __stdcall Km_List_ExtractEntriesEx(
+    __in    PKM_LIST        List,
+    __in    PLIST_ENTRY     DestinationList,
+    __inout PULARGE_INTEGER Count,
+    __in    BOOLEAN         CheckParams,
+    __in    BOOLEAN         LockList);
+
+/*
     Km_List_Lock routine.
 
     Purpose:

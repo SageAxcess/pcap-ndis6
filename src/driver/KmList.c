@@ -281,6 +281,91 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Km_List_ExtractEntriesEx(
+    __in    PKM_LIST        List,
+    __in    PLIST_ENTRY     DestinationList,
+    __inout PULARGE_INTEGER Count,
+    __in    BOOLEAN         CheckParams,
+    __in    BOOLEAN         LockList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(List),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(DestinationList),
+            STATUS_INVALID_PARAMETER_2);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Count),
+            STATUS_INVALID_PARAMETER_3);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Count->QuadPart > 0,
+            STATUS_INVALID_PARAMETER_3);
+    }
+
+    if (LockList)
+    {
+        Status = Km_Lock_Acquire(&List->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        if (Count->QuadPart < MAXULONGLONG)
+        {
+            ULONGLONG   ItemsRemoved = 0;
+            ULONGLONG   ItemsToRemove =
+                List->Count.QuadPart > Count->QuadPart ?
+                Count->QuadPart :
+                List->Count.QuadPart;
+            LIST_ENTRY  TmpList;
+
+            InitializeListHead(&TmpList);
+
+            while (ItemsRemoved < ItemsToRemove)
+            {
+                PLIST_ENTRY Entry = RemoveHeadList(&List->Head);
+                InsertTailList(&TmpList, Entry);
+                ItemsRemoved++;
+            }
+
+            List->Count.QuadPart -= ItemsRemoved;
+
+
+            DestinationList->Blink->Flink = TmpList.Flink;
+            TmpList.Flink->Blink = DestinationList->Blink;
+
+            TmpList.Blink->Flink = DestinationList;
+            DestinationList->Blink = TmpList.Blink;
+
+            Count->QuadPart = ItemsRemoved;
+        }
+        else
+        {
+            DestinationList->Blink->Flink = List->Head.Flink;
+            List->Head.Flink->Blink = DestinationList->Blink;
+
+            List->Head.Blink->Flink = DestinationList;
+            DestinationList->Blink = List->Head.Blink;
+
+            Count->QuadPart = List->Count.QuadPart;
+            List->Count.QuadPart = 0;
+        }
+    }
+    __finally
+    {
+        if (LockList)
+        {
+            Km_Lock_Release(&List->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Km_List_Lock(
     __in    PKM_LIST    List)
 {

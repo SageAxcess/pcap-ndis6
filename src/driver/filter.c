@@ -24,6 +24,9 @@
 #include "Adapter.h"
 #include "KmTypes.h"
 #include "NdisMemoryManager.h"
+#include "WfpMemoryManager.h"
+#include "WfpFlt.h"
+#include "KmConnections.h"
 
 #include "..\shared\CommonDefs.h"
 
@@ -38,6 +41,37 @@
 //
 
 DRIVER_DATA DriverData;
+
+void __stdcall Filter_Wfp_EventCallback(
+    __in    WFP_NETWORK_EVENT_TYPE  EventType,
+    __in    PNETWORK_EVENT_INFO     EventInfo,
+    __in    PVOID                   Context)
+{
+    PDRIVER_DATA    Data = NULL;
+
+    RETURN_IF_FALSE(
+        (Assigned(EventInfo)) &&
+        (Assigned(Context)));
+
+    Data = (PDRIVER_DATA)Context;
+
+    switch (EventType)
+    {
+    case wnetNewFlow:
+        {
+            Km_Connections_Add(
+                Data->Other.Connections,
+                EventInfo);
+        }break;
+
+    case wnetFlowRemove:
+        {
+            Km_Connections_Remove(
+                Data->Other.Connections,
+                EventInfo);
+        }break;
+    };
+};
 
 NTSTATUS __stdcall RegisterNdisProtocol(
     __inout PDRIVER_DATA    Data)
@@ -112,6 +146,13 @@ DriverEntry(
         NDIS_FLT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = Wfp_MM_Initialize(
+        &DriverData.Wfp.MemoryManager,
+        HighPoolPriority,
+        NonPagedPool,
+        WFP_FLT_MEMORY_TAG);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     DriverData.Other.DriverObject = DriverObject;
 
     Status = Km_List_Initialize(&DriverData.AdaptersList);
@@ -121,12 +162,24 @@ DriverEntry(
         DriverObject,
         &DriverData,
         ADAPTER_NAME_FORLIST_W);
-
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DriverData.ListAdaptersDevice),
         STATUS_INSUFFICIENT_RESOURCES);
 
     DriverData.ListAdaptersDevice->IsAdaptersList = TRUE;
+
+    Status = Km_Connections_Initialize(
+        &DriverData.Ndis.MemoryManager,
+        &DriverData.Other.Connections);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Wfp_Initialize(
+        DriverObject,
+        &DriverData.Wfp.MemoryManager,
+        Filter_Wfp_EventCallback,
+        &DriverData,
+        &DriverData.Wfp.Instance);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     RtlZeroMemory(
         DriverObject->MajorFunction,
@@ -144,7 +197,22 @@ cleanup:
 
     if (!NT_SUCCESS(Status))
     {
+        if (DriverData.Wfp.Instance != NULL)
+        {
+            Wfp_Finalize(DriverData.Wfp.Instance);
+            DriverData.Wfp.Instance = NULL;
+        }
+
+        Km_MM_Finalize(&DriverData.Wfp.MemoryManager);
+
+        if (DriverData.Other.Connections != NULL)
+        {
+            Km_Connections_Finalize(
+                DriverData.Other.Connections);
+        }
+
         Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
+
         if (DriverData.Ndis.ProtocolHandle != NULL)
         {
             NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
@@ -169,6 +237,24 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         &DriverData.DriverUnload,
         TRUE);
 
+    FreeDevice(DriverData.ListAdaptersDevice);
+
+    ClearAdaptersList(&DriverData.AdaptersList);
+
+    if (DriverData.Wfp.Instance != NULL)
+    {
+        Wfp_Finalize(&DriverData.Wfp.Instance);
+        DriverData.Wfp.Instance = NULL;
+    }
+
+    Km_MM_Finalize(&DriverData.Wfp.MemoryManager);
+
+    if (DriverData.Other.Connections != NULL)
+    {
+        Km_Connections_Finalize(
+            DriverData.Other.Connections);
+    }
+
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
     if (DriverData.Ndis.ProtocolHandle != NULL)
@@ -176,10 +262,6 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
         DriverData.Ndis.ProtocolHandle = NULL;
     }
-
-    FreeDevice(DriverData.ListAdaptersDevice);
-
-    ClearAdaptersList(&DriverData.AdaptersList);
 
     RtlZeroMemory(
         &DriverData,

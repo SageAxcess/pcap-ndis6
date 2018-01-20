@@ -15,6 +15,7 @@
 #include "KmMemoryManager.h"
 #include "BfeStateWatcher.h"
 #include "WfpUtils.h"
+#include "KmList.h"
 #include "..\shared\CommonDefs.h"
 
 #include <Fwpsk.h>
@@ -33,9 +34,13 @@ typedef struct _WFP_CALLOUT_DEFINITION
     struct Callbacks
     {
         FWPS_CALLOUT_CLASSIFY_FN            Classify;
+
         FWPS_CALLOUT_NOTIFY_FN              Notify;
+
         FWPS_CALLOUT_FLOW_DELETE_NOTIFY_FN  FlowDeleteNotify;
+
     } Callbacks;
+
 } WFP_CALLOUT_DEFINITION, *PWFP_CALLOUT_DEFINITION;
 
 typedef struct _WFP_CALLOUT_REG_ITEM
@@ -94,13 +99,42 @@ typedef struct _WFP_DATA
     //  Callouts registration information
     WFP_CALLOUT_REG_INFO        CalloutRegInfo;
 
+    KM_LIST                     FlowContexts;
+
     //  Boolean value representing the current state
     ULONG                       FilteringActive;
 
     //  Event callback routine
     PWFP_NETWORK_EVENT_CALLBACK EventCallback;
 
+    PVOID                       EventCallbackContext;
+
 } WFP_DATA, *PWFP_DATA;
+
+typedef struct _WFP_FLOW_CONTEXT
+{
+    //  List link
+    LIST_ENTRY          Link;
+
+    //  Layer id
+    UINT16              LayerId;
+
+    //  Callout id
+    ULONG               CalloutId;
+
+    //  Flow id (flow handle)
+    UINT64              FlowId;
+
+    //  Network event info
+    PNETWORK_EVENT_INFO Info;
+
+    //  Wfp data
+    PWFP_DATA           WfpData;
+
+    //  Removal flag
+    BOOLEAN             RemoveInProgress;
+
+} WFP_FLOW_CONTEXT, *PWFP_FLOW_CONTEXT;
 
 /*
     ----------------------------------------------------------------------
@@ -200,7 +234,20 @@ NTSTATUS Wfp_AddDefaultFilteringRule(
 
 NTSTATUS Wfp_AllocateAndAssociateFlowContext(
     __in    PWFP_DATA           Data,
-    __in    PNETWORK_EVENT_INFO Info);
+    __in    PNETWORK_EVENT_INFO Info,
+    __in    UINT64              FlowHandle,
+    __in    UINT16              LayerId);
+
+NTSTATUS Wfp_FindCalloutIdByLayerId(
+    __in    PWFP_DATA   Data,
+    __in    UINT16      LayerId,
+    __out   PULONG      CalloutId);
+
+void Wfp_CleanupFlowContexts(
+    __in    PWFP_DATA   Data);
+
+NTSTATUS Wfp_UnregisterCallouts(
+    __in    PWFP_DATA   Data);
 
 /*
     ----------------------------------------------------------------------
@@ -247,6 +294,7 @@ NTSTATUS __stdcall Wfp_Initialize(
     __in    PDRIVER_OBJECT              DriverObject,
     __in    PKM_MEMORY_MANAGER          MemoryManager,
     __in    PWFP_NETWORK_EVENT_CALLBACK EventCallback,
+    __in    PVOID                       EventCallbackContext,
     __out   PHANDLE                     Instance)
 {
     NTSTATUS            Status = STATUS_SUCCESS;
@@ -276,6 +324,9 @@ NTSTATUS __stdcall Wfp_Initialize(
 
     RtlZeroMemory(NewWfp, sizeof(WFP_DATA));
 
+    Status = Km_List_Initialize(&NewWfp->FlowContexts);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     Status = ExUuidCreate(&NewWfp->BFEInfo.SubLayer.Guid);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -303,6 +354,8 @@ NTSTATUS __stdcall Wfp_Initialize(
 
     NewWfp->DriverObject = DriverObject;
     NewWfp->MemoryManager = MemoryManager;
+    NewWfp->EventCallback = EventCallback;
+    NewWfp->EventCallbackContext = EventCallbackContext;
 
     Status = BfeStateWatcher_Initialize(
         DriverObject,
@@ -388,20 +441,22 @@ cleanup:
 
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
 {
+    /*
+    __in        const FWPS_INCOMING_VALUES          *InFixedValues, \
+    __in        const FWPS_INCOMING_METADATA_VALUES *InMetaValues, \
+    __inout     PVOID                               LayerData, \
+    __in_opt    const void                          *ClassifyContext, \
+    __in        const FWPS_FILTER1                  *Filter, \
+    __in        UINT64                              FlowContext, \
+    __out       FWPS_CLASSIFY_OUT                   *ClassifyOut)
+    */
+
     NTSTATUS            Status = STATUS_SUCCESS;
     PWFP_DATA           Data = NULL;
-    ULONG               Flags = 0;
     PNETWORK_EVENT_INFO Info = NULL;
 
-    /*
-        __in        const FWPS_INCOMING_VALUES          *InFixedValues, \
-        __in        const FWPS_INCOMING_METADATA_VALUES *InMetaValues, \
-        __inout     PVOID                               LayerData, \
-        __in_opt    const void                          *ClassifyContext, \
-        __in        const FWPS_FILTER1                  *Filter, \
-        __in        UINT64                              FlowContext, \
-        __out       FWPS_CLASSIFY_OUT                   *ClassifyOut)
-    */
+    UNREFERENCED_PARAMETER(ClassifyContext);
+    UNREFERENCED_PARAMETER(LayerData);
 
     RETURN_IF_FALSE(
         (Assigned(InFixedValues)) &&
@@ -413,15 +468,20 @@ WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
         Filter->context != 0,
         STATUS_INVALID_PARAMETER);
 
-    Data = (PWFP_DATA)((ULONG_PTR)Filter->context);
+    RETURN_IF_FALSE(
+        IsBitFlagSet(
+            ClassifyOut->rights,
+            FWPS_RIGHT_ACTION_WRITE));
 
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        IsBitFlagSet(ClassifyOut->rights, FWPS_RIGHT_ACTION_WRITE),
-        STATUS_UNSUCCESSFUL);
+    Data = (PWFP_DATA)((ULONG_PTR)Filter->context);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Data->FilteringActive,
         STATUS_UNSUCCESSFUL);
+
+    //  If the context is non-zero then
+    //  the event in question was processed previously
+    GOTO_CLEANUP_IF_FALSE(FlowContext == 0);
 
     Info = Km_MM_AllocMemTyped(
         Data->MemoryManager,
@@ -437,19 +497,43 @@ WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
             Info);
         if (NT_SUCCESS(Status))
         {
-            Data->EventCallback(Info);
+            Data->EventCallback(
+                wnetNewFlow,
+                Info,
+                Data->EventCallbackContext);
+
+            LEAVE_IF_FALSE(Data->FilteringActive);
+
+            LEAVE_IF_FALSE(
+                FWPS_IS_METADATA_FIELD_PRESENT(
+                    InMetaValues,
+                    FWPS_METADATA_FIELD_FLOW_HANDLE));
+
+            Status = Wfp_AllocateAndAssociateFlowContext(
+                Data,
+                Info,
+                InMetaValues->flowHandle,
+                InFixedValues->layerId);
+
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
+            Info = NULL;
         }
     }
     __finally
     {
-        Km_MM_FreeMem(
-            Data->MemoryManager,
-            Info);
+        if (Assigned(Info))
+        {
+            Km_MM_FreeMem(
+                Data->MemoryManager,
+                Info);
+        }
     }
+
+cleanup:
 
     ClassifyOut->actionType = FWP_ACTION_PERMIT;
 
-cleanup:
     return;
 };
 
@@ -469,9 +553,50 @@ void __stdcall Wfp_Generic_FlowDeleteNotifyCallback(
     __in	UINT32	CalloutId,
     __in	UINT64	FlowContext)
 {
+    PWFP_FLOW_CONTEXT   Context = NULL;
+
     UNREFERENCED_PARAMETER(LayerId);
     UNREFERENCED_PARAMETER(CalloutId);
-    UNREFERENCED_PARAMETER(FlowContext);
+
+    RETURN_IF_FALSE(FlowContext != 0);
+
+    Context = (PWFP_FLOW_CONTEXT)((UINT_PTR)FlowContext);
+
+    if (!Context->RemoveInProgress)
+    {
+        Km_List_Lock(&Context->WfpData->FlowContexts);
+        __try
+        {
+            Km_List_RemoveItemEx(
+                &Context->WfpData->FlowContexts,
+                &Context->Link,
+                FALSE,
+                FALSE);
+        }
+        __finally
+        {
+            Km_List_Unlock(&Context->WfpData->FlowContexts);
+        }
+    }
+
+    if (Assigned(Context->Info))
+    {
+        if (Assigned(Context->WfpData->EventCallback))
+        {
+            Context->WfpData->EventCallback(
+                wnetFlowRemove,
+                Context->Info,
+                Context->WfpData->EventCallbackContext);
+        }
+
+        Km_MM_FreeMem(
+            Context->WfpData->MemoryManager,
+            Context->Info);
+    }
+
+    Km_MM_FreeMem(
+        Context->WfpData->MemoryManager,
+        Context);
 };
 
 NTSTATUS __stdcall Wfp_StartFiltering(
@@ -524,6 +649,20 @@ NTSTATUS __stdcall Wfp_StopFiltering(
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
         STATUS_INVALID_PARAMETER_1);
+
+    InterlockedExchange(
+        (volatile LONG *)&Data->FilteringActive,
+        FALSE);
+
+    Wfp_CleanupFlowContexts(Data);
+
+    Wfp_UnregisterCallouts(Data);
+
+    if (Data->BFEInfo.TransportInjectionHandle != NULL)
+    {
+        FwpsInjectionHandleDestroy(Data->BFEInfo.TransportInjectionHandle);
+        Data->BFEInfo.TransportInjectionHandle = NULL;
+    }
 
 cleanup:
     return Status;
@@ -793,9 +932,12 @@ cleanup:
 NTSTATUS Wfp_AllocateAndAssociateFlowContext(
     __in    PWFP_DATA           Data,
     __in    PNETWORK_EVENT_INFO Info,
-    )
+    __in    UINT64              FlowHandle,
+    __in    UINT16              LayerId)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
+    NTSTATUS            Status = STATUS_SUCCESS;
+    ULONG               CalloutId;
+    PWFP_FLOW_CONTEXT   NewContext;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
@@ -806,6 +948,210 @@ NTSTATUS Wfp_AllocateAndAssociateFlowContext(
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Data->FilteringActive,
         STATUS_UNSUCCESSFUL);
+
+    Status = Wfp_FindCalloutIdByLayerId(
+        Data,
+        LayerId,
+        &CalloutId);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    NewContext = Km_MM_AllocMemTyped(
+        Data->MemoryManager,
+        WFP_FLOW_CONTEXT);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(NewContext),
+        STATUS_INSUFFICIENT_RESOURCES);
+    __try
+    {
+        RtlZeroMemory(
+            NewContext,
+            sizeof(WFP_FLOW_CONTEXT));
+
+        NewContext->CalloutId = CalloutId;
+        NewContext->FlowId = FlowHandle;
+        NewContext->LayerId = LayerId;
+        NewContext->Info = Info;
+        NewContext->WfpData = Data;
+
+        Status = Km_List_Lock(&Data->FlowContexts);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+        __try
+        {
+            Status = Km_List_AddItemEx(
+                &Data->FlowContexts,
+                &NewContext->Link,
+                FALSE,
+                FALSE);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+            __try
+            {
+                Status = FwpsFlowAssociateContext(
+                    FlowHandle,
+                    LayerId,
+                    CalloutId,
+                    (UINT64)NewContext);
+            }
+            __finally
+            {
+                if (!NT_SUCCESS(Status))
+                {
+                    Km_List_RemoveItemEx(
+                        &Data->FlowContexts,
+                        &NewContext->Link,
+                        FALSE,
+                        FALSE);
+                }
+            }
+        }
+        __finally
+        {
+            Km_List_Unlock(&Data->FlowContexts);
+        }
+    }
+    __finally
+    {
+        if (!NT_SUCCESS(Status))
+        {
+            Km_MM_FreeMem(
+                Data->MemoryManager,
+                NewContext);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Wfp_FindCalloutIdByLayerId(
+    __in    PWFP_DATA   Data,
+    __in    UINT16      LayerId,
+    __out   PULONG      CalloutId)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    ULONG       k;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CalloutId),
+        STATUS_INVALID_PARAMETER_3);
+
+    Status = STATUS_NOT_FOUND;
+
+    for (k = 0; k < Data->CalloutRegInfo.Count; k++)
+    {
+        if (Data->CalloutRegInfo.Items[k].LayerId == LayerId)
+        {
+            *CalloutId = Data->CalloutRegInfo.Items[k].CalloutRegId;
+            Status = STATUS_SUCCESS;
+            break;
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+void Wfp_CleanupFlowContexts(
+    __in    PWFP_DATA   Data)
+{
+    LIST_ENTRY              TmpList;
+    PWFP_FLOW_CONTEXT       Context;
+    PLIST_ENTRY             ListEntry;
+    NTSTATUS                Status = STATUS_SUCCESS;
+    ULARGE_INTEGER          Count;
+
+    RETURN_IF_FALSE(Assigned(Data));
+
+    InitializeListHead(&TmpList);
+
+    Status = Km_List_Lock(&Data->FlowContexts);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        for (ListEntry = Data->FlowContexts.Head.Flink;
+            ListEntry != &Data->FlowContexts.Head;
+            ListEntry = ListEntry->Flink)
+        {
+            Context = CONTAINING_RECORD(ListEntry, WFP_FLOW_CONTEXT, Link);
+            Context->RemoveInProgress = TRUE;
+        }
+
+        Status = Km_List_ExtractEntriesEx(
+            &Data->FlowContexts,
+            &TmpList,
+            &Count,
+            FALSE,
+            FALSE);
+    }
+    __finally
+    {
+        Km_List_Unlock(&Data->FlowContexts);
+    }
+
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    while (!IsListEmpty(&TmpList))
+    {
+        Context = CONTAINING_RECORD(
+            RemoveHeadList(&TmpList),
+            WFP_FLOW_CONTEXT,
+            Link);
+
+        Status = FwpsFlowRemoveContext(
+            Context->FlowId,
+            Context->LayerId,
+            Context->CalloutId);
+        ASSERT(NT_SUCCESS(Status));
+    }
+
+cleanup:
+    return;
+};
+
+NTSTATUS Wfp_UnregisterCallouts(
+    __in    PWFP_DATA   Data)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    ULONG       k;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+    if (Data->CalloutRegInfo.Count > 0)
+    {
+        for (k = 0; k < Data->CalloutRegInfo.Count; k++)
+        {
+            Status = FwpmFilterDeleteById(
+                Data->BFEInfo.EngineHandle,
+                Data->CalloutRegInfo.Items[k].FilterId);
+            GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+            FwpsCalloutUnregisterById(Data->CalloutRegInfo.Items[k].CalloutRegId);
+        }
+
+        Data->CalloutRegInfo.Count = 0;
+    }
+
+    if (Data->BFEInfo.SubLayer.Added)
+    {
+        Status = FwpmSubLayerDeleteByKey(
+            Data->BFEInfo.EngineHandle,
+            &Data->BFEInfo.SubLayer.Guid);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+        Data->BFEInfo.SubLayer.Added = FALSE;
+    }
+
+    if (Data->BFEInfo.EngineHandle != NULL)
+    {
+        Status = FwpmEngineClose(Data->BFEInfo.EngineHandle);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+        Data->BFEInfo.EngineHandle = NULL;
+    }
 
 cleanup:
     return Status;

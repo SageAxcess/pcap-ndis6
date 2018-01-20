@@ -173,3 +173,20 @@
 }
 
 #define CONTINUE_IF_FALSE(Condition)    CONTINUE_IF_TRUE(!(Condition))
+
+#define COMPARE_VALUES(Value1, Value2) \
+    ((Value1) > (Value2) ? \
+     1 : \
+     (Value1) < (Value2) ? \
+     -1 : \
+     0)
+
+#define SHIFT_R(Value, Bits)    ((Value) >> (Bits))
+#define SHIFT_L(Value, Bits)    ((Value) << (Bits))
+
+#define BYTES_SWAP_16(Value16)  ((SHIFT_R((Value16), 8) & 0xFF00) | (SHIFT_L((Value16), 8) & 0xFF))
+#define BYTES_SWAP_32(Value32)  \
+    (SHIFT_R((Value32), 24) & 0xFF000000) | \
+     SHIFT_R((Value32), 8) & 0x00FF0000) | \
+     SHIFT_L((Value32), 8) & 0x0000FF00) | \
+     SHIFT_L((Value32), 24) & 0x000000FF))

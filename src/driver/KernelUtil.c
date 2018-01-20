@@ -182,7 +182,101 @@ void DriverSleep(long msec)
 	KeSetTimerEx(&timer, duetime, 0, NULL);
 
 	KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
-}
+};
+
+NTSTATUS __stdcall NetEventInfo_Allocate(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __out   PNETWORK_EVENT_INFO *EventInfo)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PNETWORK_EVENT_INFO NewInfo = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MemoryManager),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_2);
+
+    NewInfo = Km_MM_AllocMemTyped(
+        MemoryManager,
+        NETWORK_EVENT_INFO);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(NewInfo),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+    RtlZeroMemory(
+        NewInfo,
+        sizeof(NETWORK_EVENT_INFO));
+
+    *EventInfo = NewInfo;
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PETH_HEADER EthHeader = NULL;
+    DWORD       IpHeaderLength;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize > sizeof(ETH_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    EthHeader = (PETH_HEADER)Buffer;
+
+    switch (EthHeader->EthType)
+    {
+    case ETH_TYPE_IP_BE:
+        {
+            PIP4_HEADER Header = (PIP4_HEADER)(((PUCHAR)EthHeader) + sizeof(ETH_HEADER));
+
+            IpHeaderLength = (Header->VerLen & 15) * 4;
+            
+            EventInfo->AddressFamily = AF_INET;
+
+            EventInfo->IpProtocol = Header->Protocol;
+
+            EventInfo->Local.Address.v4.l = Header->SourceAddress.l;
+
+            EventInfo->Remote.Address.v4.l = Header->DestinationAddress.l;
+
+            switch (Header->Protocol)
+            {
+            case IPPROTO_TCP:
+                {
+
+                }break;
+            };
+
+        }break;
+
+    case ETH_TYPE_IP6_BE:
+        {
+
+
+        }break;
+
+    default:
+        {
+            Status = STATUS_NOT_SUPPORTED;
+        }break;
+    };
+    
+cleanup:
+    return Status;
+};
 
 NTSTATUS __stdcall IOUtils_ProbeBuffer(
     __in    PVOID   Buffer,

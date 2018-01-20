@@ -353,6 +353,7 @@
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
+    <ClCompile Include="KmConnections.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmMemoryManager.c" />
@@ -384,6 +385,7 @@
     <ClInclude Include="Events.h" />
     <ClInclude Include="filter.h" />
     <ClInclude Include="KernelUtil.h" />
+    <ClInclude Include="KmConnections.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="KmMemoryManager.h" />

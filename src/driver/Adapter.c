@@ -602,11 +602,12 @@ Protocol_ReceiveNetBufferListsHandler(
              Assigned(CurrentNbl);
              CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
         {
-            PUCHAR      MdlVA = NULL;
-            PNET_BUFFER NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
-            PMDL        Mdl = NET_BUFFER_CURRENT_MDL(NB);
-            ULONG       Offset = NET_BUFFER_DATA_OFFSET(NB);
-            ULONG       BufferLength = 0;
+            PUCHAR              MdlVA = NULL;
+            PNET_BUFFER         NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
+            PMDL                Mdl = NET_BUFFER_CURRENT_MDL(NB);
+            ULONG               Offset = NET_BUFFER_DATA_OFFSET(NB);
+            ULONG               BufferLength = 0;
+            PNETWORK_EVENT_INFO EventInfo = NULL;
 
             if (Assigned(Mdl))
             {
