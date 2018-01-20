@@ -222,13 +222,13 @@
     <ClInclude Include="..\..\shared\RegUtils.h" />
     <ClInclude Include="..\..\shared\StrUtils.h" />
     <ClInclude Include="..\..\shared\SvcUtils.h" />
+    <ClInclude Include="..\..\shared\win_bpf.h" />
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\Logging.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
     <ClInclude Include="..\Util.h" />
     <ClInclude Include="..\valid_insns.h" />
-    <ClInclude Include="..\win_bpf.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="version.rc" />
