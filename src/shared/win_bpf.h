@@ -71,6 +71,7 @@ typedef	ULONG u_int;
 typedef	LONG bpf_int32;
 typedef	ULONG bpf_u_int32;
 typedef	ULONG u_int32;
+typedef ULONGLONG bpf_u_int64;
 
 #define BPF_MAXINSNS 512
 #define BPF_MAXBUFSIZE 0x8000
@@ -143,6 +144,15 @@ typedef __declspec(align(8)) struct bpf_hdr
 	bpf_u_int32     bh_datalen;	/* original length of packet */
 	u_short         bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
 } bpf_hdr, *pbpf_hdr;
+
+typedef __declspec(align(8)) struct bpf_hdr2
+{
+	struct timeval  bh_tstamp;	/* time stamp */
+	bpf_u_int32     bh_caplen;	/* length of captured portion */
+	bpf_u_int32     bh_datalen;	/* original length of packet */
+	u_short         bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
+	bpf_u_int64		bh_pid;		/* process id */
+} bpf_hdr2, *pbpf_hdr2;
 
 #pragma warning(pop)
 

@@ -370,8 +370,8 @@ NTSTATUS __stdcall Device_ReadPackets(
              ListEntry = NextEntry, NextEntry = NextEntry->Flink)
         {
             PPACKET Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
-            USHORT  HeaderSize = (USHORT)sizeof(bpf_hdr);
-            bpf_hdr bpf;
+            USHORT  HeaderSize = (USHORT)sizeof(bpf_hdr2);
+            bpf_hdr2 bpf;
             ULONG   TotalPacketSize = Packet->DataSize + HeaderSize;
 
             BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
@@ -381,8 +381,9 @@ NTSTATUS __stdcall Device_ReadPackets(
             bpf.bh_hdrlen = HeaderSize;
             bpf.bh_tstamp.tv_sec = (long)(Packet->Timestamp.QuadPart / 1000); // Get seconds part
             bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+			bpf.bh_pid = 0; //TODO: get from queue
 
-            RtlCopyMemory(CurrentPtr, &bpf, sizeof(struct bpf_hdr));
+            RtlCopyMemory(CurrentPtr, &bpf, sizeof(struct bpf_hdr2));
             RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
 
             BytesCopied += TotalPacketSize;
