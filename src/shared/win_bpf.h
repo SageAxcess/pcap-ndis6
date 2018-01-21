@@ -48,11 +48,15 @@
 #ifdef WIN_NT_DRIVER
 #include <ndis.h>
 
-struct timeval {
-    long    tv_sec;         /* seconds */
-    long    tv_usec;        /* and microseconds */
-};
+typedef struct timeval
+{
+    //  Seconds
+    long    tv_sec;
 
+    //  Microseconds
+    long    tv_usec;
+
+} timeval, *ptimeval;
 
 #endif
 
@@ -138,11 +142,30 @@ struct bpf_version {
 
 typedef __declspec(align(8)) struct bpf_hdr
 {
-	struct timeval  bh_tstamp;	/* time stamp */
-	bpf_u_int32     bh_caplen;	/* length of captured portion */
-	bpf_u_int32     bh_datalen;	/* original length of packet */
-	u_short         bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
+	timeval     bh_tstamp;	/* time stamp */
+	bpf_u_int32 bh_caplen;	/* length of captured portion */
+	bpf_u_int32 bh_datalen;	/* original length of packet */
+	u_short     bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
 } bpf_hdr, *pbpf_hdr;
+
+typedef __declspec(align(8)) struct bpf_hdr2
+{
+    //  Timestamp
+    timeval             bh_tstamp;
+
+    //  Length of captured portion
+    bpf_u_int32         bh_caplen;
+
+    //  Original packet length
+    bpf_u_int32         bh_datalen;
+
+    //  Size of bpf header
+    u_short             bh_hdrlen;
+
+    //  Connection's process id or zero
+    unsigned long long  ProcessId;
+
+} bpf_hdr2, *pbpf_hdr2;
 
 #pragma warning(pop)
 
