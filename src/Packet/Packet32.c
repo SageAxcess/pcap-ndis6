@@ -709,6 +709,58 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
     return res;
 }
 
+BOOLEAN PacketReceivePacketEx(
+    __in    LPADAPTER   AdapterObject,
+    __out   LPPACKET_EX Packet,
+    __in    BOOLEAN     Sync)
+{
+    TRACE_ENTER("PacketReceivePacket");
+    _CRT_UNUSED(Sync);
+    BOOLEAN res = FALSE;
+
+    if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
+    {
+        TRACE_PRINT("   ... NdisDriverNextPacket");
+
+        WaitForSingleObject(
+            AdapterObject->ReadEvent,
+            (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+
+        res = (BOOLEAN)NdisDriverNextPacket(
+            (PCAP_NDIS_ADAPTER*)AdapterObject->hFile,
+            &Packet->Buffer,
+            Packet->Length,
+            &Packet->BytesReceived);
+
+        if (!res)
+        {
+            PacketCloseAdapter(AdapterObject);
+        }
+
+        if (Packet->BytesReceived > 0)
+        {
+            Sleep(100);
+        }
+
+        //  commented-out temporarilly
+        /*
+        if (!CheckFilter(AdapterObject, Packet))
+        {
+            Packet->BytesReceived = 0;
+            res = FALSE;
+        }
+        */
+    }
+    else
+    {
+        TRACE_PRINT1("Request to read on an unknown device type (%u)", AdapterObject->Flags);
+    }
+
+    TRACE_EXIT("PacketReceivePacket");
+
+    return res;
+};
+
 BOOLEAN PacketSendPacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync)
 {
     _CRT_UNUSED(AdapterObject);

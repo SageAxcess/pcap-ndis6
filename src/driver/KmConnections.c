@@ -315,7 +315,7 @@ cleanup:
 NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
     __in    HANDLE              Instance,
     __in    PNETWORK_EVENT_INFO Info,
-    __out   PHANDLE             ProcessId)
+    __out   PULONGLONG          ProcessId)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
     PKM_CONNECTIONS_DATA    Data = NULL;
@@ -348,7 +348,7 @@ NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
         if (NT_SUCCESS(Status))
         {
             ConnItem = CONTAINING_RECORD(FoundItem, KM_CONNECTIONS_ITEM, Link);
-            *ProcessId = (HANDLE)((UINT_PTR)ConnItem->Info.Process.Id);
+            *ProcessId = ConnItem->Info.Process.Id;
         }
     }
     __finally

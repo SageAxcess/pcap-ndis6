@@ -27,6 +27,7 @@
 #include "KernelUtil.h"
 #include "KmList.h"
 #include "KmMemoryManager.h"
+#include "KmConnections.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -566,8 +567,8 @@ Protocol_ReceiveNetBufferListsHandler(
 	ULONG                   NumberOfNetBufferLists,
 	ULONG                   ReceiveFlags)
 {
-	ADAPTER *adapter = (ADAPTER*)ProtocolBindingContext;
-    ULONG   ReturnFlags = 0;
+	ADAPTER     *adapter = (ADAPTER*)ProtocolBindingContext;
+    ULONG       ReturnFlags = 0;
 
     _CRT_UNUSED(PortNumber);
 
@@ -588,9 +589,11 @@ Protocol_ReceiveNetBufferListsHandler(
         (adapter->Ready) &&
         (Assigned(adapter->Device)),
         NdisReturnNetBufferLists(
-            adapter->AdapterHandle, 
+            adapter->AdapterHandle,
             NetBufferLists, 
             ReturnFlags));
+
+
 
     LockClients(adapter->Device, TRUE);
     __try
@@ -607,16 +610,15 @@ Protocol_ReceiveNetBufferListsHandler(
             PMDL                Mdl = NET_BUFFER_CURRENT_MDL(NB);
             ULONG               Offset = NET_BUFFER_DATA_OFFSET(NB);
             ULONG               BufferLength = 0;
-            PNETWORK_EVENT_INFO EventInfo = NULL;
-
+            
             if (Assigned(Mdl))
             {
                 PLIST_ENTRY ListEntry = NULL;
 
                 NdisQueryMdl(
-                    Mdl, 
-                    &MdlVA, 
-                    &BufferLength, 
+                    Mdl,
+                    &MdlVA,
+                    &BufferLength,
                     NormalPagePriority);
 
                 BREAK_IF_FALSE(
@@ -629,6 +631,16 @@ Protocol_ReceiveNetBufferListsHandler(
 
                 BREAK_IF_FALSE(BufferLength >= sizeof(ETH_HEADER));
 
+                NetEventInfo_FillFromBuffer(
+                    (PVOID)(MdlVA + Offset),
+                    BufferLength,
+                    &adapter->CurrentEventInfo);
+
+                Km_Connections_GetPIDForPacket(
+                    adapter->DriverData->Other.Connections,
+                    &adapter->CurrentEventInfo,
+                    &adapter->CurrentEventInfo.Process.Id);
+
                 for (ListEntry = adapter->Device->ClientList.Head.Flink;
                      ListEntry != &adapter->Device->ClientList.Head;
                      ListEntry = ListEntry->Flink)
@@ -636,8 +648,9 @@ Protocol_ReceiveNetBufferListsHandler(
                     PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
                     PPACKET NewPacket = CreatePacket(
                         &adapter->DriverData->Ndis.MemoryManager,
-                        MdlVA + Offset, 
-                        BufferLength, 
+                        MdlVA + Offset,
+                        BufferLength,
+                        adapter->CurrentEventInfo.Process.Id,
                         &PacketTimeStamp);
 
                     if ((Client->PacketList.Count.QuadPart < MAX_PACKET_QUEUE_SIZE) &&

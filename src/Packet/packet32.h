@@ -251,6 +251,28 @@ typedef struct _PACKET {
 	BOOLEAN      bIoComplete;	///< \deprecated Still present for compatibility with old applications.
 }  PACKET, *LPPACKET;
 
+typedef struct _PACKET_EX
+{
+    //  Deprecated
+    HANDLE      Event;
+
+    //  Deprecated
+    OVERLAPPED  Overlapped;
+
+    //  Packet buffer
+    PVOID       Buffer;
+
+    //  Buffer length
+    UINT        Length;
+
+    //  Number of valid bytes in the buffer
+    DWORD       BytesReceived;
+
+    //  Deprecated
+    BOOLEAN     IoComplete;
+
+} PACKET_EX, *PPACKET_EX, *LPPACKET_EX;
+
 /*!
   \brief Structure containing an OID request.
 
@@ -310,7 +332,14 @@ INT PacketSendPackets(LPADAPTER AdapterObject,PVOID PacketBuff,ULONG Size, BOOLE
 LPPACKET PacketAllocatePacket(void);
 VOID PacketInitPacket(LPPACKET lpPacket,PVOID  Buffer,UINT  Length);
 VOID PacketFreePacket(LPPACKET lpPacket);
+
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync);
+
+BOOLEAN PacketReceivePacketEx(
+    __in    LPADAPTER   AdapterObject,
+    __out   LPPACKET_EX Packet,
+    __in    BOOLEAN     Sync);
+
 BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject,ULONG Filter);
 BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize);
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries);

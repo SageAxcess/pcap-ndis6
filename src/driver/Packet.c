@@ -31,6 +31,7 @@ PPACKET CreatePacket(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PVOID               Data,
     __in    ULONG               DataSize,
+    __in    ULONGLONG           ProcessId,
     __in    PLARGE_INTEGER      Timestamp)
 {
     PPACKET NewPacket = NULL;
@@ -62,6 +63,8 @@ PPACKET CreatePacket(
         &NewPacket->Data,
         Data,
         DataSize);
+
+    NewPacket->ProcessId = ProcessId;
 
     NewPacket->MemoryManager = MemoryManager;
 

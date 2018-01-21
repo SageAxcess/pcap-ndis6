@@ -13,8 +13,7 @@
 
 #pragma once
 
-#include <fwpsk.h>
-#include <fwpmk.h>
+#include <ntddk.h>
 
 #include "KmTypes.h"
 

@@ -35,6 +35,6 @@ NTSTATUS __stdcall Km_Connections_Remove(
 NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
     __in    HANDLE              Instance,
     __in    PNETWORK_EVENT_INFO Info,
-    __out   PHANDLE             ProcessId);
+    __out   PULONGLONG          ProcessId);
 
 #endif

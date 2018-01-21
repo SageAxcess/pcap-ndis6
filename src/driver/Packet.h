@@ -37,6 +37,8 @@ typedef struct _PACKET
 
     LARGE_INTEGER       Timestamp;
 
+    ULONGLONG           ProcessId;
+
     ULONG               DataSize;
 
     UCHAR               Data[1];
@@ -51,6 +53,7 @@ PPACKET CreatePacket(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PVOID               Data,
     __in    ULONG               DataSize,
+    __in    ULONGLONG           ProcessId,
     __in    PLARGE_INTEGER      Timestamp);
 
 void FreePacket(

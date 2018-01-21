@@ -186,79 +186,103 @@ typedef struct _ICMP_HEADER
 
 typedef struct _NETWORK_EVENT_INFO
 {
-    USHORT  IpProtocol;
+    //  IP protocol (one of IPPROTO_XXX values)
+    unsigned short  IpProtocol;
 
-    USHORT  AddressFamily;
+    //  Address family (AF_INET or AF_INET6)
+    unsigned short  AddressFamily;
 
     struct Local
     {
-        IP_ADDRESS  Address;
-        USHORT      Port;
+        //  Local address
+        IP_ADDRESS      Address;
+
+        //  Local port
+        unsigned short  Port;
+
     } Local;
 
     struct Remote
     {
-        IP_ADDRESS  Address;
-        USHORT      Port;
+        //  Remote address
+        IP_ADDRESS      Address;
+
+        //  Remote port
+        unsigned short  Port;
+
     } Remote;
 
     struct Process
     {
+        //  Process id
         unsigned long long  Id;
+
+        //  Process executable path size (in bytes)
         unsigned long       NameSize;
+
+        //  Process executable path buffer
         wchar_t             NameBuffer[NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE];
+
     } Process;
 
 } NETWORK_EVENT_INFO, *PNETWORK_EVENT_INFO;
 
 typedef struct _ADAPTER
 {
+    //  List link
     LIST_ENTRY      Link;
 
     //  Unicode string containing adapter id
-    UNICODE_STRING  Name;
+    UNICODE_STRING      Name;
 
     //  Adapter display name
-    char            DisplayName[1024];
+    char                DisplayName[1024];
 
     //  Size of the data stored in MacAddress field.
-    ULONG           MacAddressSize;
+    ULONG               MacAddressSize;
 
     //  Physical adapter address
-    UCHAR           MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+    UCHAR               MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
 
     //  MTU size
-    ULONG           MtuSize;
+    ULONG               MtuSize;
 
     //  NDIS adapter handle
-    NDIS_HANDLE     AdapterHandle;
+    NDIS_HANDLE         AdapterHandle;
 
     //  Adapter lock
-    PNDIS_SPIN_LOCK Lock;
+    PNDIS_SPIN_LOCK     Lock;
 
     //  Associated device instance
-    PDEVICE         Device;
+    PDEVICE             Device;
 
     //  Bind operation timestamp
-    LARGE_INTEGER   BindTimestamp;
+    LARGE_INTEGER       BindTimestamp;
 
     // To complete Bind request if necessary
-    NDIS_HANDLE     BindContext;
+    NDIS_HANDLE         BindContext;
 
     // To complete Unbind request if necessary
-    NDIS_HANDLE     UnbindContext;
+    NDIS_HANDLE         UnbindContext;
 
     //  Readiness flag
-    ULONG           Ready;
+    ULONG               Ready;
 
     //  Number of pending OID requests
-    volatile ULONG  PendingOidRequests;
+    volatile ULONG      PendingOidRequests;
 
     //  Number of pending packet injectio requests
-    volatile ULONG  PendingSendPackets;
+    volatile ULONG      PendingSendPackets;
 
     //  Pointer to driver data
-    PDRIVER_DATA    DriverData;
+    PDRIVER_DATA        DriverData;
+
+    //  RESERVED. 
+    //  Do not use outside of packet reading routine.
+    //  
+    //  Current network event info
+    //  This field is being used during packet receive.
+    NETWORK_EVENT_INFO  CurrentEventInfo;
 
 } ADAPTER, *PADAPTER;
 

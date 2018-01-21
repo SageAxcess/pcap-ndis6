@@ -215,6 +215,60 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall NetEventInfo_FFB_TCP(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PTCP_HEADER Header = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= sizeof(TCP_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    Header = (PTCP_HEADER)Buffer;
+
+    EventInfo->Local.Port = Header->SourcePort;
+    EventInfo->Remote.Port = Header->DestinationPort;
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall NetEventInfo_FFB_UDP(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PUDP_HEADER Header = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= sizeof(UDP_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    Header = (PUDP_HEADER)Buffer;
+
+    EventInfo->Local.Port = Header->SourcePort;
+    EventInfo->Remote.Port = Header->DestinationPort;
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
     __in    PVOID               Buffer,
     __in    ULONG               BufferSize,
@@ -256,7 +310,18 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
             {
             case IPPROTO_TCP:
                 {
+                    Status = NetEventInfo_FFB_TCP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
 
+            case IPPROTO_UDP:
+                {
+                    Status = NetEventInfo_FFB_UDP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
                 }break;
             };
 
@@ -264,7 +329,40 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
 
     case ETH_TYPE_IP6_BE:
         {
+            PIP6_HEADER Header = (PIP6_HEADER)((PUCHAR)Buffer + sizeof(ETH_HEADER));
 
+            IpHeaderLength = sizeof(IP6_HEADER);
+            
+            EventInfo->AddressFamily = AF_INET6;
+            EventInfo->IpProtocol = Header->NextHeader;
+
+            RtlCopyMemory(
+                &EventInfo->Local.Address,
+                &Header->SourceAddress,
+                sizeof(IP_ADDRESS_V6));
+            RtlCopyMemory(
+                &EventInfo->Remote.Address,
+                &Header->DestinationAddress,
+                sizeof(IP_ADDRESS_V6));
+
+            switch (Header->NextHeader)
+            {
+            case IPPROTO_TCP:
+                {
+                    Status = NetEventInfo_FFB_TCP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+
+            case IPPROTO_UDP:
+                {
+                    Status = NetEventInfo_FFB_UDP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+            };
 
         }break;
 

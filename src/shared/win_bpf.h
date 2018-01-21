@@ -58,6 +58,8 @@ typedef struct timeval
 
 } timeval, *ptimeval;
 
+typedef timeval TIMEVAL;
+
 #endif
 
 #ifdef HAVE_BUGGY_TME_SUPPORT
@@ -142,7 +144,7 @@ struct bpf_version {
 
 typedef __declspec(align(8)) struct bpf_hdr
 {
-	timeval     bh_tstamp;	/* time stamp */
+    TIMEVAL     bh_tstamp;	/* time stamp */
 	bpf_u_int32 bh_caplen;	/* length of captured portion */
 	bpf_u_int32 bh_datalen;	/* original length of packet */
 	u_short     bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
@@ -151,7 +153,7 @@ typedef __declspec(align(8)) struct bpf_hdr
 typedef __declspec(align(8)) struct bpf_hdr2
 {
     //  Timestamp
-    timeval             bh_tstamp;
+    TIMEVAL             bh_tstamp;
 
     //  Length of captured portion
     bpf_u_int32         bh_caplen;

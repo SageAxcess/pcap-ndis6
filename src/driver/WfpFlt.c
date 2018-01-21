@@ -11,14 +11,15 @@
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
 
+#include <fwpsk.h>
+#include <fwpmk.h>
+
 #include "WfpFlt.h"
 #include "KmMemoryManager.h"
 #include "BfeStateWatcher.h"
 #include "WfpUtils.h"
 #include "KmList.h"
 #include "..\shared\CommonDefs.h"
-
-#include <Fwpsk.h>
 
 /*
     ----------------------------------------------------------------------
