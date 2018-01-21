@@ -77,6 +77,7 @@ typedef	ULONG u_int;
 typedef	LONG bpf_int32;
 typedef	ULONG bpf_u_int32;
 typedef	ULONG u_int32;
+typedef ULONGLONG bpf_u_int64;
 
 #define BPF_MAXINSNS 512
 #define BPF_MAXBUFSIZE 0x8000

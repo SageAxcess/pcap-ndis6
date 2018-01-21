@@ -245,6 +245,21 @@ pcap_next(pcap_t *p, struct pcap_pkthdr *h)
 	return (pkt);
 }
 
+const u_char *
+pcap_next2(pcap_t *p, struct pcap_pkthdr2 *h)
+{
+	struct oneshot_userdata s;
+	const u_char *pkt;
+	
+	s.hdr = (struct pcap_pkthdr*)h;
+	s.pkt = &pkt;
+	s.pd = p;
+	
+	if (pcap_dispatch(p, 1, p->oneshot_callback, (u_char *)&s) <= 0)
+		return (0);
+	return (pkt);
+}
+
 int
 pcap_next_ex(pcap_t *p, struct pcap_pkthdr **pkt_header,
     const u_char **pkt_data)

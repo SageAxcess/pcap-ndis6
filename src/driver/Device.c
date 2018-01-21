@@ -383,7 +383,7 @@ NTSTATUS __stdcall Device_ReadPackets(
             bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
             bpf.ProcessId = Packet->ProcessId;
 
-            RtlCopyMemory(CurrentPtr, &bpf, sizeof(struct bpf_hdr));
+            RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
             RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
 
             BytesCopied += TotalPacketSize;
