@@ -50,14 +50,14 @@
 
 // Adapter data
 
-#define MAX_ADAPTERS 256
-#define MAX_PACKET_SIZE 32767
-#define MAX_PACKET_QUEUE_SIZE 1000
+#define MAX_ADAPTERS            256
+#define MAX_PACKET_SIZE         32767
+#define MAX_PACKET_QUEUE_SIZE   1000
 
 typedef struct PCAP_NDIS_ADAPTER_LIST_HDR
 {
-	char Signature[8];
-	UINT Count;
+	char    Signature[8];
+	UINT    Count;
 } PCAP_NDIS_ADAPTER_LIST_HDR;
 
 #define PCAP_NDIS_ADAPTER_ID_SIZE_MAX       1024

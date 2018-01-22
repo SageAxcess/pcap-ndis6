@@ -24,15 +24,10 @@
 
 #include "winpcap_ndis.h"
 
-#pragma warning(disable:28930) // Unused assignment of pointer, by design in samples
-#pragma warning(disable:28931) // Unused assignment of variable, by design in samples
-
 //  ChangeDynamix wfp filter (CDwf)
 #define WFP_FLT_MEMORY_TAG          'fwDC'
 
 #define NDIS_FLT_MEMORY_TAG         'nyDC'
-
-#define FILTER_ALLOC_TAG            'nyDC' //reverts to CDyn=ChangeDynamix
 
 #define FILTER_MAJOR_NDIS_VERSION   6
 #define FILTER_MINOR_NDIS_VERSION   0
@@ -44,9 +39,6 @@ DRIVER_INITIALIZE DriverEntry;
 //
 #define   FILTER_LOG_RCV_REF(_O, _Instance, _NetBufferList, _Ref)
 #define   FILTER_LOG_SEND_REF(_O, _Instance, _NetBufferList, _Ref)
-
-#define FILTER_INIT_LOCK(_pLock)      NdisAllocateSpinLock(_pLock)
-#define FILTER_FREE_LOCK(_pLock)      NdisFreeSpinLock(_pLock)
 
 
 //

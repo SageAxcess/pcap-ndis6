@@ -570,7 +570,7 @@ Protocol_ReceiveNetBufferListsHandler(
 	ADAPTER     *adapter = (ADAPTER*)ProtocolBindingContext;
     ULONG       ReturnFlags = 0;
 
-    _CRT_UNUSED(PortNumber);
+    UNREFERENCED_PARAMETER(PortNumber);
 
     RETURN_IF_FALSE(
         (Assigned(NetBufferLists)) &&
@@ -690,9 +690,10 @@ Protocol_SendNetBufferListsCompleteHandler(
     __in    PNET_BUFFER_LIST    NetBufferList,
     __in    ULONG               SendCompleteFlags)
 {
+    UNREFERENCED_PARAMETER(ProtocolBindingContext);
+    UNREFERENCED_PARAMETER(SendCompleteFlags);
+
 	DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
-	_CRT_UNUSED(ProtocolBindingContext);
-	_CRT_UNUSED(SendCompleteFlags);
 
 	NET_BUFFER_LIST* first = NetBufferList;
 
@@ -725,8 +726,9 @@ Protocol_SendNetBufferListsCompleteHandler(
 		InterlockedDecrement((volatile long*)&client->PendingSendPackets);
 		InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
 	}
+
 	DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
-}
+};
 
 
 NDIS_STATUS
@@ -735,12 +737,10 @@ Protocol_SetOptionsHandler(
     __in    NDIS_HANDLE NdisDriverHandle,
     __in    NDIS_HANDLE DriverContext)
 {
-	_CRT_UNUSED(NdisDriverHandle);
-	_CRT_UNUSED(DriverContext);
-	DEBUGP(DL_TRACE, "===>Protocol_SetOptionsHandler...\n");
-	DEBUGP(DL_TRACE, "<===Protocol_SetOptionsHandler\n");
-	return NDIS_STATUS_SUCCESS; //TODO: ?
-}
+    UNREFERENCED_PARAMETER(NdisDriverHandle);
+    UNREFERENCED_PARAMETER(DriverContext);
+	return NDIS_STATUS_SUCCESS;
+};
 
 NDIS_STATUS
 _Function_class_(PROTOCOL_NET_PNP_EVENT)
@@ -748,7 +748,7 @@ Protocol_NetPnPEventHandler(
     __in    NDIS_HANDLE                 ProtocolBindingContext,
     __in    PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
 {
-	_CRT_UNUSED(ProtocolBindingContext);	;
+    UNREFERENCED_PARAMETER(ProtocolBindingContext);
 	DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
 
 	if (NetPnPEventNotification != NULL)
@@ -766,15 +766,13 @@ Protocol_NetPnPEventHandler(
 
 	DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
 	return NDIS_STATUS_SUCCESS; //TODO: ?
-}
+};
 
 void
 _Function_class_(PROTOCOL_UNINSTALL)
 Protocol_UninstallHandler()
 {
-	DEBUGP(DL_TRACE, "===>Protocol_UninstallHandler...\n");
-	DEBUGP(DL_TRACE, "<===Protocol_UninstallHandler\n");
-}
+};
 
 void
 _Function_class_(PROTOCOL_STATUS_EX)
@@ -782,11 +780,9 @@ Protocol_StatusHandlerEx(
     __in    NDIS_HANDLE             ProtocolBindingContext,
     __in    PNDIS_STATUS_INDICATION StatusIndication)
 {
-	_CRT_UNUSED(ProtocolBindingContext);
-	_CRT_UNUSED(StatusIndication);
-	DEBUGP(DL_TRACE, "===>Protocol_StatusHandlerEx... " DRIVER_VER_STRING "\n");
-	DEBUGP(DL_TRACE, "<===Protocol_StatusHandlerEx\n");
-}
+    UNREFERENCED_PARAMETER(ProtocolBindingContext);
+    UNREFERENCED_PARAMETER(StatusIndication);
+};
 
 void
 _Function_class_(PROTOCOL_DIRECT_OID_REQUEST_COMPLETE)
@@ -795,9 +791,7 @@ Protocol_DirectOidRequestCompleteHandler(
     __in    PNDIS_OID_REQUEST   OidRequest,
     __in    NDIS_STATUS         Status)
 {
-	_CRT_UNUSED(ProtocolBindingContext);
-	_CRT_UNUSED(OidRequest);
-	_CRT_UNUSED(Status);
-	DEBUGP(DL_TRACE, "===>Protocol_DirectOidRequestCompleteHandler...\n");
-	DEBUGP(DL_TRACE, "<===Protocol_DirectOidRequestCompleteHandler\n");
-}
+    UNREFERENCED_PARAMETER(ProtocolBindingContext);
+    UNREFERENCED_PARAMETER(OidRequest);
+    UNREFERENCED_PARAMETER(Status);
+};

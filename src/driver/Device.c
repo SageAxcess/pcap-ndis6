@@ -551,7 +551,7 @@ Device_WriteHandler(
     __in    PIRP            Irp)
 {
 	DEBUGP(DL_TRACE, "===>Device_WriteHandler...\n");
-	_CRT_UNUSED(DeviceObject);
+	UNREFERENCED_PARAMETER(DeviceObject);
 	//TODO: Support for packet injection!
 
 	Irp->IoStatus.Information = 0;

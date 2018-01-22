@@ -231,7 +231,7 @@ void
 _Function_class_(DRIVER_UNLOAD)
 DriverUnload(DRIVER_OBJECT* DriverObject)
 {
-    _CRT_UNUSED(DriverObject);
+    UNREFERENCED_PARAMETER(DriverObject);
 
     InterlockedExchange(
         &DriverData.DriverUnload,

@@ -23,6 +23,8 @@
 #include "KernelUtil.h"
 #include "..\shared\CommonDefs.h"
 
+#include <stdio.h>
+
 volatile ULONG _curEventId = 0;
 
 NTSTATUS InitializeEvent(
