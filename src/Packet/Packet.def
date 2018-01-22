@@ -34,3 +34,4 @@ EXPORTS
 		PacketIsDumpEnded
 		PacketSetLoopbackBehavior
 		PacketGetAirPcapHandle
+		PacketReceivePacketEx
