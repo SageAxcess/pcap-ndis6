@@ -260,7 +260,8 @@ typedef struct _ADAPTER
 
   This structure defines the header associated with every packet delivered to the application.
 */
-typedef struct _PACKET {  
+typedef struct _PACKET
+{  
 	HANDLE       hEvent;		///< \deprecated Still present for compatibility with old applications.
 	OVERLAPPED   OverLapped;	///< \deprecated Still present for compatibility with old applications.
 	PVOID        Buffer;		///< Buffer with containing the packets. See the PacketReceivePacket() for
@@ -273,23 +274,11 @@ typedef struct _PACKET {
 
 typedef struct _PACKET_EX
 {
-    //  Deprecated
-    HANDLE      Event;
+    //  Original packet structure
+    PACKET  Packet;
 
-    //  Deprecated
-    OVERLAPPED  Overlapped;
-
-    //  Packet buffer
-    PVOID       Buffer;
-
-    //  Buffer length
-    UINT        Length;
-
-    //  Number of valid bytes in the buffer
-    DWORD       BytesReceived;
-
-    //  Deprecated
-    BOOLEAN     IoComplete;
+    //  Process id (or zero)
+    ULONGLONG   ProcessId;
 
 } PACKET_EX, *PPACKET_EX, *LPPACKET_EX;
 

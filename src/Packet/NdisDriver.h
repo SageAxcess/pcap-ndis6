@@ -23,10 +23,10 @@
 
 #define READ_BUFFER_SIZE 32000
 
-typedef struct PCAP_NDIS
+typedef struct _PCAP_NDIS
 {
-    void* handle;
-} PCAP_NDIS;
+    HANDLE  Handle;
+} PCAP_NDIS, *PPCAP_NDIS, *LPPCAP_NDIS;
 
 typedef struct PCAP_NDIS_ADAPTER_STAT
 {
@@ -35,28 +35,29 @@ typedef struct PCAP_NDIS_ADAPTER_STAT
     UINT Captured;
 } PCAP_NDIS_ADAPTER_STAT;
 
-typedef struct PCAP_NDIS_ADAPTER
+typedef struct _PCAP_NDIS_ADAPTER
 {
-    void                    *Handle;
+    HANDLE                  Handle;
     UINT                    ReadTimeout;
     PCAP_NDIS_ADAPTER_STAT  Stat;
 
     UINT                    BufferOffset;
     UINT                    BufferedPackets;
     UCHAR                   ReadBuffer[READ_BUFFER_SIZE];
-} PCAP_NDIS_ADAPTER, *PPCAP_NDIS_ADAPTER;
+} PCAP_NDIS_ADAPTER, *PPCAP_NDIS_ADAPTER, *LPPCAP_NDIS_ADAPTER;
 
-typedef struct PCAP_NDIS_ADAPTER_LIST
+typedef struct _PCAP_NDIS_ADAPTER_LIST
 {
-    int                     count;
-    PCAP_NDIS_ADAPTER_INFO  *adapters;
+    ULONG                   Count;
+    PCAP_NDIS_ADAPTER_INFO  Items[1];
 } PCAP_NDIS_ADAPTER_LIST, *PPCAP_NDIS_ADAPTER_LIST, *LPPCAP_NDIS_ADAPTER_LIST;
 
 // Open channel to ndis driver
-PCAP_NDIS* NdisDriverOpen();
+LPPCAP_NDIS NdisDriverOpen();
 
 // Close channel to ndis driver
-void NdisDriverClose(PCAP_NDIS* ndis);
+void NdisDriverClose(
+    __in    LPPCAP_NDIS Ndis);
 
 // Open adapter for capture
 PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
@@ -68,17 +69,20 @@ std::wstring NdisDriverGetAdapterEventName(
     __in            PCAP_NDIS_ADAPTER   *Adapter);
 
 // Close adapter
-void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter);
+void NdisDriverCloseAdapter(
+    __in    LPPCAP_NDIS_ADAPTER Adapter);
 
 // Extract packet from previously opened adapter
 BOOL NdisDriverNextPacket(
-    __in    PCAP_NDIS_ADAPTER   *adapter,
-    __out   void                **buf,
-    __in    size_t              size,
-    __out   DWORD*              dwBytesReceived);
+    __in        LPPCAP_NDIS_ADAPTER Adapter,
+    __out       LPVOID              *Buffer,
+    __in        size_t              Size,
+    __out       PDWORD              BytesReceived,
+    __out_opt   PULONGLONG          ProcessId);
 
 // Get adapter list
-PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis);
+LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis);
 
 // Free adapter list
-void NdisDriverFreeAdapterList(PCAP_NDIS_ADAPTER_LIST* list);
+void NdisDriverFreeAdapterList(
+    __in    LPPCAP_NDIS_ADAPTER_LIST    List);
