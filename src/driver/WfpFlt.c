@@ -184,6 +184,18 @@ typedef struct _WFP_FLOW_CONTEXT
         FWPS_LAYER_ALE_AUTH_CONNECT_V6, \
         Wfp_ALE_Connect_Callback)
 
+#define WFP_ALE_AUTH_RECV_ACCEPT_V4_CALLOUT_DEFINITION \
+    __WFP_DECLARE_CALLOUT_DEFINITION( \
+        &FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4, \
+        FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4, \
+        Wfp_ALE_RecvAccept_Callback)
+
+#define WFP_ALE_AUTH_RECV_ACCEPT_V6_CALLOUT_DEFINITION \
+    __WFP_DECLARE_CALLOUT_DEFINITION( \
+    &FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6, \
+    FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6, \
+    Wfp_ALE_RecvAccept_Callback)
+
 /*
     ----------------------------------------------------------------------
     Forward declarations
