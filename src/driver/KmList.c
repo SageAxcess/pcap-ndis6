@@ -333,7 +333,6 @@ NTSTATUS __stdcall Km_List_ExtractEntriesEx(
 
             List->Count.QuadPart -= ItemsRemoved;
 
-
             DestinationList->Blink->Flink = TmpList.Flink;
             TmpList.Flink->Blink = DestinationList->Blink;
 
@@ -353,6 +352,12 @@ NTSTATUS __stdcall Km_List_ExtractEntriesEx(
             Count->QuadPart = List->Count.QuadPart;
             List->Count.QuadPart = 0;
         }
+
+        if (List->Count.QuadPart == 0)
+        {
+            InitializeListHead(&List->Head);
+        }
+
     }
     __finally
     {
