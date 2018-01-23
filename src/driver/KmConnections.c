@@ -241,9 +241,11 @@ NTSTATUS __stdcall Km_Connections_Add(
                 &NewItem);
             LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
-            Status = Km_List_AddItem(
+            Status = Km_List_AddItemEx(
                 &Data->List,
-                &NewItem->Link);
+                &NewItem->Link,
+                FALSE,
+                FALSE);
             if (!NT_SUCCESS(Status))
             {
                 Km_MM_FreeMem(
