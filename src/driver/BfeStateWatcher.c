@@ -13,7 +13,7 @@
 #include "BfeStateWatcher.h"
 #include "..\shared\CommonDefs.h"
 
-#define BFE_STATE_WATCHER_DEVICE_NAME_W L"BFE_STATE_WATCHER_DEVICE"
+#define BFE_STATE_WATCHER_DEVICE_NAME_W L"\\Device\\BFE_STATE_WATCHER_DEVICE"
 
 typedef struct _BFE_STATE_WATCHER
 {

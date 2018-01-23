@@ -146,7 +146,7 @@ typedef struct _WFP_FLOW_CONTEXT
 #define WFP_SUBLAYER_NAME_W         L"ChangeDynamix Inspection sublayer"
 #define WFP_SUBLAYER_DESC_W         L"ChangeDynamix sublayer for inspection callouts"
 
-#define WFP_DEVICE_NAME_W           L"4FA9893C-A44A-4474-A9B9-ACDE01F32AFB"
+#define WFP_DEVICE_NAME_W           L"\\Device\\4FA9893C-A44A-4474-A9B9-ACDE01F32AFB"
 
 #define WFP_GENERIC_CALLOUT_NAME_W  L"ChangeDynamix inspection callout"
 #define WFP_GENERIC_CALLOUT_DESC_W  L"ChangeDynamix inspection callout"
@@ -510,10 +510,13 @@ WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
             Info);
         if (NT_SUCCESS(Status))
         {
-            Data->EventCallback(
-                wnetNewFlow,
-                Info,
-                Data->EventCallbackContext);
+            if (Assigned(Data->EventCallback))
+            {
+                Data->EventCallback(
+                    wnetNewFlow,
+                    Info,
+                    Data->EventCallbackContext);
+            }
 
             LEAVE_IF_FALSE(Data->FilteringActive);
 
@@ -575,21 +578,19 @@ void __stdcall Wfp_Generic_FlowDeleteNotifyCallback(
 
     Context = (PWFP_FLOW_CONTEXT)((UINT_PTR)FlowContext);
 
-    if (!Context->RemoveInProgress)
+    Km_List_Lock(&Context->WfpData->FlowContexts);
+    __try
     {
-        Km_List_Lock(&Context->WfpData->FlowContexts);
-        __try
-        {
-            Km_List_RemoveItemEx(
-                &Context->WfpData->FlowContexts,
-                &Context->Link,
-                FALSE,
-                FALSE);
-        }
-        __finally
-        {
-            Km_List_Unlock(&Context->WfpData->FlowContexts);
-        }
+        LEAVE_IF_TRUE(Context->RemoveInProgress);
+        Km_List_RemoveItemEx(
+            &Context->WfpData->FlowContexts,
+            &Context->Link,
+            FALSE,
+            FALSE);
+    }
+    __finally
+    {
+        Km_List_Unlock(&Context->WfpData->FlowContexts);
     }
 
     if (Assigned(Context->Info))
