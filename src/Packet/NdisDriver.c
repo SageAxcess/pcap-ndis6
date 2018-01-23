@@ -68,7 +68,7 @@ LPPCAP_NDIS NdisDriverOpen()
         nullptr);
     try
     {
-        Result = reinterpret_cast<LPPCAP_NDIS>(sizeof(PCAP_NDIS));
+        Result = reinterpret_cast<LPPCAP_NDIS>(malloc(sizeof(PCAP_NDIS)));
         if (Assigned(Result))
         {
             Result->Handle = FileHandle;
