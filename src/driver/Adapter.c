@@ -333,6 +333,8 @@ Protocol_BindAdapterHandlerEx(
         NT_SUCCESS(Status2),
         NDIS_STATUS_RESOURCES);
 
+    Adapter->DriverData = Data;
+
     RtlZeroMemory(&OpenParameters, sizeof(OpenParameters));
 
     OpenParameters.Header.Type = NDIS_OBJECT_TYPE_OPEN_PARAMETERS;
