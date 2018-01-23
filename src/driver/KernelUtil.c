@@ -92,6 +92,39 @@ PUNICODE_STRING CopyString(
     return Result;
 };
 
+BOOLEAN StringStartsWith(
+    __in    PUNICODE_STRING     String,
+    __in    PUNICODE_STRING     SubString)
+{
+    USHORT  k;
+    WCHAR   Char1;
+    WCHAR   Char2;
+
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(String)) &&
+        (Assigned(SubString)),
+        FALSE);
+
+    RETURN_VALUE_IF_FALSE(
+        String->Length >= SubString->Length,
+        FALSE);
+
+    RETURN_VALUE_IF_TRUE(
+        SubString->Length == 0,
+        TRUE);
+
+    for (k = 0; k < SubString->Length / sizeof(wchar_t); k++)
+    {
+        Char1 = RtlUpcaseUnicodeChar(String->Buffer[k]);
+        Char2 = RtlUpcaseUnicodeChar(SubString->Buffer[k]);
+        RETURN_VALUE_IF_FALSE(
+            Char1 == Char2,
+            FALSE);
+    }
+
+    return TRUE;
+};
+
 void FreeString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     String)

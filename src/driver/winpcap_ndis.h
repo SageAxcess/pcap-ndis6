@@ -33,6 +33,7 @@
 
 #define ADAPTER_NAME_FORLIST_W                      L"{00000000-0000-0000-0000-000000000000}"
 #define	EVENT_NAME_FMT				                "EVT_PCAP_NDIS_%u_%llu"
+#define DEVICE_STR_W                                L"\\DEVICE\\"
 
 #define IOCTL_VENDOR_DEVICE_BASE 0x8000
 #define IOCTL_VENDOR_FUNC_BASE 0x800

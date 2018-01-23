@@ -35,6 +35,10 @@ PUNICODE_STRING CopyString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     SourceString);
 
+BOOLEAN StringStartsWith(
+    __in    PUNICODE_STRING     String,
+    __in    PUNICODE_STRING     SubString);
+
 void FreeString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     String);

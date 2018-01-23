@@ -36,7 +36,6 @@
 // Adapter variables
 //////////////////////////////////////////////////////////////////////
 
-KM_LIST AdapterList = { 0, };
 UINT    SelectedMediumIndex = 0;
 
 //////////////////////////////////////////////////////////////////////
@@ -49,9 +48,10 @@ NTSTATUS __stdcall Adapter_Allocate(
     __in    NDIS_HANDLE             BindContext,
     __out   PADAPTER                *Adapter)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
-    PADAPTER    NewAdapter = NULL;
-    DWORD       SizeRequired = sizeof(ADAPTER);
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PADAPTER        NewAdapter = NULL;
+    DWORD           SizeRequired = sizeof(ADAPTER);
+    UNICODE_STRING  TmpStr = RTL_CONSTANT_STRING(DEVICE_STR_W);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -80,15 +80,32 @@ NTSTATUS __stdcall Adapter_Allocate(
 
     NewAdapter->Name.Buffer =
         (PWCH)((PUCHAR)NewAdapter + sizeof(ADAPTER));
-    NewAdapter->Name.Length = BindParameters->AdapterName->Length;
-    NewAdapter->Name.MaximumLength = NewAdapter->Name.Length;
+
+    NewAdapter->Name.MaximumLength = BindParameters->AdapterName->Length;
 
     if (BindParameters->AdapterName->Length > 0)
     {
-        RtlCopyMemory(
-            NewAdapter->Name.Buffer,
-            BindParameters->AdapterName->Buffer,
-            BindParameters->AdapterName->Length);
+        if (StringStartsWith(
+            BindParameters->AdapterName,
+            &TmpStr))
+        {
+            NewAdapter->Name.Length = BindParameters->AdapterName->Length - TmpStr.Length;
+
+            RtlCopyMemory(
+                NewAdapter->Name.Buffer,
+                BindParameters->AdapterName->Buffer + TmpStr.Length / sizeof(wchar_t),
+                NewAdapter->Name.Length);
+        }
+        else
+        {
+            NewAdapter->Name.Length = BindParameters->AdapterName->Length;
+            
+
+            RtlCopyMemory(
+                NewAdapter->Name.Buffer,
+                BindParameters->AdapterName->Buffer,
+                BindParameters->AdapterName->Length);
+        }
     }
     
     if (BindParameters->MacAddressLength > 0)
@@ -376,7 +393,12 @@ Protocol_UnbindAdapterHandlerEx(
     Adapter->AdapterHandle = NULL;
     Adapter->UnbindContext = UnbindContext;
 
-    Km_List_RemoveItem(&AdapterList, &Adapter->Link);
+    if (Assigned(Adapter->DriverData))
+    {
+        Km_List_RemoveItem(
+            &Adapter->DriverData->AdaptersList,
+            &Adapter->Link);
+    }
 
     while ((Adapter->PendingOidRequests > 0) ||
             (Adapter->PendingSendPackets > 0))
@@ -420,9 +442,12 @@ Protocol_OpenAdapterCompleteHandlerEx(
             Device->Adapter = Adapter;
             Adapter->Device = Device;
 
-            Km_List_AddItem(
-                &AdapterList,
-                &Adapter->Link);
+            if (Assigned(Adapter->DriverData))
+            {
+                Km_List_AddItem(
+                    &Adapter->DriverData->AdaptersList,
+                    &Adapter->Link);
+            }
         }
 
         Adapter->Ready = TRUE;
