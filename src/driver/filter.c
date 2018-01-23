@@ -243,7 +243,7 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
 
     if (DriverData.Wfp.Instance != NULL)
     {
-        Wfp_Finalize(&DriverData.Wfp.Instance);
+        Wfp_Finalize(DriverData.Wfp.Instance);
         DriverData.Wfp.Instance = NULL;
     }
 
