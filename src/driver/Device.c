@@ -608,13 +608,9 @@ Device_IoControlHandler(
 
     IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
 
-    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
-        Device->IsAdaptersList,
-        STATUS_UNSUCCESSFUL);
-
     Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Client),
+        Assigned(Client) || Device->IsAdaptersList,
         STATUS_UNSUCCESSFUL);
 
     Status = IOUtils_ValidateAndGetIOBuffers(
@@ -697,6 +693,8 @@ cleanup:
         Irp->IoStatus.Information = ReturnSize;
         IoCompleteRequest(Irp, IO_NO_INCREMENT);
     }
+
+	DEBUGP_FUNC_LEAVE_WITH_STATUS(DL_TRACE, Status);
 
     return Status;
 };

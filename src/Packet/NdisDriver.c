@@ -372,7 +372,7 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
             nullptr,
             0,
             reinterpret_cast<LPVOID>(List),
-            SizeRequired);
+			static_cast<DWORD>(SizeRequired));
     }
     __finally
     {
