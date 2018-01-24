@@ -608,10 +608,6 @@ Device_IoControlHandler(
 
     IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
 
-    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
-        Device->IsAdaptersList,
-        STATUS_UNSUCCESSFUL);
-
     Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Client),
