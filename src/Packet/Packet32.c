@@ -688,7 +688,8 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
         if(!res)
         {
-            PacketCloseAdapter(AdapterObject);
+			lpPacket->ulBytesReceived = 0;
+			res = FALSE;
         }
 
         if(lpPacket->ulBytesReceived > 0)
@@ -737,7 +738,8 @@ BOOLEAN PacketReceivePacketEx(
 
     if (!Result)
     {
-        PacketCloseAdapter(AdapterObject);
+		Packet->Packet.ulBytesReceived = 0;
+		Result = FALSE;
     }
 
     if (Packet->Packet.ulBytesReceived > 0)
