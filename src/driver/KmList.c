@@ -371,6 +371,51 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Km_List_RemoveListHeadEx(
+    __in    PKM_LIST    List,
+    __out   PLIST_ENTRY *Entry,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(List),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Entry),
+            STATUS_INVALID_PARAMETER_2);
+    }
+
+    if (LockList)
+    {
+        Status = Km_Lock_Acquire(&List->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        LEAVE_IF_FALSE_SET_STATUS(
+            List->Count.QuadPart > 0,
+            STATUS_NO_MORE_ENTRIES);
+        
+        *Entry = RemoveHeadList(&List->Head);
+
+        List->Count.QuadPart--;
+    }
+    __finally
+    {
+        if (LockList)
+        {
+            Km_Lock_Release(&List->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Km_List_Lock(
     __in    PKM_LIST    List)
 {

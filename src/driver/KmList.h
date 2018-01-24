@@ -277,6 +277,31 @@ NTSTATUS __stdcall Km_List_ExtractEntriesEx(
     __inout PULARGE_INTEGER Count,
     __in    BOOLEAN         CheckParams,
     __in    BOOLEAN         LockList);
+/*
+    Km_List_ExtractEntriesEx routine.
+
+    Purpose:
+        Extracts list head.
+
+    Parameters:
+        List          - Pointer to KM_LIST structure representing the list.
+        Entry         - Pointer to the variable to receive pointer to LIST_ENTRY structure.
+        CheckParams - A boolean value that specifies whether the routine
+                      should check the parameters it's being supplied by the caller.
+        LockList    - A boolean value that specifies whether the routine
+                      should perform the operation in a thread-safe way.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The List parameter is NULL.
+        STATUS_INVALID_PARAMETER_2  - The Entry parameter is NULL.
+        STATUS_NO_MORE_ENTRIES      - There list is empty.
+*/
+NTSTATUS __stdcall Km_List_RemoveListHeadEx(
+    __in    PKM_LIST    List,
+    __out   PLIST_ENTRY *Entry,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockList);
 
 /*
     Km_List_Lock routine.
