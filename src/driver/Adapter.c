@@ -337,7 +337,7 @@ Protocol_BindAdapterHandlerEx(
         (BindParameters->AccessType == NET_IF_ACCESS_BROADCAST) &&
         (BindParameters->DirectionType == NET_IF_DIRECTION_SENDRECEIVE) &&
         (BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED),
-        NDIS_STATUS_NOT_SUPPORTED);
+        NDIS_STATUS_FAILURE);
 
     Data = (PDRIVER_DATA)ProtocolDriverContext;
 
