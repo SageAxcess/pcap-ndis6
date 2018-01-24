@@ -683,11 +683,9 @@ Protocol_ReceiveNetBufferListsHandler(
                     if ((Client->PacketList.Count.QuadPart < MAX_PACKET_QUEUE_SIZE) &&
                         (!Client->Releasing)) //TODO: it seems we lose packets here
                     {
-                        NTSTATUS    InsertStatus = Km_List_AddItemEx(
+                        NTSTATUS    InsertStatus = Km_List_AddItem(
                             &Client->PacketList,
-                            &NewPacket->Link,
-                            FALSE,
-                            FALSE);
+                            &NewPacket->Link);
 
                         if (NT_SUCCESS(InsertStatus))
                         {
