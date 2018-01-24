@@ -360,55 +360,63 @@ NTSTATUS __stdcall Device_ReadPackets(
         !Client->Releasing,
         STATUS_UNSUCCESSFUL);
 
-    Km_List_Lock(&Client->PacketList);
+    Km_Lock_Acquire(&Client->ReadLock);
     __try
     {
-        PUCHAR      CurrentPtr = (PUCHAR)Buffer;
-
-        for (PLIST_ENTRY ListEntry = Client->PacketList.Head.Flink, NextEntry = Client->PacketList.Head.Flink;
-             ListEntry != &Client->PacketList.Head;
-             ListEntry = NextEntry, NextEntry = NextEntry->Flink)
+        Km_List_Lock(&Client->PacketList);
+        __try
         {
-            PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
-            USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
-            bpf_hdr2    bpf;
-            ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
+            PUCHAR      CurrentPtr = (PUCHAR)Buffer;
 
-            BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
+            for (PLIST_ENTRY ListEntry = Client->PacketList.Head.Flink, NextEntry = ListEntry->Flink;
+                ListEntry != &Client->PacketList.Head;
+                ListEntry = NextEntry, NextEntry = NextEntry->Flink)
+            {
+                PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
+                USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
+                bpf_hdr2    bpf;
+                ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
 
-            bpf.bh_caplen = Packet->DataSize;
-            bpf.bh_datalen = Packet->DataSize;
-            bpf.bh_hdrlen = HeaderSize;
-            bpf.bh_tstamp.tv_sec = (long)(Packet->Timestamp.QuadPart / 1000); // Get seconds part
-            bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
-            bpf.ProcessId = Packet->ProcessId;
+                BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
 
-            RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
-            RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
+                bpf.bh_caplen = Packet->DataSize;
+                bpf.bh_datalen = Packet->DataSize;
+                bpf.bh_hdrlen = HeaderSize;
+                bpf.bh_tstamp.tv_sec = (long)(Packet->Timestamp.QuadPart / 1000); // Get seconds part
+                bpf.bh_tstamp.tv_usec = (long)(Packet->Timestamp.QuadPart - bpf.bh_tstamp.tv_sec * 1000) * 1000; // Construct microseconds from remaining
+                bpf.ProcessId = Packet->ProcessId;
 
-            BytesCopied += TotalPacketSize;
-            CurrentPtr += TotalPacketSize;
-            BytesLeft -= TotalPacketSize;
+                RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
+                RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
 
-            Km_List_RemoveItemEx(
-                &Client->PacketList,
-                ListEntry,
-                FALSE,
-                FALSE);
+                BytesCopied += TotalPacketSize;
+                CurrentPtr += TotalPacketSize;
+                BytesLeft -= TotalPacketSize;
 
-            FreePacket(Packet);
+                Km_List_RemoveItemEx(
+                    &Client->PacketList,
+                    ListEntry,
+                    FALSE,
+                    FALSE);
+
+                FreePacket(Packet);
+            }
+
+            //  We must not set/clear this event outside of the PacketsList's lock
+            //  since it can result in double reads from usermode otherwise
+            if (Client->PacketList.Count.QuadPart == 0)
+            {
+                KeClearEvent(Client->Event.Event);
+            }
         }
-
-        //  We must not set/clear this event outside of the PacketsList's lock
-        //  since it can result in double reads from usermode otherwise
-        if (Client->PacketList.Count.QuadPart == 0)
+        __finally
         {
-            KeClearEvent(Client->Event.Event);
+            Km_List_Unlock(&Client->PacketList);
         }
     }
     __finally
     {
-        Km_List_Unlock(&Client->PacketList);
+        Km_Lock_Release(&Client->ReadLock);
     }
 
     *BytesRead = BytesCopied;
