@@ -237,10 +237,6 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         &DriverData.DriverUnload,
         TRUE);
 
-    FreeDevice(DriverData.ListAdaptersDevice);
-
-    ClearAdaptersList(&DriverData.AdaptersList);
-
     if (DriverData.Wfp.Instance != NULL)
     {
         Wfp_Finalize(DriverData.Wfp.Instance);
@@ -254,6 +250,10 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         Km_Connections_Finalize(
             DriverData.Other.Connections);
     }
+
+    FreeDevice(DriverData.ListAdaptersDevice);
+
+    ClearAdaptersList(&DriverData.AdaptersList);
 
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 

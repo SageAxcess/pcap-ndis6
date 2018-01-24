@@ -34,6 +34,12 @@
 #include <flt_dbg.h>
 
 //////////////////////////////////////////////////////////////////////
+// External variables
+/////////////////////////////////////////////////////////////////////
+
+extern DRIVER_DATA  DriverData;
+
+//////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
 
@@ -48,6 +54,10 @@ PDEVICE CreateDevice(
     PUNICODE_STRING SymLinkName = NULL;
     NTSTATUS        Status = STATUS_SUCCESS;
     PDEVICE         Device = NULL;
+
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+        DriverData.DriverUnload,
+        STATUS_UNSUCCESSFUL);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DriverObject),
@@ -198,6 +208,8 @@ BOOL FreeDevice(
         Assigned(Device->DriverData),
         FALSE);
 
+    Device->Releasing = TRUE;
+
     if (Assigned(Device->SymlinkName))
     {
         IoDeleteSymbolicLink(Device->SymlinkName);
@@ -240,6 +252,14 @@ Device_CreateHandler(
 {
 	DEVICE* device = *((DEVICE **)DeviceObject->DeviceExtension);
 	NTSTATUS ret = STATUS_UNSUCCESSFUL;
+
+    RETURN_VALUE_IF_TRUE(
+        DriverData.DriverUnload,
+        STATUS_UNSUCCESSFUL);
+
+    RETURN_VALUE_IF_TRUE(
+        DriverData.DriverUnload,
+        STATUS_UNSUCCESSFUL);
 
     DEBUGP_FUNC_ENTER(DL_TRACE);
 
@@ -302,7 +322,7 @@ Device_CloseHandler(
     NTSTATUS            Status = STATUS_SUCCESS;
     PDEVICE             Device = NULL;
     PIO_STACK_LOCATION  IoStackLocation = IoGetCurrentIrpStackLocation(Irp);
-       
+
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(DeviceObject),
         STATUS_INVALID_PARAMETER_1);
@@ -348,6 +368,10 @@ NTSTATUS __stdcall Device_ReadPackets(
     NTSTATUS        Status = STATUS_SUCCESS;
     DWORD           BytesCopied = 0;
     LONGLONG        BytesLeft = BufferSize;
+
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+        DriverData.DriverUnload,
+        STATUS_UNSUCCESSFUL);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (Assigned(Client)) &&
@@ -590,6 +614,10 @@ Device_IoControlHandler(
     DWORD               BytesRead = 0;
 
     DEBUGP_FUNC_ENTER(DL_TRACE);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        DriverData.DriverUnload,
+        STATUS_UNSUCCESSFUL);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (Assigned(DeviceObject)) &&

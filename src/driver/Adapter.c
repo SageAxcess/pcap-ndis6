@@ -33,6 +33,12 @@
 #include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
+// External variables
+//////////////////////////////////////////////////////////////////////
+
+extern DRIVER_DATA  DriverData;
+
+//////////////////////////////////////////////////////////////////////
 // Adapter variables
 //////////////////////////////////////////////////////////////////////
 
@@ -326,6 +332,10 @@ Protocol_BindAdapterHandlerEx(
     PADAPTER                Adapter = NULL;
     PDRIVER_DATA            Data = NULL;
 
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+        DriverData.DriverUnload,
+        NDIS_STATUS_FAILURE);
+
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (ProtocolDriverContext != NULL) &&
         (Assigned(BindParameters)),
@@ -388,7 +398,9 @@ Protocol_UnbindAdapterHandlerEx(
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
     PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
-    NDIS_HANDLE AdapterHandle = Adapter->AdapterHandle;
+    NDIS_HANDLE AdapterHandle = NULL;
+
+    AdapterHandle = Adapter->AdapterHandle;
 
     Adapter->AdapterHandle = NULL;
     Adapter->UnbindContext = UnbindContext;
@@ -603,6 +615,8 @@ Protocol_ReceiveNetBufferListsHandler(
 
     UNREFERENCED_PARAMETER(PortNumber);
 
+    RETURN_IF_TRUE(DriverData.DriverUnload);
+
     RETURN_IF_FALSE(
         (Assigned(NetBufferLists)) &&
         (NumberOfNetBufferLists > 0));
@@ -623,8 +637,6 @@ Protocol_ReceiveNetBufferListsHandler(
             adapter->AdapterHandle,
             NetBufferLists, 
             ReturnFlags));
-
-
 
     LockClients(adapter->Device, TRUE);
     __try
