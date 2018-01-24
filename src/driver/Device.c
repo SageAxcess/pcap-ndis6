@@ -610,7 +610,8 @@ Device_IoControlHandler(
 
     Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Client) || Device->IsAdaptersList,
+        (Assigned(Client)) || 
+        (Device->IsAdaptersList),
         STATUS_UNSUCCESSFUL);
 
     Status = IOUtils_ValidateAndGetIOBuffers(
