@@ -35,6 +35,7 @@ PUNICODE_STRING CreateString(
     __in    const   char                *Str)
 {
     PUNICODE_STRING NewString = NULL;
+    ANSI_STRING     AnsiString;
     USHORT          StrLen = 0;
 
     RETURN_VALUE_IF_FALSE(
@@ -46,20 +47,28 @@ PUNICODE_STRING CreateString(
 
     NewString = AllocateString(
         MemoryManager,
-        StrLen);
+        (StrLen + 1) * sizeof(wchar_t));
     RETURN_VALUE_IF_FALSE(
         Assigned(NewString),
         NULL);
 
-    RtlCopyMemory(
-        NewString->Buffer,
-        Str,
-        StrLen);
+    RtlInitAnsiString(
+        &AnsiString,
+        Str);
 
-    NewString->Length = StrLen;
+    if (!NT_SUCCESS(RtlAnsiStringToUnicodeString(
+        NewString,
+        &AnsiString,
+        FALSE)))
+    {
+        FreeString(
+            MemoryManager,
+            NewString);
+        NewString = NULL;
+    }
 
 	return NewString;
-}
+};
 
 PUNICODE_STRING CopyString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
