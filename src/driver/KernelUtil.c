@@ -67,7 +67,7 @@ PUNICODE_STRING CreateString(
         NewString = NULL;
     }
 
-	return NewString;
+    return NewString;
 };
 
 PUNICODE_STRING CopyString(
@@ -82,7 +82,7 @@ PUNICODE_STRING CopyString(
         NULL);
 
     Result = AllocateString(
-        MemoryManager, 
+        MemoryManager,
         SourceString->MaximumLength);
     RETURN_VALUE_IF_FALSE(
         Assigned(Result),
@@ -214,16 +214,16 @@ cleanup:
 
 void DriverSleep(long msec)
 {
-	KTIMER timer;
-	RtlZeroMemory(&timer, sizeof(KTIMER));
+    KTIMER timer;
+    RtlZeroMemory(&timer, sizeof(KTIMER));
 
-	LARGE_INTEGER duetime;
-	duetime.QuadPart = (__int64)msec * -10000;
+    LARGE_INTEGER duetime;
+    duetime.QuadPart = (__int64)msec * -10000;
 
-	KeInitializeTimerEx(&timer, NotificationTimer);
-	KeSetTimerEx(&timer, duetime, 0, NULL);
+    KeInitializeTimerEx(&timer, NotificationTimer);
+    KeSetTimerEx(&timer, duetime, 0, NULL);
 
-	KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
+    KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
 };
 
 NTSTATUS __stdcall NetEventInfo_Allocate(
