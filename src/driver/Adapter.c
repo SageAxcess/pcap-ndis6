@@ -162,68 +162,68 @@ BOOL SendOidRequest(
     RETURN_VALUE_IF_FALSE(
         Assigned(request),
         FALSE);
-	
+    
     NdisZeroMemory(request, sizeof(NDIS_OID_REQUEST));
 
-	request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
-	request->Header.Revision = NDIS_OID_REQUEST_REVISION_1;
-	request->Header.Size = NDIS_SIZEOF_OID_REQUEST_REVISION_1;
+    request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
+    request->Header.Revision = NDIS_OID_REQUEST_REVISION_1;
+    request->Header.Size = NDIS_SIZEOF_OID_REQUEST_REVISION_1;
 
-	if(set)
-	{
-		request->RequestType = NdisRequestSetInformation;
-		request->DATA.SET_INFORMATION.Oid = oid;
+    if(set)
+    {
+        request->RequestType = NdisRequestSetInformation;
+        request->DATA.SET_INFORMATION.Oid = oid;
         request->DATA.SET_INFORMATION.InformationBuffer = Km_MM_AllocMem(
             &adapter->DriverData->Ndis.MemoryManager,
             size);
 
-		if(!request->DATA.SET_INFORMATION.InformationBuffer)
-		{
+        if(!request->DATA.SET_INFORMATION.InformationBuffer)
+        {
             Km_MM_FreeMem(
                 &adapter->DriverData->Ndis.MemoryManager,
                 request);
-			return FALSE;
-		}
+            return FALSE;
+        }
 
         RtlCopyMemory(
             request->DATA.SET_INFORMATION.InformationBuffer,
             data,
             size);
 
-		request->DATA.SET_INFORMATION.InformationBufferLength = size;
+        request->DATA.SET_INFORMATION.InformationBufferLength = size;
 
-	} else
-	{
-		request->RequestType = NdisRequestQueryInformation;
-		request->DATA.QUERY_INFORMATION.Oid = oid;
-		request->DATA.QUERY_INFORMATION.InformationBuffer = data;
-		request->DATA.QUERY_INFORMATION.InformationBufferLength = size;
-	}
+    } else
+    {
+        request->RequestType = NdisRequestQueryInformation;
+        request->DATA.QUERY_INFORMATION.Oid = oid;
+        request->DATA.QUERY_INFORMATION.InformationBuffer = data;
+        request->DATA.QUERY_INFORMATION.InformationBufferLength = size;
+    }
 
     RETURN_VALUE_IF_FALSE(
         adapter->AdapterHandle != NULL,
         FALSE);
 
-	InterlockedIncrement((volatile LONG *)&adapter->PendingOidRequests);
+    InterlockedIncrement((volatile LONG *)&adapter->PendingOidRequests);
 
-	NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, request);
-	if(ret != NDIS_STATUS_PENDING)
-	{
-		InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
+    NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, request);
+    if(ret != NDIS_STATUS_PENDING)
+    {
+        InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
 
-		if (set)
-		{
+        if (set)
+        {
             Km_MM_FreeMem(
                 &adapter->DriverData->Ndis.MemoryManager,
                 request->DATA.SET_INFORMATION.InformationBuffer);
-		}
+        }
 
         Km_MM_FreeMem(
             &adapter->DriverData->Ndis.MemoryManager,
             request);
-	}
+    }
 
-	return 
+    return 
         (ret == NDIS_STATUS_PENDING) || 
         (ret == NDIS_STATUS_SUCCESS);	
 }
@@ -243,19 +243,19 @@ BOOL FreeAdapter(
     MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
 
     if (Assigned(Adapter->Device))
-	{
-		Adapter->Device->Releasing = TRUE;
+    {
+        Adapter->Device->Releasing = TRUE;
 
-		FreeDevice(Adapter->Device);
+        FreeDevice(Adapter->Device);
 
-		Adapter->Device = NULL;
-	}
+        Adapter->Device = NULL;
+    }
 
     Km_MM_FreeMem(
         MemoryManager,
         Adapter);
 
-	return TRUE;
+    return TRUE;
 };
 
 void _stdcall ClearAdaptersList_ItemCallback(
@@ -292,7 +292,7 @@ cleanup:
 LARGE_INTEGER GetAdapterTime(
     __in    PADAPTER    Adapter)
 {
-	LARGE_INTEGER Result = { 0 };
+    LARGE_INTEGER Result = { 0 };
     LARGE_INTEGER Freq;
     LARGE_INTEGER Ticks = KeQueryPerformanceCounter(&Freq);
 
@@ -300,12 +300,12 @@ LARGE_INTEGER GetAdapterTime(
         Assigned(Adapter),
         Result);
 
-	Result.QuadPart = Ticks.QuadPart - Adapter->BindTimestamp.QuadPart;
+    Result.QuadPart = Ticks.QuadPart - Adapter->BindTimestamp.QuadPart;
 
-	Result.QuadPart *= 1000;
-	Result.QuadPart /= Freq.QuadPart;
+    Result.QuadPart *= 1000;
+    Result.QuadPart /= Freq.QuadPart;
 
-	return Result;
+    return Result;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -402,18 +402,18 @@ Protocol_UnbindAdapterHandlerEx(
 
     while ((Adapter->PendingOidRequests > 0) ||
             (Adapter->PendingSendPackets > 0))
-	{
-		DriverSleep(50);
-	}
+    {
+        DriverSleep(50);
+    }
 
     NDIS_STATUS NdisStatus = NdisCloseAdapterEx(AdapterHandle);
     if (NdisStatus != NDIS_STATUS_PENDING)
-	{
+    {
         Adapter->UnbindContext = NULL;
         Protocol_CloseAdapterCompleteHandlerEx((NDIS_HANDLE)Adapter);
-	}
+    }
 
-	return NdisStatus;
+    return NdisStatus;
 }
 
 void
@@ -473,16 +473,16 @@ _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)
 Protocol_CloseAdapterCompleteHandlerEx(
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
-	DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
-	ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
+    DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
+    ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
-	if (adapter->UnbindContext != NULL)
-	{
-		NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
-	}
+    if (adapter->UnbindContext != NULL)
+    {
+        NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
+    }
 
-	FreeAdapter(adapter);
-	DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
+    FreeAdapter(adapter);
+    DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
 }
 
 void
@@ -506,19 +506,19 @@ Protocol_OidRequestCompleteHandler(
         Assigned(Adapter->DriverData));
     RETURN_IF_FALSE(Assigned(OidRequest));
 
-	if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
+    if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
         (OidRequest->DATA.QUERY_INFORMATION.Oid == OID_GEN_VENDOR_DESCRIPTION))
-	{
+    {
         CanRelease = FALSE;
-	}
+    }
 
     if ((CanRelease) &&
         (Assigned(OidRequest->DATA.SET_INFORMATION.InformationBuffer)))
-	{
+    {
         Km_MM_FreeMem(
             &Adapter->DriverData->Ndis.MemoryManager,
             OidRequest->DATA.SET_INFORMATION.InformationBuffer);
-	}
+    }
 
     Km_MM_FreeMem(
         &Adapter->DriverData->Ndis.MemoryManager,
@@ -547,6 +547,8 @@ void LockClients(
         PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
 
         Km_Lock_Acquire(&Client->ReadLock);
+
+        Km_List_Lock(&Client->PacketList);
     }
 };
 
@@ -573,6 +575,8 @@ void UnlockClients(
             }
         }
 
+        Km_List_Unlock(&Client->PacketList);
+
         if (Assigned(Client))
         {
             Km_Lock_Release(&Client->ReadLock);
@@ -588,13 +592,13 @@ void UnlockClients(
 void
 _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS)
 Protocol_ReceiveNetBufferListsHandler(
-	NDIS_HANDLE             ProtocolBindingContext,
-	PNET_BUFFER_LIST        NetBufferLists,
-	NDIS_PORT_NUMBER        PortNumber,
-	ULONG                   NumberOfNetBufferLists,
-	ULONG                   ReceiveFlags)
+    NDIS_HANDLE             ProtocolBindingContext,
+    PNET_BUFFER_LIST        NetBufferLists,
+    NDIS_PORT_NUMBER        PortNumber,
+    ULONG                   NumberOfNetBufferLists,
+    ULONG                   ReceiveFlags)
 {
-	ADAPTER     *adapter = (ADAPTER*)ProtocolBindingContext;
+    ADAPTER     *adapter = (ADAPTER*)ProtocolBindingContext;
     ULONG       ReturnFlags = 0;
 
     UNREFERENCED_PARAMETER(PortNumber);
@@ -603,10 +607,10 @@ Protocol_ReceiveNetBufferListsHandler(
         (Assigned(NetBufferLists)) &&
         (NumberOfNetBufferLists > 0));
 
-	if (NDIS_TEST_RECEIVE_AT_DISPATCH_LEVEL(ReceiveFlags))
-	{
-		NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
-	}
+    if (NDIS_TEST_RECEIVE_AT_DISPATCH_LEVEL(ReceiveFlags))
+    {
+        NDIS_SET_RETURN_FLAG(ReturnFlags, NDIS_RETURN_FLAGS_DISPATCH_LEVEL);
+    }
 
     RETURN_IF_FALSE(
         (Assigned(adapter)) &&
@@ -683,11 +687,13 @@ Protocol_ReceiveNetBufferListsHandler(
                     if ((Client->PacketList.Count.QuadPart < MAX_PACKET_QUEUE_SIZE) &&
                         (!Client->Releasing)) //TODO: it seems we lose packets here
                     {
-                        NTSTATUS    InsertStatus = Km_List_AddItem(
+                        NTSTATUS    InsertStatus = Km_List_AddItemEx(
                             &Client->PacketList,
-                            &NewPacket->Link);
+                            &NewPacket->Link,
+                            FALSE,
+                            FALSE);
 
-                        if (NT_SUCCESS(InsertStatus))
+                        if (!NT_SUCCESS(InsertStatus))
                         {
                             FreePacket(NewPacket);
                         }
@@ -701,11 +707,11 @@ Protocol_ReceiveNetBufferListsHandler(
     {
         UnlockClients(adapter->Device, TRUE, TRUE);
     }
-	
-	if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
-	{
-		NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
-	}
+    
+    if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
+    {
+        NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
+    }
 };
 
 void
@@ -718,41 +724,41 @@ Protocol_SendNetBufferListsCompleteHandler(
     UNREFERENCED_PARAMETER(ProtocolBindingContext);
     UNREFERENCED_PARAMETER(SendCompleteFlags);
 
-	DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
+    DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
 
-	NET_BUFFER_LIST* first = NetBufferList;
+    NET_BUFFER_LIST* first = NetBufferList;
 
-	while (first)
-	{
-		NET_BUFFER_LIST *current_nbl = first;
+    while (first)
+    {
+        NET_BUFFER_LIST *current_nbl = first;
 
-		CLIENT* client;
-		NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(first);
+        CLIENT* client;
+        NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(first);
 
-		if (NET_BUFFER_LIST_INFO(first, Ieee8021QNetBufferListInfo) != 0)
-		{
-			DEBUGP(DL_TRACE, "!!! 802.11Q !!!\n");
-		}
+        if (NET_BUFFER_LIST_INFO(first, Ieee8021QNetBufferListInfo) != 0)
+        {
+            DEBUGP(DL_TRACE, "!!! 802.11Q !!!\n");
+        }
 
-		if (nb != NULL)
-		{
-			UINT size = NET_BUFFER_DATA_LENGTH(nb);
+        if (nb != NULL)
+        {
+            UINT size = NET_BUFFER_DATA_LENGTH(nb);
 
-			NdisAdvanceNetBufferDataStart(nb, size, FALSE, NULL);
-		}
+            NdisAdvanceNetBufferDataStart(nb, size, FALSE, NULL);
+        }
 
-		client = ((void **)NET_BUFFER_LIST_CONTEXT_DATA_START(first))[0];
+        client = ((void **)NET_BUFFER_LIST_CONTEXT_DATA_START(first))[0];
 
-		first = NET_BUFFER_LIST_NEXT_NBL(first);
-		NET_BUFFER_LIST_NEXT_NBL(current_nbl) = NULL;
+        first = NET_BUFFER_LIST_NEXT_NBL(first);
+        NET_BUFFER_LIST_NEXT_NBL(current_nbl) = NULL;
 
-		NdisFreeNetBufferList(current_nbl);
+        NdisFreeNetBufferList(current_nbl);
 
-		InterlockedDecrement((volatile long*)&client->PendingSendPackets);
-		InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
-	}
+        InterlockedDecrement((volatile long*)&client->PendingSendPackets);
+        InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
+    }
 
-	DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
+    DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
 };
 
 
@@ -764,7 +770,7 @@ Protocol_SetOptionsHandler(
 {
     UNREFERENCED_PARAMETER(NdisDriverHandle);
     UNREFERENCED_PARAMETER(DriverContext);
-	return NDIS_STATUS_SUCCESS;
+    return NDIS_STATUS_SUCCESS;
 };
 
 NDIS_STATUS
@@ -774,23 +780,23 @@ Protocol_NetPnPEventHandler(
     __in    PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
 {
     UNREFERENCED_PARAMETER(ProtocolBindingContext);
-	DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
+    DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
 
-	if (NetPnPEventNotification != NULL)
-	{
-		if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventBindsComplete)
-		{
-			DEBUGP(DL_TRACE, "   finished binding adapters!\n");
-		}
+    if (NetPnPEventNotification != NULL)
+    {
+        if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventBindsComplete)
+        {
+            DEBUGP(DL_TRACE, "   finished binding adapters!\n");
+        }
 
-		if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventSetPower)
-		{
-			DEBUGP(DL_TRACE, "   power up adapter\n");
-		}
-	}
+        if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventSetPower)
+        {
+            DEBUGP(DL_TRACE, "   power up adapter\n");
+        }
+    }
 
-	DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
-	return NDIS_STATUS_SUCCESS; //TODO: ?
+    DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
+    return NDIS_STATUS_SUCCESS; //TODO: ?
 };
 
 void
