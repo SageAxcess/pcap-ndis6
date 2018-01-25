@@ -257,10 +257,6 @@ Device_CreateHandler(
         DriverData.DriverUnload,
         STATUS_UNSUCCESSFUL);
 
-    RETURN_VALUE_IF_TRUE(
-        DriverData.DriverUnload,
-        STATUS_UNSUCCESSFUL);
-
     DEBUGP_FUNC_ENTER(DL_TRACE);
 
 	if(!device || device->Releasing)
@@ -615,7 +611,7 @@ Device_IoControlHandler(
 
     DEBUGP_FUNC_ENTER(DL_TRACE);
 
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
         DriverData.DriverUnload,
         STATUS_UNSUCCESSFUL);
 
