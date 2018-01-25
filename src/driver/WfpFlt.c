@@ -208,6 +208,8 @@ void __stdcall Wfp_BFEStateChangeCallback(
 
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback);
 
+WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_RecvAccept_Callback);
+
 NTSTATUS __stdcall Wfp_Generic_NotifyCallback(
     __in            FWPS_CALLOUT_NOTIFY_TYPE    NotifyType,
     __in    const   GUID                        *FilterKey,
@@ -271,7 +273,9 @@ NTSTATUS Wfp_UnregisterCallouts(
 const WFP_CALLOUT_DEFINITION Wfp_Callout_Definitions[] =
 {
     WFP_ALE_AUTH_CONNECT_V4_CALLOUT_DEFINITION,
-    WFP_ALE_AUTH_CONNECT_V6_CALLOUT_DEFINITION
+    WFP_ALE_AUTH_CONNECT_V6_CALLOUT_DEFINITION,
+    WFP_ALE_AUTH_RECV_ACCEPT_V4_CALLOUT_DEFINITION,
+    WFP_ALE_AUTH_RECV_ACCEPT_V6_CALLOUT_DEFINITION
 };
 
 const ULONG Wfp_Callouts_Count = ARRAYSIZE(Wfp_Callout_Definitions);
@@ -454,16 +458,97 @@ cleanup:
 
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
 {
-    /*
-    __in        const FWPS_INCOMING_VALUES          *InFixedValues, \
-    __in        const FWPS_INCOMING_METADATA_VALUES *InMetaValues, \
-    __inout     PVOID                               LayerData, \
-    __in_opt    const void                          *ClassifyContext, \
-    __in        const FWPS_FILTER1                  *Filter, \
-    __in        UINT64                              FlowContext, \
-    __out       FWPS_CLASSIFY_OUT                   *ClassifyOut)
-    */
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PWFP_DATA           Data = NULL;
+    PNETWORK_EVENT_INFO Info = NULL;
 
+    UNREFERENCED_PARAMETER(ClassifyContext);
+    UNREFERENCED_PARAMETER(LayerData);
+
+    RETURN_IF_FALSE(
+        (Assigned(InFixedValues)) &&
+        (Assigned(InMetaValues)) &&
+        (Assigned(Filter)) &&
+        (Assigned(ClassifyOut)));
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Filter->context != 0,
+        STATUS_INVALID_PARAMETER);
+
+    RETURN_IF_FALSE(
+        IsBitFlagSet(
+            ClassifyOut->rights,
+            FWPS_RIGHT_ACTION_WRITE));
+
+    Data = (PWFP_DATA)((ULONG_PTR)Filter->context);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Data->FilteringActive,
+        STATUS_UNSUCCESSFUL);
+
+    //  If the context is non-zero then
+    //  the event in question was processed previously
+    GOTO_CLEANUP_IF_FALSE(FlowContext == 0);
+
+    Info = Km_MM_AllocMemTyped(
+        Data->MemoryManager,
+        NETWORK_EVENT_INFO);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Info),
+        STATUS_INSUFFICIENT_RESOURCES);
+    __try
+    {
+        Status = WfpUtils_FillNetworkEventInfo(
+            InFixedValues,
+            InMetaValues,
+            Info);
+        if (NT_SUCCESS(Status))
+        {
+            if (Assigned(Data->EventCallback))
+            {
+                Data->EventCallback(
+                    wnetNewFlow,
+                    Info,
+                    Data->EventCallbackContext);
+            }
+
+            LEAVE_IF_FALSE(Data->FilteringActive);
+
+            LEAVE_IF_FALSE(
+                FWPS_IS_METADATA_FIELD_PRESENT(
+                    InMetaValues,
+                    FWPS_METADATA_FIELD_FLOW_HANDLE));
+
+            Status = Wfp_AllocateAndAssociateFlowContext(
+                Data,
+                Info,
+                InMetaValues->flowHandle,
+                InFixedValues->layerId);
+
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
+            Info = NULL;
+        }
+    }
+    __finally
+    {
+        if (Assigned(Info))
+        {
+            Km_MM_FreeMem(
+                Data->MemoryManager,
+                Info);
+        }
+    }
+
+cleanup:
+
+    ClassifyOut->actionType = FWP_ACTION_PERMIT;
+
+    return;
+};
+
+WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_RecvAccept_Callback)
+{
     NTSTATUS            Status = STATUS_SUCCESS;
     PWFP_DATA           Data = NULL;
     PNETWORK_EVENT_INFO Info = NULL;

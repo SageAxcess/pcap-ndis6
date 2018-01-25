@@ -41,6 +41,18 @@ NTSTATUS __stdcall WfpUtils_GetFlags(
         {
             FlagsValue = &InFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V6_FLAGS].value;
         }break;
+
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4:
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4_DISCARD:
+        {
+            FlagsValue = &InFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_FLAGS].value;
+        }break;
+
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6:
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6_DISCARD:
+        {
+            FlagsValue = &InFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_FLAGS].value;
+        }break;
     };
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -119,6 +131,28 @@ NTSTATUS __stdcall WfpUtils_GetLayerIndexes(
             Indexes->LocalPort = FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_LOCAL_PORT;
             Indexes->RemoteAddress = FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_REMOTE_ADDRESS;
             Indexes->RemotePort = FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_REMOTE_PORT;
+        }break;
+
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4:
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4_DISCARD:
+        {
+            Indexes->Flags = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_FLAGS;
+            Indexes->IpProtocol = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_PROTOCOL;
+            Indexes->LocalAddress = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_LOCAL_ADDRESS;
+            Indexes->LocalPort = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_LOCAL_PORT;
+            Indexes->RemoteAddress = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_REMOTE_ADDRESS;
+            Indexes->RemotePort = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_REMOTE_PORT;
+        }break;
+
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6:
+    case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6_DISCARD:
+        {
+            Indexes->Flags = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_FLAGS;
+            Indexes->IpProtocol = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_PROTOCOL;
+            Indexes->LocalAddress = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_LOCAL_ADDRESS;
+            Indexes->LocalPort = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_LOCAL_PORT;
+            Indexes->RemoteAddress = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_REMOTE_ADDRESS;
+            Indexes->RemotePort = FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_REMOTE_PORT;
         }break;
 
     default:
