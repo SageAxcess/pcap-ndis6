@@ -246,7 +246,7 @@ NTSTATUS __stdcall Km_List_FindItemEx(
     }
     __try
     {
-        PLIST_ENTRY TmpEntry;
+        PLIST_ENTRY TmpEntry = NULL;
 
         for (TmpEntry = List->Head.Flink;
              TmpEntry != &List->Head;
