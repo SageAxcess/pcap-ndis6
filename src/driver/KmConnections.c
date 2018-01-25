@@ -17,6 +17,95 @@ typedef struct _KM_CONNECTIONS_DATA
 
 } KM_CONNECTIONS_DATA, *PKM_CONNECTIONS_DATA;
 
+int __stdcall Km_Connections_GetPID_ItemCmpCallback(
+    __in    PKM_LIST    List,
+    __in    PVOID       ItemDefinition,
+    __in    PLIST_ENTRY Item)
+{
+    PKM_CONNECTIONS_ITEM    ConnItem = CONTAINING_RECORD(Item, KM_CONNECTIONS_ITEM, Link);
+    PNETWORK_EVENT_INFO     EventInfo = (PNETWORK_EVENT_INFO)ItemDefinition;
+
+    UNREFERENCED_PARAMETER(List);
+
+    if ((Assigned(ConnItem)) &&
+        (Assigned(EventInfo)))
+    {
+        int CmpRes = COMPARE_VALUES(EventInfo->AddressFamily, ConnItem->Info.AddressFamily);
+        if (CmpRes == 0)
+        {
+            CmpRes = COMPARE_VALUES(EventInfo->IpProtocol, ConnItem->Info.IpProtocol);
+            if (CmpRes == 0)
+            {
+                //  1st pass
+
+                #pragma region STD_COMPARE
+                CmpRes = COMPARE_VALUES(EventInfo->Local.Port, ConnItem->Info.Local.Port);
+                if (CmpRes == 0)
+                {
+                    CmpRes = COMPARE_VALUES(EventInfo->Remote.Port, ConnItem->Info.Remote.Port);
+                    if (CmpRes == 0)
+                    {
+                        size_t  CmpSize =
+                            EventInfo->AddressFamily == 2 ?
+                            sizeof(IP_ADDRESS_V4) :
+                            sizeof(IP_ADDRESS_V6);
+
+                        CmpRes = memcmp(
+                            &EventInfo->Local.Address,
+                            &ConnItem->Info.Local.Address,
+                            CmpSize);
+
+                        if (CmpRes == 0)
+                        {
+                            CmpRes = memcmp(
+                                &EventInfo->Remote.Address,
+                                &ConnItem->Info.Remote.Address,
+                                CmpSize);
+                        }
+                    }
+                }
+                #pragma endregion
+
+                #pragma region REVERESE_COMPARE
+                if (CmpRes != 0)
+                {
+                    CmpRes = COMPARE_VALUES(EventInfo->Remote.Port, ConnItem->Info.Local.Port);
+                    if (CmpRes == 0)
+                    {
+                        CmpRes = COMPARE_VALUES(EventInfo->Local.Port, ConnItem->Info.Remote.Port);
+                        if (CmpRes == 0)
+                        {
+                            size_t  CmpSize =
+                                EventInfo->AddressFamily == 2 ?
+                                sizeof(IP_ADDRESS_V4) :
+                                sizeof(IP_ADDRESS_V6);
+
+                            CmpRes = memcmp(
+                                &EventInfo->Remote.Address,
+                                &ConnItem->Info.Local.Address,
+                                CmpSize);
+
+                            if (CmpRes == 0)
+                            {
+                                CmpRes = memcmp(
+                                    &EventInfo->Local.Address,
+                                    &ConnItem->Info.Remote.Address,
+                                    CmpSize);
+                            }
+                        }
+                    }
+                }
+                #pragma endregion
+            }
+        }
+
+        return CmpRes;
+    }
+
+    return COMPARE_VALUES(ItemDefinition, (PVOID)Item);
+};
+
+
 int __stdcall Km_Connections_ItemCmpCallback(
     __in    PKM_LIST    List,
     __in    PVOID       ItemDefinition,
@@ -343,7 +432,7 @@ NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
         Status = Km_List_FindItemEx(
             &Data->List,
             Info,
-            Km_Connections_ItemCmpCallback,
+            Km_Connections_GetPID_ItemCmpCallback,
             &FoundItem,
             FALSE,
             FALSE);

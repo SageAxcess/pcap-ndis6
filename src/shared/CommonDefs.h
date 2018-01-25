@@ -184,9 +184,32 @@
 #define SHIFT_R(Value, Bits)    ((Value) >> (Bits))
 #define SHIFT_L(Value, Bits)    ((Value) << (Bits))
 
-#define BYTES_SWAP_16(Value16)  ((SHIFT_R((Value16), 8) & 0xFF00) | (SHIFT_L((Value16), 8) & 0xFF))
-#define BYTES_SWAP_32(Value32)  \
-    (SHIFT_R((Value32), 24) & 0xFF000000) | \
-     SHIFT_R((Value32), 8) & 0x00FF0000) | \
-     SHIFT_L((Value32), 8) & 0x0000FF00) | \
-     SHIFT_L((Value32), 24) & 0x000000FF))
+#define BYTES_SWAP_16(Value16)  (SHIFT_R((Value16) & 0xFF00, 8) | SHIFT_L((Value16) & 0xFF, 8))
+
+#define BYTES_SWAP_32(Value32) \
+    (SHIFT_R((Value32) & 0xFF000000, 24) | \
+     SHIFT_R((Value32) & 0x00FF0000, 8) | \
+     SHIFT_L((Value32) & 0x0000FF00, 8) | \
+     SHIFT_L((Value32) & 0x000000FF, 24))
+
+#define BYTES_SWAP_16_2(Value16) \
+{ \
+    (Value16) = BYTES_SWAP_16(Value16); \
+}
+
+#define BYTES_SWAP_32_2(Value32) \
+{ \
+    (Value32) = BYTES_SWAP_32(Value32); \
+}
+
+#define IP6_SWAP_BYTE_ORDER(IPv6Address) \
+{ \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[0]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[1]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[2]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[3]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[4]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[5]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[6]); \
+    BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[7]); \
+}

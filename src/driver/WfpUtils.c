@@ -208,7 +208,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     {
         if (InFixedValues->incomingValue[LayerIndexes.LocalPort].value.type != FWP_EMPTY)
         {
-            Info->Local.Port = InFixedValues->incomingValue[LayerIndexes.LocalPort].value.uint16;
+            Info->Local.Port = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.LocalPort].value.uint16);
         }
     }
 
@@ -216,7 +216,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     {
         if (InFixedValues->incomingValue[LayerIndexes.RemotePort].value.type != FWP_EMPTY)
         {
-            Info->Remote.Port = InFixedValues->incomingValue[LayerIndexes.RemotePort].value.uint16; 
+            Info->Remote.Port = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.RemotePort].value.uint16); 
         }
     }
 
@@ -236,7 +236,8 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
             {
                 if (InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Local.Address.v4.l = InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.uint32;
+                    Info->Local.Address.v4.l = BYTES_SWAP_32(
+                        InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.uint32);
                 }
             }
 
@@ -244,7 +245,8 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
             {
                 if (InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Remote.Address.v4.l = InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.uint32;
+                    Info->Remote.Address.v4.l = BYTES_SWAP_32(
+                        InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.uint32);
                 }
             }
 
@@ -260,6 +262,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
                         &Info->Local.Address,
                         InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
+                    IP6_SWAP_BYTE_ORDER(Info->Local.Address.v6.s);
                 }
             }
 
@@ -271,6 +274,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
                         &Info->Remote.Address,
                         InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
+                    IP6_SWAP_BYTE_ORDER(Info->Remote.Address.v6.s);
                 }
             }
 
