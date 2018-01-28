@@ -236,7 +236,7 @@ typedef struct _ADAPTER
     UNICODE_STRING      Name;
 
     //  Adapter display name
-    char                DisplayName[1024];
+    char                DisplayName[256];
 
     //  Size of the data stored in MacAddress field.
     ULONG               MacAddressSize;

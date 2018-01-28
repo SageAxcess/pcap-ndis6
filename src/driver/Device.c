@@ -532,6 +532,11 @@ NTSTATUS __stdcall Device_GetAdapters(
 
             List->Items[k].MtuSize = Adapter->MtuSize;
 
+            RtlCopyMemory(
+                List->Items[k].DisplayName,
+                Adapter->DisplayName,
+                sizeof(Adapter->DisplayName));
+
             BytesCopied += sizeof(PCAP_NDIS_ADAPTER_INFO);
         }
     }
