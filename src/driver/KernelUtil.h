@@ -20,30 +20,50 @@
 #pragma once
 
 #include <ndis.h>
-
-///////////////////////////////////////////////////
-// Lock helper functions
-///////////////////////////////////////////////////
-
-NDIS_SPIN_LOCK *CreateSpinLock();
-void FreeSpinLock(PNDIS_SPIN_LOCK lock);
+#include "KmTypes.h"
+#include "NdisMemoryManager.h"
 
 ///////////////////////////////////////////////////
 // String helper functions
 ///////////////////////////////////////////////////
 
-UNICODE_STRING* CreateString(const char* str);
-UNICODE_STRING* CopyString(PUNICODE_STRING string);
-void FreeString(UNICODE_STRING* string);
+PUNICODE_STRING CreateString(
+    __in            PKM_MEMORY_MANAGER  MemoryManager,
+    __in    const   char                *Str);
+
+PUNICODE_STRING CopyString(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     SourceString);
+
+BOOLEAN StringStartsWith(
+    __in    PUNICODE_STRING     String,
+    __in    PUNICODE_STRING     SubString);
+
+void FreeString(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     String);
 
 PUNICODE_STRING AllocateString(
-    __in    USHORT  StringLengthInBytes);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    USHORT              StringLengthInBytes);
 
 ///////////////////////////////////////////////////
 // Other helper functions
 ///////////////////////////////////////////////////
 
 void DriverSleep(long msec);
+
+///////////////////////////////////////////////////
+// Network eEvent info helpers
+///////////////////////////////////////////////////
+NTSTATUS __stdcall NetEventInfo_Allocate(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __out   PNETWORK_EVENT_INFO *EventInfo);
+
+NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo);
 
 ///////////////////////////////////////////////////
 // IO buffer helpers

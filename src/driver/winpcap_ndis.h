@@ -20,11 +20,6 @@
 
 #pragma once
 
-#include <minwindef.h>
-#include <wchar.h>
-
-#define SIGNATURE "PCAPNDIS"
-
 #define FILTER_DISPLAY_NAME                         L"WinPCAP NDIS 6.x Filter Driver"
 #define FILTER_UNIQUE_NAME                          L"{37195A99-7BC5-4C82-B00A-553C75C0AA1A}"
 #define FILTER_SERVICE_NAME                         L"PcapNdis6"
@@ -38,6 +33,7 @@
 
 #define ADAPTER_NAME_FORLIST_W                      L"{00000000-0000-0000-0000-000000000000}"
 #define	EVENT_NAME_FMT				                "EVT_PCAP_NDIS_%u_%llu"
+#define DEVICE_STR_W                                L"\\DEVICE\\"
 
 #define IOCTL_VENDOR_DEVICE_BASE 0x8000
 #define IOCTL_VENDOR_FUNC_BASE 0x800
@@ -50,15 +46,9 @@
 
 // Adapter data
 
-#define MAX_ADAPTERS 256
-#define MAX_PACKET_SIZE 32767
-#define MAX_PACKET_QUEUE_SIZE 1000
-
-typedef struct PCAP_NDIS_ADAPTER_LIST_HDR
-{
-	char Signature[8];
-	UINT Count;
-} PCAP_NDIS_ADAPTER_LIST_HDR;
+#define MAX_ADAPTERS            256
+#define MAX_PACKET_SIZE         32767
+#define MAX_PACKET_QUEUE_SIZE   1000
 
 #define PCAP_NDIS_ADAPTER_ID_SIZE_MAX       1024
 #define PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE  0x6
@@ -70,6 +60,9 @@ typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_INFO
 
     //  Adapter id buffer
     wchar_t         AdapterId[PCAP_NDIS_ADAPTER_ID_SIZE_MAX];
+
+    //  Display name length in bytes
+    unsigned long   DisplayNameLength;
 
     //  Display name
     char            DisplayName[256];

@@ -27,91 +27,147 @@
 #include <flt_dbg.h>
 
 ///////////////////////////////////////////////////
-// Lock helper functions
-///////////////////////////////////////////////////
-
-NDIS_SPIN_LOCK *CreateSpinLock()
-{
-	NDIS_SPIN_LOCK *lock = (NDIS_SPIN_LOCK*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(NDIS_SPIN_LOCK));
-	NdisZeroMemory(lock, sizeof(NDIS_SPIN_LOCK));
-	NdisAllocateSpinLock(lock);
-	return lock;
-}
-
-void FreeSpinLock(PNDIS_SPIN_LOCK lock)
-{
-	if(!lock)
-	{
-		return;
-	}
-	FILTER_FREE_LOCK(lock);
-	FILTER_FREE_MEM(lock);
-}
-
-
-///////////////////////////////////////////////////
 // String helper functions
 ///////////////////////////////////////////////////
 
-UNICODE_STRING* CreateString(const char* str)
+PUNICODE_STRING CreateString(
+    __in            PKM_MEMORY_MANAGER  MemoryManager,
+    __in    const   char                *Str)
 {
-	DEBUGP(DL_TRACE, "===>CreateString(%s)...\n", str);
-	if(!str)
-	{
-		return NULL;
-	}
-	UNICODE_STRING* string = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
-	if(!string)
-	{
-		return NULL;
-	}
+    PUNICODE_STRING NewString = NULL;
+    ANSI_STRING     AnsiString;
+    USHORT          StrLen = 0;
 
-	NdisZeroMemory(string, sizeof(UNICODE_STRING));
-	// Disable warning C6102: Using '*string' from failed function call at line '69'. 
-	// Anyways, memory is allocated
-#pragma warning( disable:6102 )
-	NdisInitializeString(string, (unsigned char*)str);
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(Str)),
+        NULL);
 
-	DEBUGP(DL_TRACE, "<===CreateString\n");
-	return string;
-}
+    StrLen = (USHORT)strlen(Str);
 
-UNICODE_STRING* CopyString(PUNICODE_STRING string)
+    NewString = AllocateString(
+        MemoryManager,
+        (StrLen + 1) * sizeof(wchar_t));
+    RETURN_VALUE_IF_FALSE(
+        Assigned(NewString),
+        NULL);
+
+    RtlInitAnsiString(
+        &AnsiString,
+        Str);
+
+    if (!NT_SUCCESS(RtlAnsiStringToUnicodeString(
+        NewString,
+        &AnsiString,
+        FALSE)))
+    {
+        FreeString(
+            MemoryManager,
+            NewString);
+        NewString = NULL;
+    }
+
+    return NewString;
+};
+
+PUNICODE_STRING CopyString(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     SourceString)
 {
-	if(!string)
-	{
-		return NULL;
-	}
+    PUNICODE_STRING Result = NULL;
 
-	UNICODE_STRING* res = (UNICODE_STRING*)FILTER_ALLOC_MEM(FilterDriverObject, sizeof(UNICODE_STRING));
-	if(!res)
-	{
-		return NULL;
-	}
-	res->Length = 0;
-	res->MaximumLength = string->MaximumLength;
-	res->Buffer = FILTER_ALLOC_MEM(FilterDriverObject, string->MaximumLength);
-	RtlUnicodeStringCopy(res, string);
-	return res;
-}
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(SourceString)),
+        NULL);
 
-void FreeString(UNICODE_STRING* string)
+    Result = AllocateString(
+        MemoryManager,
+        SourceString->MaximumLength);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Result),
+        NULL);
+    
+    if (SourceString->Length > 0)
+    {
+        RtlCopyMemory(
+            Result->Buffer,
+            SourceString->Buffer,
+            SourceString->Length);
+
+        Result->Length = SourceString->Length;
+    }
+
+    return Result;
+};
+
+BOOLEAN StringStartsWith(
+    __in    PUNICODE_STRING     String,
+    __in    PUNICODE_STRING     SubString)
 {
-	if(!string)
-	{
-		return;
-	}
-	
-	NdisFreeString(*string);
-	FILTER_FREE_MEM(string);
-}
+    USHORT  k;
+    WCHAR   Char1;
+    WCHAR   Char2;
+
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(String)) &&
+        (Assigned(SubString)),
+        FALSE);
+
+    RETURN_VALUE_IF_FALSE(
+        String->Length >= SubString->Length,
+        FALSE);
+
+    RETURN_VALUE_IF_TRUE(
+        SubString->Length == 0,
+        TRUE);
+
+    for (k = 0; k < SubString->Length / sizeof(wchar_t); k++)
+    {
+        Char1 = RtlUpcaseUnicodeChar(String->Buffer[k]);
+        Char2 = RtlUpcaseUnicodeChar(SubString->Buffer[k]);
+        RETURN_VALUE_IF_FALSE(
+            Char1 == Char2,
+            FALSE);
+    }
+
+    return TRUE;
+};
+
+void FreeString(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PUNICODE_STRING     String)
+{
+    RETURN_IF_FALSE(
+        (Assigned(MemoryManager)) &&
+        (Assigned(String)));
+
+    if (Assigned(String->Buffer))
+    {
+        Km_MM_FreeMem(
+            MemoryManager,
+            String->Buffer);
+    }
+
+    Km_MM_FreeMem(
+        MemoryManager,
+        String);
+};
 
 PUNICODE_STRING AllocateString(
-    __in    USHORT  StringLengthInBytes)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    USHORT              StringLengthInBytes)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
-    PUNICODE_STRING Result = FILTER_ALLOC_MEM_TYPED(UNICODE_STRING, FilterDriverHandle);
+    PUNICODE_STRING Result = NULL;
 
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MemoryManager),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+    Result = Km_MM_AllocMemTyped(
+        MemoryManager,
+        UNICODE_STRING);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Result),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -120,9 +176,9 @@ PUNICODE_STRING AllocateString(
 
     if (StringLengthInBytes > 0)
     {
-        Result->Buffer = FILTER_ALLOC_MEM_TYPED_WITH_SIZE(
-            wchar_t, 
-            FilterDriverHandle, 
+        Result->Buffer = Km_MM_AllocMemTypedWithSize(
+            MemoryManager,
+            wchar_t,
             StringLengthInBytes);
 
         GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -133,7 +189,7 @@ PUNICODE_STRING AllocateString(
             Result->Buffer,
             StringLengthInBytes);
 
-        Result->Length = Result->MaximumLength = StringLengthInBytes;
+        Result->MaximumLength = StringLengthInBytes;
     }
 
 cleanup:
@@ -142,7 +198,9 @@ cleanup:
     {
         if (Assigned(Result))
         {
-            FILTER_FREE_MEM(Result);
+            Km_MM_FreeMem(
+                MemoryManager,
+                Result);
             Result = NULL;
         }
     }
@@ -156,17 +214,209 @@ cleanup:
 
 void DriverSleep(long msec)
 {
-	KTIMER timer;
-	RtlZeroMemory(&timer, sizeof(KTIMER));
+    KTIMER timer;
+    RtlZeroMemory(&timer, sizeof(KTIMER));
 
-	LARGE_INTEGER duetime;
-	duetime.QuadPart = (__int64)msec * -10000;
+    LARGE_INTEGER duetime;
+    duetime.QuadPart = (__int64)msec * -10000;
 
-	KeInitializeTimerEx(&timer, NotificationTimer);
-	KeSetTimerEx(&timer, duetime, 0, NULL);
+    KeInitializeTimerEx(&timer, NotificationTimer);
+    KeSetTimerEx(&timer, duetime, 0, NULL);
 
-	KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
-}
+    KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
+};
+
+NTSTATUS __stdcall NetEventInfo_Allocate(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __out   PNETWORK_EVENT_INFO *EventInfo)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PNETWORK_EVENT_INFO NewInfo = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MemoryManager),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_2);
+
+    NewInfo = Km_MM_AllocMemTyped(
+        MemoryManager,
+        NETWORK_EVENT_INFO);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(NewInfo),
+        STATUS_INSUFFICIENT_RESOURCES);
+
+    RtlZeroMemory(
+        NewInfo,
+        sizeof(NETWORK_EVENT_INFO));
+
+    *EventInfo = NewInfo;
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall NetEventInfo_FFB_TCP(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PTCP_HEADER Header = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= sizeof(TCP_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    Header = (PTCP_HEADER)Buffer;
+
+    EventInfo->Local.Port = Header->SourcePort;
+    EventInfo->Remote.Port = Header->DestinationPort;
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall NetEventInfo_FFB_UDP(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PUDP_HEADER Header = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= sizeof(UDP_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    Header = (PUDP_HEADER)Buffer;
+
+    EventInfo->Local.Port = Header->SourcePort;
+    EventInfo->Remote.Port = Header->DestinationPort;
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
+    __in    PVOID               Buffer,
+    __in    ULONG               BufferSize,
+    __inout PNETWORK_EVENT_INFO EventInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PETH_HEADER EthHeader = NULL;
+    DWORD       IpHeaderLength;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize > sizeof(ETH_HEADER),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_3);
+
+    EthHeader = (PETH_HEADER)Buffer;
+
+    switch (EthHeader->EthType)
+    {
+    case ETH_TYPE_IP_BE:
+        {
+            PIP4_HEADER Header = (PIP4_HEADER)(((PUCHAR)EthHeader) + sizeof(ETH_HEADER));
+
+            IpHeaderLength = (Header->VerLen & 15) * 4;
+            
+            EventInfo->AddressFamily = AF_INET;
+
+            EventInfo->IpProtocol = Header->Protocol;
+
+            EventInfo->Local.Address.v4.l = Header->SourceAddress.l;
+
+            EventInfo->Remote.Address.v4.l = Header->DestinationAddress.l;
+
+            switch (Header->Protocol)
+            {
+            case IPPROTO_TCP:
+                {
+                    Status = NetEventInfo_FFB_TCP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+
+            case IPPROTO_UDP:
+                {
+                    Status = NetEventInfo_FFB_UDP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+            };
+
+        }break;
+
+    case ETH_TYPE_IP6_BE:
+        {
+            PIP6_HEADER Header = (PIP6_HEADER)((PUCHAR)Buffer + sizeof(ETH_HEADER));
+
+            IpHeaderLength = sizeof(IP6_HEADER);
+            
+            EventInfo->AddressFamily = AF_INET6;
+            EventInfo->IpProtocol = Header->NextHeader;
+
+            RtlCopyMemory(
+                &EventInfo->Local.Address,
+                &Header->SourceAddress,
+                sizeof(IP_ADDRESS_V6));
+            RtlCopyMemory(
+                &EventInfo->Remote.Address,
+                &Header->DestinationAddress,
+                sizeof(IP_ADDRESS_V6));
+
+            switch (Header->NextHeader)
+            {
+            case IPPROTO_TCP:
+                {
+                    Status = NetEventInfo_FFB_TCP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+
+            case IPPROTO_UDP:
+                {
+                    Status = NetEventInfo_FFB_UDP(
+                        (PVOID)((PUCHAR)Header + IpHeaderLength),
+                        BufferSize - sizeof(ETH_HEADER) - IpHeaderLength,
+                        EventInfo);
+                }break;
+            };
+
+        }break;
+
+    default:
+        {
+            Status = STATUS_NOT_SUPPORTED;
+        }break;
+    };
+    
+cleanup:
+    return Status;
+};
 
 NTSTATUS __stdcall IOUtils_ProbeBuffer(
     __in    PVOID   Buffer,

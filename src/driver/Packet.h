@@ -23,6 +23,7 @@
 #include <minwindef.h>
 #include <ntdef.h>
 #include "KmList.h"
+#include "KmMemoryManager.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet definitions
@@ -30,13 +31,17 @@
 
 typedef struct _PACKET
 {
-    LIST_ENTRY      Link;
+    LIST_ENTRY          Link;
 
-    LARGE_INTEGER   Timestamp;
+    PKM_MEMORY_MANAGER  MemoryManager;
 
-    ULONG           DataSize;
+    LARGE_INTEGER       Timestamp;
 
-    UCHAR           Data[1];
+    ULONGLONG           ProcessId;
+
+    ULONG               DataSize;
+
+    UCHAR               Data[1];
 
 } PACKET, *PPACKET;
 
@@ -44,10 +49,12 @@ typedef struct _PACKET
 // Packet methods
 //////////////////////////////////////////////////////////////////////
 
-PACKET* CreatePacket(
-    __in    PVOID           Data,
-    __in    ULONG           DataSize,
-    __in    PLARGE_INTEGER  Timestamp);
+PPACKET CreatePacket(
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PVOID               Data,
+    __in    ULONG               DataSize,
+    __in    ULONGLONG           ProcessId,
+    __in    PLARGE_INTEGER      Timestamp);
 
 void FreePacket(
     __in    PPACKET Packet);

@@ -19,6 +19,14 @@ namespace UTILS
 {
     namespace STR
     {
+        BOOL SameTextA(
+            __in    const   std::string &String1,
+            __in    const   std::string &String2);
+
+        BOOL SameTextW(
+            __in    const   std::wstring    &String1,
+            __in    const   std::wstring    &String2);
+
         std::string FormatA(
             __in    LPCSTR  FormatStr,
             __in            ...);
@@ -29,5 +37,11 @@ namespace UTILS
 
         std::wstring GetTimeStr(
             __in_opt    BOOL    LocalOrSystem = FALSE);
+
+        std::string GuidToStringA(
+            __in    const   GUID    &Guid);
+
+        std::wstring GuidToStringW(
+            __in    const   GUID    &Guid);
     };
 };

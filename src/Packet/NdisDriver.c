@@ -46,9 +46,9 @@ BOOL NdisDriver_ControlDevice(
     __out_opt   LPDWORD BytesReturned = NULL,
     __out_opt   LPDWORD ErrorCode = NULL);
 
-PCAP_NDIS* NdisDriverOpen()
+LPPCAP_NDIS NdisDriverOpen()
 {
-    PCAP_NDIS       *Result = nullptr;
+    LPPCAP_NDIS     Result = nullptr;
     HANDLE          FileHandle = INVALID_HANDLE_VALUE;
     std::wstring    DeviceName = UTILS::STR::FormatW(
         L"\\\\.\\%s%s",
@@ -68,10 +68,10 @@ PCAP_NDIS* NdisDriverOpen()
         nullptr);
     try
     {
-        Result = (PCAP_NDIS *)malloc(sizeof(PCAP_NDIS));
+        Result = reinterpret_cast<LPPCAP_NDIS>(malloc(sizeof(PCAP_NDIS)));
         if (Assigned(Result))
         {
-            Result->handle = (void *)FileHandle;
+            Result->Handle = FileHandle;
         }
     }
     catch (...)
@@ -85,20 +85,18 @@ PCAP_NDIS* NdisDriverOpen()
     return Result;
 };
 
-void NdisDriverClose(PCAP_NDIS* ndis)
+void NdisDriverClose(
+    __in    LPPCAP_NDIS Ndis)
 {
-    DEBUG_PRINT("===>NdisDriverClose\n");
-    if(!ndis)
+    RETURN_IF_FALSE(Assigned(Ndis));
+
+    if (Ndis->Handle != INVALID_HANDLE_VALUE)
     {
-        return;
+        CloseHandle(Ndis->Handle);
     }
-    if(ndis->handle)
-    {
-        CloseHandle(ndis->handle);
-    }
-    free(ndis);
-    DEBUG_PRINT("<===NdisDriverClose\n");
-}
+
+    free(Ndis);
+};
 
 PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
     __in            PCAP_NDIS   *ndis,
@@ -153,49 +151,44 @@ std::wstring NdisDriverGetAdapterEventName(
     __in            PCAP_NDIS           *Ndis,
     __in            PCAP_NDIS_ADAPTER   *Adapter)
 {
+    char    NameBuffer[1024];
+    DWORD   BytesReturned = 0;
+
     RETURN_VALUE_IF_FALSE(
         (Assigned(Ndis)) &&
         (Assigned(Adapter)),
         L"");
 
-    char    NameBuffer[1024];
-    DWORD   BytesReturned = 0;
-
     RtlZeroMemory(NameBuffer, sizeof(NameBuffer));
 
-    if (NdisDriver_ControlDevice(
-        Adapter->Handle,
-        (DWORD)IOCTL_GET_EVENT_NAME,
-        nullptr,
-        0,
-        reinterpret_cast<LPVOID>(NameBuffer),
-        (DWORD)sizeof(NameBuffer) - 1,
-        &BytesReturned))
-    {
-        return UTILS::STR::FormatW(
-            L"Global\\%S",
-            NameBuffer);
-    }
+    RETURN_VALUE_IF_FALSE(
+        NdisDriver_ControlDevice(
+            Adapter->Handle,
+            static_cast<DWORD>(IOCTL_GET_EVENT_NAME),
+            nullptr,
+            0,
+            reinterpret_cast<LPVOID>(NameBuffer),
+            static_cast<DWORD>(sizeof(NameBuffer) - 1),
+            &BytesReturned),
+        L"");
 
-    return L"";
+    return UTILS::STR::FormatW(
+        L"Global\\%S",
+        NameBuffer);
 };
 
-void NdisDriverCloseAdapter(PCAP_NDIS_ADAPTER* adapter)
+void NdisDriverCloseAdapter(
+    __in    LPPCAP_NDIS_ADAPTER Adapter)
 {
-    DEBUG_PRINT("===>NdisDriverCloseAdapter\n");
+    RETURN_IF_FALSE(Assigned(Adapter));
 
-    if(!adapter)
+    if (Adapter->Handle != INVALID_HANDLE_VALUE)
     {
-        return;
+        CloseHandle(Adapter->Handle);
     }
-    if(adapter->Handle)
-    {
-        CloseHandle(adapter->Handle);
-    }
-    free(adapter);
 
-    DEBUG_PRINT("<===NdisDriverCloseAdapter\n");
-}
+    free(Adapter);
+};
 
 BOOL NdisDriver_ControlDevice(
     __in        HANDLE  DeviceHandle,
@@ -236,151 +229,167 @@ BOOL NdisDriver_ControlDevice(
 };
 
 BOOL NdisDriverNextPacket(
-    __in    PCAP_NDIS_ADAPTER   *adapter,
-    __out   void                **buf,
-    __in    size_t              size,
-    __out   DWORD*              dwBytesReceived)
+    __in        LPPCAP_NDIS_ADAPTER Adapter,
+    __out       LPVOID              *Buffer,
+    __in        size_t              Size,
+    __out       PDWORD              BytesReceived,
+    __out_opt   PULONGLONG          ProcessId)
 {
-    DEBUG_PRINT("===>NdisDriverNextPacket, buf size=%u\n", size);
-
     RETURN_VALUE_IF_FALSE(
-        (Assigned(adapter)) &&
-        (adapter->Handle != INVALID_HANDLE_VALUE),
+        (Assigned(Adapter)) &&
+        (Assigned(BytesReceived)),
+        FALSE);
+    RETURN_VALUE_IF_FALSE(
+        Adapter->Handle != INVALID_HANDLE_VALUE,
         FALSE);
 
-    *dwBytesReceived = 0;
+    *BytesReceived = 0;
 
     RETURN_VALUE_IF_FALSE(
-        size >= sizeof(struct bpf_hdr),
+        Size >= sizeof(bpf_hdr),
         FALSE);
 
-    if(adapter->BufferedPackets == 0)
+    if (Adapter->BufferedPackets == 0)
     {
-        DWORD   BytesReceived = 0;
+        DWORD   BytesRead = 0;
         DWORD   ErrorCode = 0;
 
-        if (!NdisDriver_ControlDevice(
-            adapter->Handle,
-            static_cast<DWORD>(IOCTL_READ_PACKETS),
-            nullptr,
-            0,
-            adapter->ReadBuffer,
-            READ_BUFFER_SIZE,
-            &BytesReceived,
-            &ErrorCode))
+        RETURN_VALUE_IF_FALSE(
+            NdisDriver_ControlDevice(
+                Adapter->Handle,
+                static_cast<DWORD>(IOCTL_READ_PACKETS),
+                nullptr,
+                0,
+                Adapter->ReadBuffer,
+                READ_BUFFER_SIZE,
+                &BytesRead,
+                &ErrorCode),
+            FALSE);
+
+        Adapter->BufferOffset = 0;
+        
+        DWORD   CurrentSize = 0;
+
+        for (PUCHAR CurrentPtr = Adapter->ReadBuffer;
+             (CurrentSize < BytesRead) && (CurrentSize < READ_BUFFER_SIZE);
+             CurrentPtr = Adapter->ReadBuffer + CurrentSize)
         {
-            return FALSE;
-        }
+            pbpf_hdr2   bpf = reinterpret_cast<pbpf_hdr2>(CurrentPtr);
+            CurrentSize += bpf->bh_datalen + bpf->bh_hdrlen;
 
-        adapter->BufferOffset = 0;
-        DWORD curSize = 0;
-        while (curSize < BytesReceived)
-        {
-            struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + curSize);
-
-            curSize += bpf->bh_datalen + bpf->bh_hdrlen;
-
-            adapter->BufferedPackets++;
+            Adapter->BufferedPackets++;
         }
     }
 
-    if (adapter->BufferedPackets == 0)
+    if (Adapter->BufferedPackets == 0)
     {
-        *dwBytesReceived = 0;
+        *BytesReceived = 0;
     }
-    else 
-    {
-        struct bpf_hdr* bpf = (struct bpf_hdr*)((unsigned char*)adapter->ReadBuffer + adapter->BufferOffset);
 
-        UINT packetLen = bpf->bh_datalen + bpf->bh_hdrlen;
-        if(size < packetLen)
+    if (Adapter->BufferedPackets > 0)
+    {
+        pbpf_hdr2   bpf = reinterpret_cast<pbpf_hdr2>(Adapter->ReadBuffer + Adapter->BufferOffset);
+        ULONG       RequiredSize = sizeof(bpf_hdr) + bpf->bh_datalen;
+        bpf_hdr     Header;
+        PUCHAR      CurrentPtr;
+
+        RETURN_VALUE_IF_FALSE(
+            Size >= RequiredSize,
+            FALSE);
+
+        RtlZeroMemory(
+            reinterpret_cast<LPVOID>(&Header),
+            sizeof(Header));
+
+        Header.bh_caplen = bpf->bh_caplen;
+        Header.bh_datalen = bpf->bh_datalen;
+        Header.bh_hdrlen = static_cast<u_short>(sizeof(Header));
+        Header.bh_tstamp = bpf->bh_tstamp;
+
+        CurrentPtr = reinterpret_cast<PUCHAR>(*Buffer);
+
+        RtlCopyMemory(
+            reinterpret_cast<LPVOID>(CurrentPtr),
+            reinterpret_cast<LPVOID>(&Header),
+            sizeof(Header));
+
+        CurrentPtr += sizeof(Header);
+
+        RtlCopyMemory(
+            reinterpret_cast<LPVOID>(CurrentPtr),
+            reinterpret_cast<LPVOID>(Adapter->ReadBuffer + Adapter->BufferOffset + bpf->bh_hdrlen),
+            bpf->bh_datalen);
+
+        *BytesReceived = RequiredSize;
+
+        if (Assigned(ProcessId))
         {
-            *dwBytesReceived = 0;
-            return FALSE;
+            *ProcessId = bpf->ProcessId;
         }
 
-        memcpy(*buf, bpf, packetLen);
-        *dwBytesReceived = packetLen;
-
-        adapter->BufferedPackets--;
-        adapter->BufferOffset += packetLen;
+        Adapter->BufferedPackets--;
+        Adapter->BufferOffset += bpf->bh_hdrlen + bpf->bh_datalen;
     }
-
-    DEBUG_PRINT("<===NdisDriverNextPacket(true)\n");
 
     return TRUE;
-}
+};
 
 // Get adapter list
-PCAP_NDIS_ADAPTER_LIST* NdisDriverGetAdapterList(PCAP_NDIS* ndis)
+LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 {
-    DEBUG_PRINT("===>NdisDriverGetAdapterList\n");
-    if (!ndis) {
-        return NULL;
-    }
+    ULONG                       AdaptersCount = 0;
+    LPPCAP_NDIS_ADAPTER_LIST    List = nullptr;
+    SIZE_T                      SizeRequired = 0;
+    BOOL                        Failed = FALSE;
 
-    PCAP_NDIS_ADAPTER_LIST* list = (PCAP_NDIS_ADAPTER_LIST*)malloc(sizeof(PCAP_NDIS_ADAPTER_LIST));
-    if(!list)
+    RETURN_VALUE_IF_FALSE(
+        Assigned(ndis),
+        nullptr);
+
+    RETURN_VALUE_IF_FALSE(
+        NdisDriver_ControlDevice(
+            ndis->Handle,
+            static_cast<DWORD>(IOCTL_GET_ADAPTERS_COUNT),
+            nullptr,
+            0UL,
+            reinterpret_cast<LPVOID>(&AdaptersCount),
+            static_cast<DWORD>(sizeof(AdaptersCount))),
+        nullptr);
+
+    SizeRequired =
+        sizeof(PCAP_NDIS_ADAPTER_LIST) +
+        (AdaptersCount - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO);
+
+    List = reinterpret_cast<LPPCAP_NDIS_ADAPTER_LIST>(malloc(SizeRequired));
+    RETURN_VALUE_IF_FALSE(
+        Assigned(List),
+        nullptr);
+    __try
     {
-        return NULL;
+        Failed = !NdisDriver_ControlDevice(
+            ndis->Handle,
+            static_cast<DWORD>(IOCTL_GET_ADAPTERS),
+            nullptr,
+            0,
+            reinterpret_cast<LPVOID>(List),
+			static_cast<DWORD>(SizeRequired));
     }
-
-    list->count = 0;
-    list->adapters = NULL;
-
-    DWORD dwBytesRead = 0;
-    PCAP_NDIS_ADAPTER_LIST_HDR hdr;
-
-    if(ReadFile(ndis->handle, &hdr, sizeof(PCAP_NDIS_ADAPTER_LIST_HDR), &dwBytesRead, NULL))
+    __finally
     {
-        if(memcmp(hdr.Signature, SIGNATURE, 8))
+        if (Failed)
         {
-            NdisDriverFreeAdapterList(list);
-            return NULL;
+            free(reinterpret_cast<void *>(List));
+            List = nullptr;
         }
-
-        list->count = hdr.Count > MAX_ADAPTERS ? MAX_ADAPTERS : hdr.Count;		
-        list->adapters = (PCAP_NDIS_ADAPTER_INFO*)malloc(sizeof(PCAP_NDIS_ADAPTER_INFO) * list->count);
-        if(!list->adapters)
-        {
-            NdisDriverFreeAdapterList(list);
-            return NULL;
-        }
-
-        for (int i = 0; i < list->count && i < MAX_ADAPTERS;i++)
-        {
-            if (!ReadFile(ndis->handle, &list->adapters[i], sizeof(PCAP_NDIS_ADAPTER_INFO), &dwBytesRead, NULL))
-            {
-                memset(list->adapters[i].AdapterId, 0, sizeof(list->adapters[i].AdapterId));
-                memset(list->adapters[i].DisplayName, 0, sizeof(list->adapters[i].DisplayName));
-                memset(list->adapters[i].MacAddress, 0, sizeof(list->adapters[i].MacAddress));
-                list->adapters[i].MtuSize = 0;
-            }
-        }
-    } else
-    {
-        NdisDriverFreeAdapterList(list);
-        return NULL;
     }
+    
+    return List;
+};
 
-    DEBUG_PRINT("<===NdisDriverGetAdapterList, size=%u\n", list->count);
-
-    return list;
-}
-
-void NdisDriverFreeAdapterList(PCAP_NDIS_ADAPTER_LIST* list)
+void NdisDriverFreeAdapterList(
+    __in    LPPCAP_NDIS_ADAPTER_LIST    List)
 {
-    DEBUG_PRINT("===>NdisDriverFreeAdapterList\n");
+    RETURN_IF_FALSE(Assigned(List));
 
-    if(!list)
-    {
-        return;
-    }
-    if(list->adapters)
-    {
-        free(list->adapters);
-    }
-    free(list);
-
-    DEBUG_PRINT("<===NdisDriverFreeAdapterList\n");
-}
+    free(List);
+};

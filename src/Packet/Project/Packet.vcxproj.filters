@@ -65,9 +65,6 @@
     <ClInclude Include="..\Util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\win_bpf.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\valid_insns.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -96,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\shared\SvcUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shared\win_bpf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

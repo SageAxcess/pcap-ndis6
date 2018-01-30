@@ -23,39 +23,25 @@
 #include <minwindef.h>
 #include "Adapter.h"
 #include "KmList.h"
+#include "KmTypes.h"
 
 //////////////////////////////////////////////////////////////////////
 // Device definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct DEVICE
-{
-	PUNICODE_STRING Name;
-
-	PUNICODE_STRING SymlinkName;
-
-	PDEVICE_OBJECT  Device;
-
-    PADAPTER        Adapter;
-
-    KM_LOCK         OpenCloseLock;
-
-    KM_LIST         ClientList;
-
-	BOOL            Releasing;
-
-	BOOL            IsAdaptersList;
-
-} DEVICE, *PDEVICE;
 
 //////////////////////////////////////////////////////////////////////
 // Device methods
 /////////////////////////////////////////////////////////////////////
 PDEVICE CreateDevice(
+    __in    PDRIVER_OBJECT  DriverObject,
+    __in    PDRIVER_DATA    Data,
     __in    PUNICODE_STRING Name);
 
 PDEVICE CreateDevice2(
-    __in    LPCWSTR Name);
+    __in    PDRIVER_OBJECT  DriverObject,
+    __in    PDRIVER_DATA    Data,
+    __in    LPCWSTR         Name);
 
 BOOL FreeDevice(
     __in    PDEVICE Device);

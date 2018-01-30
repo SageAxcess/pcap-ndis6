@@ -165,6 +165,13 @@ struct pcap_pkthdr {
 	bpf_u_int32 len;	/* length this packet (off wire) */
 };
 
+struct pcap_pkthdr2 {
+	struct timeval ts;	/* time stamp */
+	bpf_u_int32 caplen;	/* length of portion present */
+	bpf_u_int32 len;	/* length this packet (off wire) */
+	uint64_t pid;		/* process id */
+};
+
 /*
  * As returned by the pcap_stats()
  */
@@ -377,6 +384,7 @@ PCAP_API void	pcap_close(pcap_t *);
 PCAP_API int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
 PCAP_API int	pcap_dispatch(pcap_t *, int, pcap_handler, u_char *);
 PCAP_API const u_char *pcap_next(pcap_t *, struct pcap_pkthdr *);
+PCAP_API const u_char *pcap_next2(pcap_t *, struct pcap_pkthdr2 *);
 PCAP_API int 	pcap_next_ex(pcap_t *, struct pcap_pkthdr **, const u_char **);
 PCAP_API void	pcap_breakloop(pcap_t *);
 PCAP_API int	pcap_stats(pcap_t *, struct pcap_stat *);
