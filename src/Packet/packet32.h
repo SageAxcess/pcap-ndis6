@@ -351,7 +351,10 @@ BOOLEAN PacketReceivePacketEx(
 
 BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject,ULONG Filter);
 BOOLEAN PacketGetAdapterNames(PTSTR pStr,PULONG  BufferSize);
-BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries);
+BOOLEAN PacketGetNetInfoEx(
+    __in    PCHAR       AdapterName,
+    __out   npf_if_addr *buffer,
+    __out   PLONG       NEntries);
 BOOLEAN PacketRequest(LPADAPTER  AdapterObject,BOOLEAN Set,PPACKET_OID_DATA  OidData);
 HANDLE PacketGetReadEvent(LPADAPTER AdapterObject);
 BOOLEAN PacketSetDumpName(LPADAPTER AdapterObject, void *name, int len);

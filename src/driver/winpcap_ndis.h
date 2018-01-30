@@ -61,6 +61,9 @@ typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_INFO
     //  Adapter id buffer
     wchar_t         AdapterId[PCAP_NDIS_ADAPTER_ID_SIZE_MAX];
 
+    //  Display name length in bytes
+    unsigned long   DisplayNameLength;
+
     //  Display name
     char            DisplayName[256];
 

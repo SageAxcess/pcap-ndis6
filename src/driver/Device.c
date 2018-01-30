@@ -532,6 +532,24 @@ NTSTATUS __stdcall Device_GetAdapters(
 
             List->Items[k].MtuSize = Adapter->MtuSize;
 
+            if (Adapter->DisplayNameSize > 0)
+            {
+                unsigned long   NumberOfBytes =
+                    sizeof(List->Items[k].DisplayName) >= Adapter->DisplayNameSize ?
+                    Adapter->DisplayNameSize :
+                    sizeof(List->Items[k].DisplayName);
+
+                if (NumberOfBytes > 0)
+                {
+                    RtlCopyMemory(
+                        List->Items[k].DisplayName,
+                        Adapter->DisplayName,
+                        NumberOfBytes);
+                }
+
+                List->Items[k].DisplayNameLength = NumberOfBytes;
+            }
+
             RtlCopyMemory(
                 List->Items[k].DisplayName,
                 Adapter->DisplayName,

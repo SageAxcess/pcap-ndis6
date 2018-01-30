@@ -15,6 +15,40 @@
 #include "CommonDefs.h"
 #include <vector>
 
+BOOL UTILS::STR::SameTextA(
+    __in    const   std::string &String1,
+    __in    const   std::string &String2)
+{
+    RETURN_VALUE_IF_FALSE(
+        String1.length() == String2.length(),
+        FALSE);
+    RETURN_VALUE_IF_TRUE(
+        String1.length() == 0,
+        TRUE);
+
+    return _strnicmp(
+        String1.c_str(),
+        String2.c_str(),
+        String1.length()) == 0;
+};
+
+BOOL UTILS::STR::SameTextW(
+    __in    const   std::wstring    &String1,
+    __in    const   std::wstring    &String2)
+{
+    RETURN_VALUE_IF_FALSE(
+        String1.length() == String2.length(),
+        FALSE);
+    RETURN_VALUE_IF_TRUE(
+        String1.length() == 0,
+        TRUE);
+
+    return _wcsnicmp(
+        String1.c_str(),
+        String2.c_str(),
+        String1.length()) == 0;
+};
+
 std::string UTILS::STR::FormatA(
     __in    LPCSTR  FormatStr,
     __in            ...)
@@ -109,4 +143,40 @@ std::wstring UTILS::STR::GetTimeStr(
         Time.wMinute,
         Time.wSecond,
         Time.wMilliseconds);
+};
+
+std::string UTILS::STR::GuidToStringA(
+    __in    const   GUID    &Guid)
+{
+    return FormatA(
+        "{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}",
+        Guid.Data1,
+        Guid.Data2,
+        Guid.Data3,
+        Guid.Data4[0],
+        Guid.Data4[1],
+        Guid.Data4[2],
+        Guid.Data4[3],
+        Guid.Data4[4],
+        Guid.Data4[5],
+        Guid.Data4[6],
+        Guid.Data4[7]);
+};
+
+std::wstring UTILS::STR::GuidToStringW(
+    __in    const   GUID    &Guid)
+{
+    return FormatW(
+        L"{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}",
+        Guid.Data1,
+        Guid.Data2,
+        Guid.Data3,
+        Guid.Data4[0],
+        Guid.Data4[1],
+        Guid.Data4[2],
+        Guid.Data4[3],
+        Guid.Data4[4],
+        Guid.Data4[5],
+        Guid.Data4[6],
+        Guid.Data4[7]);
 };

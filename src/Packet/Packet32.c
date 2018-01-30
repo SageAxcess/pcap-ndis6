@@ -688,8 +688,8 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
         if(!res)
         {
-			lpPacket->ulBytesReceived = 0;
-			res = FALSE;
+            lpPacket->ulBytesReceived = 0;
+            res = FALSE;
         }
 
         if(lpPacket->ulBytesReceived > 0)
@@ -738,8 +738,8 @@ BOOLEAN PacketReceivePacketEx(
 
     if (!Result)
     {
-		Packet->Packet.ulBytesReceived = 0;
-		Result = FALSE;
+        Packet->Packet.ulBytesReceived = 0;
+        Result = FALSE;
     }
 
     if (Packet->Packet.ulBytesReceived > 0)
@@ -875,50 +875,62 @@ BOOLEAN PacketSetBuff(LPADAPTER AdapterObject, int dim)
 BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 {
     TRACE_ENTER("PacketSetBpf");
-    
-    if (AdapterObject == NULL)
-    {
-        return FALSE;
-    }
 
-    struct bpf_program *filter = NULL;
-    if (fp != NULL)
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterObject),
+        FALSE);
+
+    struct bpf_program *filter = nullptr;
+
+    if (Assigned(fp))
     {
-        filter = (struct bpf_program*)malloc(sizeof(struct bpf_program));
-        if(!filter)
-        {
-            return FALSE;
-        }
+        filter = reinterpret_cast<struct bpf_program *>(malloc(sizeof(struct bpf_program)));
+        RETURN_VALUE_IF_FALSE(
+            Assigned(filter),
+            FALSE);
+
         filter->bf_len = fp->bf_len;
 
         size_t size = sizeof(struct bpf_insn) * filter->bf_len;
-        if (size > 0) {
-            filter->bf_insns = (struct bpf_insn*)malloc(size);
-            memcpy(filter->bf_insns, fp->bf_insns, size);
+        if (size > 0)
+        {
+            filter->bf_insns = reinterpret_cast<struct bpf_insn *>(malloc(size));
+
+            RtlCopyMemory(
+                filter->bf_insns,
+                fp->bf_insns,
+                size);
         }
-        else {
-            filter->bf_insns = NULL;
+        else
+        {
+            filter->bf_insns = nullptr;
         }
     }
 
     PacketLockMutex(AdapterObject->FilterLock);
+    __try
     {
-        if (AdapterObject->Filter != NULL)
+        if (Assigned(AdapterObject->Filter))
         {
-            if (AdapterObject->Filter->bf_insns) {
+            if (Assigned(AdapterObject->Filter->bf_insns))
+            {
                 free(AdapterObject->Filter->bf_insns);
             }
+
             free(AdapterObject->Filter);
         }
 
         AdapterObject->Filter = filter;
     }
-    PacketUnlockMutex(AdapterObject->FilterLock);
+    __finally
+    {
+        PacketUnlockMutex(AdapterObject->FilterLock);
+    }
 
     TRACE_EXIT("PacketSetBpf");
         
     return TRUE;
-}
+};
 
 
 BOOLEAN PacketSetLoopbackBehavior(LPADAPTER AdapterObject, UINT LoopbackBehavior)
@@ -927,6 +939,7 @@ BOOLEAN PacketSetLoopbackBehavior(LPADAPTER AdapterObject, UINT LoopbackBehavior
     UNREFERENCED_PARAMETER(LoopbackBehavior);
 
     TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
+
     return FALSE;
 }
 
@@ -936,19 +949,23 @@ INT PacketSetSnapLen(LPADAPTER AdapterObject, int snaplen)
     UNREFERENCED_PARAMETER(snaplen);
 
     TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
+
     return 0;
 }
 
 
-BOOLEAN PacketGetStats(LPADAPTER AdapterObject, struct bpf_stat *s)
+BOOLEAN PacketGetStats(
+    __in    LPADAPTER       AdapterObject,
+    __out   struct bpf_stat *s)
 {
-    PCAP_NDIS_ADAPTER *a;
-    if (AdapterObject == NULL)
-    {
-        return FALSE;
-    }
+    PPCAP_NDIS_ADAPTER  a = nullptr;
 
-    a = (PCAP_NDIS_ADAPTER *)AdapterObject->hFile;
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(AdapterObject)) &&
+        (Assigned(s)),
+        FALSE);
+
+    a = reinterpret_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
 
     s->ps_ifdrop = 0;
 
@@ -957,12 +974,14 @@ BOOLEAN PacketGetStats(LPADAPTER AdapterObject, struct bpf_stat *s)
     s->bs_recv = a->Stat.Received;
 
     return TRUE;
-}
+};
 
-BOOLEAN PacketGetStatsEx(LPADAPTER AdapterObject,struct bpf_stat *s)
+BOOLEAN PacketGetStatsEx(
+    __in    LPADAPTER       AdapterObject,
+    __out   struct bpf_stat *s)
 {
     return PacketGetStats(AdapterObject, s);
-}
+};
 
 BOOLEAN PacketRequest(LPADAPTER AdapterObject, BOOLEAN Set, PPACKET_OID_DATA OidData)
 {
@@ -971,6 +990,7 @@ BOOLEAN PacketRequest(LPADAPTER AdapterObject, BOOLEAN Set, PPACKET_OID_DATA Oid
     UNREFERENCED_PARAMETER(OidData);
 
     TRACE_PRINT("PacketRequest not supported in this version");
+
     return FALSE;
 }
 
@@ -980,6 +1000,7 @@ BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject, ULONG Filter)
     UNREFERENCED_PARAMETER(Filter);
 
     TRACE_PRINT("PacketRequest not supported in this version");
+
     return TRUE;
 }
 
@@ -1029,9 +1050,10 @@ BOOLEAN PacketGetAdapterNames(
     {
         for (ULONG k = 0; k < AdapterList->Count; k++)
         {
-            SizeNeeded += 
-                (ULONG)AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t) + 
-                (ULONG)strlen(AdapterList->Items[k].DisplayName) + 2;
+            SizeNeeded +=
+                (ULONG)AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t) +
+                AdapterList->Items[k].DisplayNameLength + 2;
+                //(ULONG)strlen(AdapterList->Items[k].DisplayName) + 2;
 
             SizeNames += AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t) + 1;
         }
@@ -1102,106 +1124,111 @@ BOOLEAN PacketGetAdapterNames(
 */
 BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntries)
 {
-    UINT retcode;
-    MIB_IF_TABLE2 *table;
+    UINT            RetCode;
+    PMIB_IF_TABLE2  Table = nullptr;
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterName),
+        FALSE);
 
     TRACE_PRINT1("PacketGetNetInfoEx(%s)", AdapterName);
 
-    retcode = GetIfTable2(&table);
-
-    if (retcode != NO_ERROR || table == NULL)
+    RetCode = GetIfTable2(&Table);
+    if (RetCode != NO_ERROR)
     {
-        TRACE_PRINT("PacketGetNetInfoEx: error reading adapter list");
+        TRACE_PRINT2(
+            "%s: GetIfTable2 failed with code %x",
+            __FUNCTION__,
+            RetCode);
         return FALSE;
     }
 
-    int index = -1;
-
-    for (unsigned int i = 0; i < table->NumEntries; i++)
+    if (!Assigned(Table))
     {
-        MIB_IF_ROW2* row = &table->Table[i];
-
-        char guid[1024];
-        sprintf_s(guid, 1024, "{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}",
-            row->InterfaceGuid.Data1, row->InterfaceGuid.Data2, row->InterfaceGuid.Data3,
-            row->InterfaceGuid.Data4[0], row->InterfaceGuid.Data4[1], row->InterfaceGuid.Data4[2], row->InterfaceGuid.Data4[3],
-            row->InterfaceGuid.Data4[4], row->InterfaceGuid.Data4[5], row->InterfaceGuid.Data4[6], row->InterfaceGuid.Data4[7]);
-
-        TRACE_PRINT1("   adapter guid %s", guid);
-
-        if(!strcmp(guid, AdapterName))
-        {
-            TRACE_PRINT1("  detected interface index %u", row->InterfaceIndex);
-            index = row->InterfaceIndex;
-            break;
-        }
+        TRACE_PRINT1(
+            "%s: Table is null",
+            __FUNCTION__);
+        return FALSE;
     }
-    FreeMibTable(table);
 
-    if(index >= 0)
+    int InterfaceIndex = -1;
+
+    try
     {
-        IP_ADAPTER_INFO *info;
-        ULONG size = sizeof(IP_ADAPTER_INFO);
-        info = (IP_ADAPTER_INFO *)malloc(size);
-        memset(info, 0, size);
-
-        UINT ret = GetAdaptersInfo(info, &size);
-        while(ret == ERROR_INSUFFICIENT_BUFFER || ret == ERROR_BUFFER_OVERFLOW)
+        for (ULONG k = 0; k < Table->NumEntries; k++)
         {
-            free(info);
-            size += sizeof(IP_ADAPTER_INFO);
-            info = (IP_ADAPTER_INFO *)malloc(size);
-            memset(info, 0, size);
+            PMIB_IF_ROW2    Row = &Table->Table[k];
+            std::string     GuidStr = UTILS::STR::GuidToStringA(Row->InterfaceGuid);
 
-            ret = GetAdaptersInfo(info, &size);
-        }
+            TRACE_PRINT1("   adapter guid %s", GuidStr.c_str());
 
-        if(ret!=NO_ERROR)
-        {
-            TRACE_PRINT1("PacketGetNetInfoEx: error calling GetAdaptersInfo %d", ret);
-
-            free(info);
-            return FALSE;
-        }
-
-        IP_ADAPTER_INFO *cur = info;
-        while(cur)
-        {
-            if(cur->Index == (DWORD)index)
+            if (UTILS::STR::SameTextA(GuidStr, AdapterName))
             {
-                IP_ADDR_STRING* first = &cur->IpAddressList;
-
-                int addrNum = 0;
-                while(addrNum < (*NEntries) && first)
-                {
-                    struct addrinfo hint, *ainfo;
-                    memset(&hint, 0, sizeof(hint));
-                    hint.ai_family = AF_UNSPEC;
-                    hint.ai_socktype = SOCK_DGRAM;
-                    hint.ai_protocol = IPPROTO_UDP;
-
-                    ainfo = 0;
-
-                    TRACE_PRINT1("  resolving address %s", first->IpAddress.String);
-                    
-                    if(getaddrinfo(first->IpAddress.String, NULL, &hint, &ainfo) == 0)
-                    {
-                        memset(&buffer[addrNum].IPAddress, 0, sizeof(struct sockaddr_storage));
-                        memcpy(&buffer[addrNum].IPAddress, ainfo->ai_addr, ainfo->ai_addrlen);
-                    }
-
-                    first = first->Next;
-                    addrNum++;
-                }
-
-                *NEntries = addrNum;
-
+                TRACE_PRINT1("  detected interface index %u", Row->InterfaceIndex);
+                InterfaceIndex = static_cast<int>(Row->InterfaceIndex);
                 break;
             }
-            cur = cur->Next;
+        }
+    }
+    catch (...)
+    {
+        FreeMibTable(Table);
+    }
+
+    if (InterfaceIndex >= 0)
+    {
+        PIP_ADAPTER_INFO    AdapterInfo = UTILS::MISC::GetAdaptersInformation();
+
+        RETURN_VALUE_IF_FALSE(
+            Assigned(AdapterInfo),
+            FALSE);
+
+        try
+        {
+            for (PIP_ADAPTER_INFO CurrentInfo = AdapterInfo;
+                Assigned(CurrentInfo);
+                CurrentInfo = CurrentInfo->Next)
+            {
+                if (CurrentInfo->Index == static_cast<DWORD>(InterfaceIndex))
+                {
+                    LONG            Count = 0;
+
+                    for (PIP_ADDR_STRING Addr = &CurrentInfo->IpAddressList;
+                        (Assigned(Addr)) && (Count < *NEntries);
+                        Addr = Addr->Next)
+                    {
+                        ULONG   IP4 = 0;
+
+                        TRACE_PRINT1("  resolving address %s", Addr->IpAddress.String);
+
+                        if (UTILS::MISC::StringToIpAddressV4A(
+                            Addr->IpAddress.String,
+                            &IP4))
+                        {
+                            RtlZeroMemory(
+                                &buffer[Count].IPAddress,
+                                sizeof(sockaddr_storage));
+                            RtlCopyMemory(
+                                &buffer[Count].IPAddress,
+                                &IP4,
+                                sizeof(IP4));
+                            Count++;
+                        }
+
+                    }
+
+                    *NEntries = Count;
+
+                    break;
+                }
+            }
+        }
+        catch (...)
+        {
         }
 
-        free(info);
+        free(reinterpret_cast<void *>(AdapterInfo));
+        
         return TRUE;
     }
 

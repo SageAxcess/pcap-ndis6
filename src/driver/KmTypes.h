@@ -235,10 +235,13 @@ typedef struct _ADAPTER
     //  Unicode string containing adapter id
     UNICODE_STRING      Name;
 
+    //  Size of the data stored in DisplayName field
+    ULONG               DisplayNameSize;
+
     //  Adapter display name
     char                DisplayName[256];
 
-    //  Size of the data stored in MacAddress field.
+    //  Size of the data stored in MacAddress field
     ULONG               MacAddressSize;
 
     //  Physical adapter address

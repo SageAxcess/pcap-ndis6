@@ -11,9 +11,11 @@
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
 
+#include <WS2tcpip.h>
+
 #include "CommonDefs.h"
-#include "MiscUtils.h"
 #include "StrUtils.h"
+#include "MiscUtils.h"
 
 #include <vector>
 
@@ -262,8 +264,74 @@ std::string UTILS::MISC::ExpandEnvVarsA(
     return "";
 };
 
-std::wstring NormalizeFileNameW(
+std::wstring UTILS::MISC::NormalizeFileNameW(
     __in    const   std::wstring    &FileName)
 {
     return FileName;
+};
+
+PIP_ADAPTER_INFO UTILS::MISC::GetAdaptersInformation()
+{
+    IP_ADAPTER_INFO     Tmp = { 0, };
+    PIP_ADAPTER_INFO    Result = nullptr;
+    ULONG               Size = 0;
+
+    RETURN_VALUE_IF_FALSE(
+        GetAdaptersInfo(&Tmp, &Size) == ERROR_BUFFER_OVERFLOW,
+        nullptr);
+
+    Result = reinterpret_cast<PIP_ADAPTER_INFO>(malloc(Size));
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Result),
+        nullptr);
+
+    if (GetAdaptersInfo(Result, &Size) != ERROR_SUCCESS)
+    {
+        free(reinterpret_cast<void *>(Result));
+        Result = nullptr;
+    }
+
+    return Result;
+};
+
+BOOL UTILS::MISC::StringToIpAddressV4A(
+    __in    const   std::string &String,
+    __out           PULONG      Address)
+{
+    ADDRINFOA   Hint = { 0, };
+    PADDRINFOA  AddrInfo = nullptr;
+
+    RETURN_VALUE_IF_FALSE(
+        String.length() > 0,
+        FALSE);
+
+    Hint.ai_family = AF_UNSPEC;
+    Hint.ai_socktype = SOCK_DGRAM;
+    Hint.ai_protocol = IPPROTO_UDP;
+
+    if (GetAddrInfoA(String.c_str(), nullptr, &Hint, &AddrInfo) == 0)
+    {
+        BOOL    Result = FALSE;
+
+        __try
+        {
+            if (AddrInfo->ai_addrlen == sizeof(ULONG))
+            {
+                RtlCopyMemory(
+                    Address,
+                    AddrInfo->ai_addr->sa_data,
+                    sizeof(ULONG));
+
+                Result = TRUE;
+            }
+        }
+        __finally
+        {
+            FreeAddrInfoA(AddrInfo);
+        }
+
+        return Result;
+    }
+
+    return FALSE;
 };

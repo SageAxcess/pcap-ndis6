@@ -215,6 +215,11 @@ BOOL SendOidRequest(
     NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, request);
     if(ret != NDIS_STATUS_PENDING)
     {
+        if (ret == NDIS_STATUS_SUCCESS)
+        {
+            adapter->DisplayNameSize = request->DATA.QUERY_INFORMATION.BytesWritten;
+        }
+
         InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
 
         if (set)
@@ -521,6 +526,11 @@ Protocol_OidRequestCompleteHandler(
     if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
         (OidRequest->DATA.QUERY_INFORMATION.Oid == OID_GEN_VENDOR_DESCRIPTION))
     {
+        if (Status == NDIS_STATUS_SUCCESS)
+        {
+            Adapter->DisplayNameSize = OidRequest->DATA.QUERY_INFORMATION.BytesWritten;
+        }
+
         CanRelease = FALSE;
     }
 

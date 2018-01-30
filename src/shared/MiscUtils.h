@@ -13,6 +13,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <IPHlpApi.h>
 #include <string>
 
 namespace UTILS
@@ -40,6 +41,12 @@ namespace UTILS
 
         std::wstring NormalizeFileNameW(
             __in    const   std::wstring    &FileName);
+
+        PIP_ADAPTER_INFO GetAdaptersInformation();
+
+        BOOL StringToIpAddressV4A(
+            __in    const   std::string &String,
+            __out           PULONG      Address);
 
     };
 };
