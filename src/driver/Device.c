@@ -331,7 +331,6 @@ Device_CloseHandler(
         Assigned(Device),
         STATUS_UNSUCCESSFUL);
 
-    //NdisAcquireSpinLock(device->OpenCloseLock);
     if (!Device->IsAdaptersList)
     {
         PCLIENT Client = (PCLIENT)IoStackLocation->FileObject->FsContext;
@@ -562,7 +561,6 @@ NTSTATUS __stdcall Device_GetAdapters(
     {
         Km_List_Unlock(&Data->AdaptersList);
     }
-
 
 cleanup:
 
