@@ -213,3 +213,10 @@
     BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[6]); \
     BYTES_SWAP_16_2(((unsigned short *)(IPv6Address))[7]); \
 }
+
+#define TicksInASecond              10000000
+#define TicksInAMicrosecond         10
+#define MicrosecondsInASecond       1000000
+
+#define TicksToSeconds(Value)       ((Value) / TicksInASecond)
+#define TicksToMicroseconds(Value)  ((Value) / TicksInAMicrosecond)

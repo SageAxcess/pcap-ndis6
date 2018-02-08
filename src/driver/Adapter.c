@@ -124,7 +124,7 @@ NTSTATUS __stdcall Adapter_Allocate(
     }
 
     NewAdapter->MtuSize = BindParameters->MtuSize;
-    NewAdapter->BindTimestamp = KeQueryPerformanceCounter(NULL);
+    NewAdapter->BindTimestamp = KmGetTicks(FALSE);
     NewAdapter->BindContext = BindContext;
 
 cleanup:
@@ -150,7 +150,7 @@ BOOL SendOidRequest(
     __in    void        *data,
     __in    UINT        size)
 {
-    NDIS_OID_REQUEST    *request = NULL;
+    PNDIS_OID_REQUEST   Request = NULL;
 
     RETURN_VALUE_IF_FALSE(
         (Assigned(adapter)) &&
@@ -161,49 +161,49 @@ BOOL SendOidRequest(
     RETURN_VALUE_IF_FALSE(
         Assigned(adapter->DriverData),
         FALSE);
-    request = Km_MM_AllocMemTyped(
+    Request = Km_MM_AllocMemTyped(
         &adapter->DriverData->Ndis.MemoryManager,
         NDIS_OID_REQUEST);
 
     RETURN_VALUE_IF_FALSE(
-        Assigned(request),
+        Assigned(Request),
         FALSE);
     
-    NdisZeroMemory(request, sizeof(NDIS_OID_REQUEST));
+    NdisZeroMemory(Request, sizeof(NDIS_OID_REQUEST));
 
-    request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
-    request->Header.Revision = NDIS_OID_REQUEST_REVISION_1;
-    request->Header.Size = NDIS_SIZEOF_OID_REQUEST_REVISION_1;
+    Request->Header.Type = NDIS_OBJECT_TYPE_OID_REQUEST;
+    Request->Header.Revision = NDIS_OID_REQUEST_REVISION_1;
+    Request->Header.Size = NDIS_SIZEOF_OID_REQUEST_REVISION_1;
 
     if(set)
     {
-        request->RequestType = NdisRequestSetInformation;
-        request->DATA.SET_INFORMATION.Oid = oid;
-        request->DATA.SET_INFORMATION.InformationBuffer = Km_MM_AllocMem(
+        Request->RequestType = NdisRequestSetInformation;
+        Request->DATA.SET_INFORMATION.Oid = oid;
+        Request->DATA.SET_INFORMATION.InformationBuffer = Km_MM_AllocMem(
             &adapter->DriverData->Ndis.MemoryManager,
             size);
 
-        if(!request->DATA.SET_INFORMATION.InformationBuffer)
+        if(!Request->DATA.SET_INFORMATION.InformationBuffer)
         {
             Km_MM_FreeMem(
                 &adapter->DriverData->Ndis.MemoryManager,
-                request);
+                Request);
             return FALSE;
         }
 
         RtlCopyMemory(
-            request->DATA.SET_INFORMATION.InformationBuffer,
+            Request->DATA.SET_INFORMATION.InformationBuffer,
             data,
             size);
 
-        request->DATA.SET_INFORMATION.InformationBufferLength = size;
-
-    } else
+        Request->DATA.SET_INFORMATION.InformationBufferLength = size;
+    }
+    else
     {
-        request->RequestType = NdisRequestQueryInformation;
-        request->DATA.QUERY_INFORMATION.Oid = oid;
-        request->DATA.QUERY_INFORMATION.InformationBuffer = data;
-        request->DATA.QUERY_INFORMATION.InformationBufferLength = size;
+        Request->RequestType = NdisRequestQueryInformation;
+        Request->DATA.QUERY_INFORMATION.Oid = oid;
+        Request->DATA.QUERY_INFORMATION.InformationBuffer = data;
+        Request->DATA.QUERY_INFORMATION.InformationBufferLength = size;
     }
 
     RETURN_VALUE_IF_FALSE(
@@ -212,12 +212,12 @@ BOOL SendOidRequest(
 
     InterlockedIncrement((volatile LONG *)&adapter->PendingOidRequests);
 
-    NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, request);
+    NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, Request);
     if(ret != NDIS_STATUS_PENDING)
     {
         if (ret == NDIS_STATUS_SUCCESS)
         {
-            adapter->DisplayNameSize = request->DATA.QUERY_INFORMATION.BytesWritten;
+            adapter->DisplayNameSize = Request->DATA.QUERY_INFORMATION.BytesWritten;
         }
 
         InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
@@ -226,12 +226,12 @@ BOOL SendOidRequest(
         {
             Km_MM_FreeMem(
                 &adapter->DriverData->Ndis.MemoryManager,
-                request->DATA.SET_INFORMATION.InformationBuffer);
+                Request->DATA.SET_INFORMATION.InformationBuffer);
         }
 
         Km_MM_FreeMem(
             &adapter->DriverData->Ndis.MemoryManager,
-            request);
+            Request);
     }
 
     return 
@@ -303,21 +303,19 @@ cleanup:
 LARGE_INTEGER GetAdapterTime(
     __in    PADAPTER    Adapter)
 {
-    LARGE_INTEGER Result = { 0 };
-    LARGE_INTEGER Freq;
-    LARGE_INTEGER Ticks = KeQueryPerformanceCounter(&Freq);
+    LARGE_INTEGER   Result = { 0 };
+    LARGE_INTEGER   Ticks;
 
     RETURN_VALUE_IF_FALSE(
         Assigned(Adapter),
         Result);
 
+    Ticks = KmGetTicks(FALSE);
+
     Result.QuadPart = Ticks.QuadPart - Adapter->BindTimestamp.QuadPart;
 
-    Result.QuadPart *= 1000;
-    Result.QuadPart /= Freq.QuadPart;
-
     return Result;
-}
+};
 
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks

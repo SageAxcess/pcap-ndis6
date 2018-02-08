@@ -53,6 +53,14 @@ PUNICODE_STRING AllocateString(
 
 void DriverSleep(long msec);
 
+LARGE_INTEGER KmGetTicks(
+    __in    BOOLEAN SkipFrequency);
+
+NTSTATUS ParseTicks(
+    __in        PLARGE_INTEGER  Ticks,
+    __out       PULONG          Seconds,
+    __out_opt   PULONG          Microseconds);
+
 ///////////////////////////////////////////////////
 // Network eEvent info helpers
 ///////////////////////////////////////////////////

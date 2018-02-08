@@ -226,6 +226,51 @@ void DriverSleep(long msec)
     KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
 };
 
+LARGE_INTEGER KmGetTicks(
+    __in    BOOLEAN SkipFrequency)
+{
+    LARGE_INTEGER   Frequency;
+    LARGE_INTEGER   Result;
+
+    Result = KeQueryPerformanceCounter(&Frequency);
+
+    if (!SkipFrequency)
+    {
+        Result.QuadPart = Result.QuadPart / Frequency.QuadPart;
+    }
+
+    return Result;
+};
+
+NTSTATUS ParseTicks(
+    __in        PLARGE_INTEGER  Ticks,
+    __out       PULONG          Seconds,
+    __out_opt   PULONG          Microseconds)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    LARGE_INTEGER   SPart;
+    LARGE_INTEGER   USPart;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Ticks),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Seconds),
+        STATUS_INVALID_PARAMETER_2);
+
+    SPart.QuadPart = Ticks->QuadPart - (TicksToSeconds(Ticks->QuadPart) * TicksInASecond);
+    *Seconds = (ULONG)TicksToSeconds(SPart.QuadPart);
+
+    if (Assigned(Microseconds))
+    {
+        USPart.QuadPart = Ticks->QuadPart - SPart.QuadPart;
+        *Microseconds = (ULONG)TicksToMicroseconds(USPart.QuadPart);
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall NetEventInfo_Allocate(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __out   PNETWORK_EVENT_INFO *EventInfo)
