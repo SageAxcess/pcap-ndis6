@@ -315,15 +315,15 @@ BOOL UTILS::MISC::StringToIpAddressV4A(
 
         __try
         {
-            if (AddrInfo->ai_addrlen == sizeof(ULONG))
-            {
+            //if (AddrInfo->ai_addrlen == sizeof(ULONG)) // Doesn't work, ai_addrlen is always 16
+            //{
                 RtlCopyMemory(
                     Address,
                     AddrInfo->ai_addr->sa_data,
                     sizeof(ULONG));
 
                 Result = TRUE;
-            }
+            //}
         }
         __finally
         {
