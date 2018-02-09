@@ -248,8 +248,6 @@ NTSTATUS ParseTicks(
     __out_opt   PULONG          Microseconds)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
-    LARGE_INTEGER   SPart;
-    LARGE_INTEGER   USPart;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Ticks),
@@ -258,13 +256,11 @@ NTSTATUS ParseTicks(
         Assigned(Seconds),
         STATUS_INVALID_PARAMETER_2);
 
-    SPart.QuadPart = Ticks->QuadPart - (TicksToSeconds(Ticks->QuadPart) * TicksInASecond);
-    *Seconds = (ULONG)TicksToSeconds(SPart.QuadPart);
+    *Seconds = (ULONG)TicksToSeconds(Ticks->QuadPart);
 
     if (Assigned(Microseconds))
     {
-        USPart.QuadPart = Ticks->QuadPart - SPart.QuadPart;
-        *Microseconds = (ULONG)TicksToMicroseconds(USPart.QuadPart);
+        *Microseconds = (ULONG)TicksToMicroseconds(Ticks->QuadPart);
     }
 
 cleanup:

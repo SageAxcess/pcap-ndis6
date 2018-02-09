@@ -322,7 +322,7 @@ BOOL UTILS::MISC::StringToIpAddressV4A(
                     AddrInfo->ai_addr->sa_data,
                     sizeof(ULONG));
 
-                Result = TRUE;
+				Result = *Address != 0;
             //}
         }
         __finally

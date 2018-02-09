@@ -312,7 +312,7 @@ LARGE_INTEGER GetAdapterTime(
 
     Ticks = KmGetTicks(FALSE);
 
-    Result.QuadPart = Ticks.QuadPart - Adapter->BindTimestamp.QuadPart;
+    Result.QuadPart = Ticks.QuadPart + Adapter->BindTimestamp.QuadPart;
 
     return Result;
 };
