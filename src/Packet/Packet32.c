@@ -739,7 +739,6 @@ BOOLEAN PacketReceivePacketEx(
     if (!Result)
     {
         Packet->Packet.ulBytesReceived = 0;
-        Result = FALSE;
     }
 
     if (Packet->Packet.ulBytesReceived > 0)
