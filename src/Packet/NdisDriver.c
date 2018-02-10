@@ -289,36 +289,21 @@ BOOL NdisDriverNextPacket(
     if (Adapter->BufferedPackets > 0)
     {
         pbpf_hdr2   bpf = reinterpret_cast<pbpf_hdr2>(Adapter->ReadBuffer + Adapter->BufferOffset);
-        ULONG       RequiredSize = sizeof(bpf_hdr) + bpf->bh_datalen;
-        bpf_hdr     Header;
+        ULONG       RequiredSize = bpf->bh_hdrlen + bpf->bh_datalen;
         PUCHAR      CurrentPtr;
 
         RETURN_VALUE_IF_FALSE(
             Size >= RequiredSize,
             FALSE);
 
-        RtlZeroMemory(
-            reinterpret_cast<LPVOID>(&Header),
-            sizeof(Header));
-
-        Header.bh_caplen = bpf->bh_caplen;
-        Header.bh_datalen = bpf->bh_datalen;
-        Header.bh_hdrlen = static_cast<u_short>(sizeof(Header));
-        Header.bh_tstamp = bpf->bh_tstamp;
-
         CurrentPtr = reinterpret_cast<PUCHAR>(*Buffer);
 
         RtlCopyMemory(
             reinterpret_cast<LPVOID>(CurrentPtr),
-            reinterpret_cast<LPVOID>(&Header),
-            sizeof(Header));
+            reinterpret_cast<LPVOID>(bpf),
+            RequiredSize);
 
-        CurrentPtr += sizeof(Header);
-
-        RtlCopyMemory(
-            reinterpret_cast<LPVOID>(CurrentPtr),
-            reinterpret_cast<LPVOID>(Adapter->ReadBuffer + Adapter->BufferOffset + bpf->bh_hdrlen),
-            bpf->bh_datalen);
+        CurrentPtr += RequiredSize;
 
         *BytesReceived = RequiredSize;
 
@@ -328,7 +313,7 @@ BOOL NdisDriverNextPacket(
         }
 
         Adapter->BufferedPackets--;
-        Adapter->BufferOffset += bpf->bh_hdrlen + bpf->bh_datalen;
+        Adapter->BufferOffset += RequiredSize;
     }
 
     return TRUE;
