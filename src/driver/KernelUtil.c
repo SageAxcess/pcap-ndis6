@@ -242,25 +242,32 @@ LARGE_INTEGER KmGetTicks(
     return Result;
 };
 
-NTSTATUS ParseTicks(
-    __in        PLARGE_INTEGER  Ticks,
-    __out       PULONG          Seconds,
-    __out_opt   PULONG          Microseconds)
+NTSTATUS KmGetStartTime(
+    __out   PKM_TIME    Time)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
+    LARGE_INTEGER   SystemTime;
+    LARGE_INTEGER   Frequency;
+    LARGE_INTEGER   BootTime;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Ticks),
+        Assigned(Time),
         STATUS_INVALID_PARAMETER_1);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Seconds),
-        STATUS_INVALID_PARAMETER_2);
 
-    *Seconds = (ULONG)TicksToSeconds(Ticks->QuadPart);
+    BootTime = KeQueryPerformanceCounter(&Frequency);
 
-    if (Assigned(Microseconds))
+    KeQuerySystemTime(&SystemTime);
+
+    Time->Seconds = (long)(SystemTime.QuadPart / TicksInASecond - 11644473600);
+    Time->Microseconds = (long)((SystemTime.QuadPart % TicksInASecond) / 10);
+
+    Time->Seconds -= (long)(BootTime.QuadPart / Frequency.QuadPart);
+    Time->Microseconds -= (long)((BootTime.QuadPart % Frequency.QuadPart) * MicrosecondsInASecond / Frequency.QuadPart);
+
+    if (Time->Microseconds < 0)
     {
-        *Microseconds = (ULONG)TicksToMicroseconds(Ticks->QuadPart);
+        Time->Seconds--;
+        Time->Microseconds += MicrosecondsInASecond;
     }
 
 cleanup:

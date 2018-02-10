@@ -56,10 +56,8 @@ void DriverSleep(long msec);
 LARGE_INTEGER KmGetTicks(
     __in    BOOLEAN SkipFrequency);
 
-NTSTATUS ParseTicks(
-    __in        PLARGE_INTEGER  Ticks,
-    __out       PULONG          Seconds,
-    __out_opt   PULONG          Microseconds);
+NTSTATUS KmGetStartTime(
+    __out   PKM_TIME    Time);
 
 ///////////////////////////////////////////////////
 // Network eEvent info helpers

@@ -46,8 +46,9 @@ BOOL FreeAdapter(
 NTSTATUS ClearAdaptersList(
     __in    PKM_LIST    List);
 
-LARGE_INTEGER GetAdapterTime(
-    __in    PADAPTER    Adapter); // returns time in milliseconds since adapter was bound
+NTSTATUS GetAdapterTime(
+    __in    PADAPTER    Adapter,
+    __out   PKM_TIME    Time);
 
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks

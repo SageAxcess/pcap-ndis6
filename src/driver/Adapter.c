@@ -124,7 +124,9 @@ NTSTATUS __stdcall Adapter_Allocate(
     }
 
     NewAdapter->MtuSize = BindParameters->MtuSize;
-    NewAdapter->BindTimestamp = KmGetTicks(FALSE);
+
+    KmGetStartTime(&NewAdapter->BindTimestamp);
+
     NewAdapter->BindContext = BindContext;
 
 cleanup:
@@ -300,21 +302,38 @@ cleanup:
 };
 
 // Returns timestamp in milliseconds since adapter started
-LARGE_INTEGER GetAdapterTime(
-    __in    PADAPTER    Adapter)
+NTSTATUS GetAdapterTime(
+    __in    PADAPTER    Adapter,
+    __out   PKM_TIME    Time)
 {
-    LARGE_INTEGER   Result = { 0 };
-    LARGE_INTEGER   Ticks;
+    NTSTATUS    Status = STATUS_SUCCESS;
+    LARGE_INTEGER   BootTime;
+    LARGE_INTEGER   Frequency;
+    long            TimeIncrement;
 
-    RETURN_VALUE_IF_FALSE(
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
-        Result);
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Time),
+        STATUS_INVALID_PARAMETER_2);
 
-    Ticks = KmGetTicks(FALSE);
+    BootTime = KeQueryPerformanceCounter(&Frequency);
+    TimeIncrement = (long)(BootTime.QuadPart / Frequency.QuadPart);
 
-    Result.QuadPart = Ticks.QuadPart + Adapter->BindTimestamp.QuadPart;
+    Time->Seconds = Adapter->BindTimestamp.Seconds + (long)TimeIncrement;
+    Time->Microseconds =
+        Adapter->BindTimestamp.Microseconds +
+        (long)((BootTime.QuadPart % Frequency.QuadPart) * MicrosecondsInASecond / Frequency.QuadPart);
 
-    return Result;
+    if (Time->Microseconds >= MicrosecondsInASecond)
+    {
+        Time->Seconds++;
+        Time->Microseconds -= MicrosecondsInASecond;
+    }
+
+cleanup:
+    return Status;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -650,7 +669,11 @@ Protocol_ReceiveNetBufferListsHandler(
     __try
     {
         PNET_BUFFER_LIST    CurrentNbl;
-        LARGE_INTEGER       PacketTimeStamp = GetAdapterTime(adapter);
+        KM_TIME             PacketTimeStamp = { 0, };
+
+        GetAdapterTime(
+            adapter,
+            &PacketTimeStamp);
 
         for (CurrentNbl = NetBufferLists;
              Assigned(CurrentNbl);

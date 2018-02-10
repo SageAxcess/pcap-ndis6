@@ -395,8 +395,6 @@ NTSTATUS __stdcall Device_ReadPackets(
                 USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
                 bpf_hdr2    bpf;
                 ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
-                ULONG       Seconds = 0;
-                ULONG       Microseconds = 0;
 
                 BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
 
@@ -404,15 +402,8 @@ NTSTATUS __stdcall Device_ReadPackets(
                 bpf.bh_datalen = Packet->DataSize;
                 bpf.bh_hdrlen = HeaderSize;
                 bpf.ProcessId = Packet->ProcessId;
-
-                ParseTicks(
-                    &Packet->Timestamp,
-                    &Seconds,
-                    &Microseconds);
-
-                bpf.bh_tstamp.tv_sec = (long)Seconds;
-                bpf.bh_tstamp.tv_usec = (long)(Microseconds);
-                
+                bpf.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
+                bpf.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
 
                 RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
                 RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);

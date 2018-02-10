@@ -32,7 +32,7 @@ PPACKET CreatePacket(
     __in    PVOID               Data,
     __in    ULONG               DataSize,
     __in    ULONGLONG           ProcessId,
-    __in    PLARGE_INTEGER      Timestamp)
+    __in    PKM_TIME            Timestamp)
 {
     PPACKET NewPacket = NULL;
     ULONG   SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
@@ -58,7 +58,7 @@ PPACKET CreatePacket(
     RtlCopyMemory(
         &NewPacket->Timestamp, 
         Timestamp, 
-        sizeof(LARGE_INTEGER));
+        sizeof(KM_TIME));
     RtlCopyMemory(
         &NewPacket->Data,
         Data,

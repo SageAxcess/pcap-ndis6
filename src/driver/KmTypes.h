@@ -55,6 +55,12 @@ typedef struct _DEVICE
 #define ETH_TYPE_ARP_BE         0x0608  //  ARP, big endian
 #define ETH_TYPE_IP6_BE         0xdd86  //  IPv6, big endian
 
+typedef struct _KM_TIME
+{
+    long    Seconds;
+    long    Microseconds;
+} KM_TIME, *PKM_TIME;
+
 typedef struct _ETH_HEADER
 {
     UCHAR   DstAddr[ETH_LENGTH_OF_ADDRESS];
@@ -260,7 +266,7 @@ typedef struct _ADAPTER
     PDEVICE             Device;
 
     //  Bind operation timestamp
-    LARGE_INTEGER       BindTimestamp;
+    KM_TIME             BindTimestamp;
 
     // To complete Bind request if necessary
     NDIS_HANDLE         BindContext;

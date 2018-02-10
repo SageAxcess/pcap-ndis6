@@ -24,6 +24,7 @@
 #include <ntdef.h>
 #include "KmList.h"
 #include "KmMemoryManager.h"
+#include "KmTypes.h"
 
 //////////////////////////////////////////////////////////////////////
 // Packet definitions
@@ -35,7 +36,7 @@ typedef struct _PACKET
 
     PKM_MEMORY_MANAGER  MemoryManager;
 
-    LARGE_INTEGER       Timestamp;
+    KM_TIME             Timestamp;
 
     ULONGLONG           ProcessId;
 
@@ -54,7 +55,7 @@ PPACKET CreatePacket(
     __in    PVOID               Data,
     __in    ULONG               DataSize,
     __in    ULONGLONG           ProcessId,
-    __in    PLARGE_INTEGER      Timestamp);
+    __in    PKM_TIME            Timestamp);
 
 void FreePacket(
     __in    PPACKET Packet);
