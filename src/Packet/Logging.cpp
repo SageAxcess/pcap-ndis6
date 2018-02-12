@@ -127,6 +127,8 @@ void __stdcall LOG::LogMessageFmt(
     va_list ArgList;
     va_start(ArgList, FormatStr);
 
+    RETURN_IF_FALSE(Assigned(LogWriter));
+
     DWORD BufferChCnt = _vscwprintf(FormatStr.c_str(), ArgList);
 
     if (BufferChCnt > 0)
