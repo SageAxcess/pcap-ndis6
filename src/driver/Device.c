@@ -401,7 +401,7 @@ NTSTATUS __stdcall Device_ReadPackets(
                 bpf.bh_caplen = Packet->DataSize;
                 bpf.bh_datalen = Packet->DataSize;
                 bpf.bh_hdrlen = HeaderSize;
-                bpf.ProcessId = Packet->ProcessId;
+                bpf.ProcessId = (unsigned long)Packet->ProcessId;
                 bpf.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
                 bpf.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
 
