@@ -39,6 +39,89 @@ std::wstring UTILS::MISC::GetModuleName(
     return Result;
 };
 
+std::wstring UTILS::MISC::ExtractFileName(
+    __in    const   std::wstring    &FullFileName)
+{
+    return ExtractFileNameEx(FullFileName);
+};
+
+std::wstring UTILS::MISC::ExtractFileNameEx(
+    __in    const   std::wstring    &FullFileName,
+    __in    const   wchar_t         Delimiter)
+{
+    RETURN_VALUE_IF_FALSE(
+        (Delimiter == static_cast<wchar_t>(0)) ||
+        (FullFileName.length() < 2),
+        L"");
+
+    for (SSIZE_T k = static_cast<SSIZE_T>(FullFileName.length()); k >= 0; k--)
+    {
+        if (FullFileName[k] == Delimiter)
+        {
+            return FullFileName.substr(static_cast<size_t>(k + 1));
+        }
+    }
+
+    return FullFileName;
+};
+
+std::wstring UTILS::MISC::ExtractFilePath(
+    __in    const   std::wstring    FullFileName)
+{
+    return ExtractFilePathEx(FullFileName);
+};
+
+std::wstring UTILS::MISC::ExtractFilePathEx(
+    __in    const   std::wstring    &FullFileName,
+    __in    const   wchar_t         Delimiter)
+{
+    RETURN_VALUE_IF_FALSE(
+        (Delimiter == static_cast<wchar_t>(0)) ||
+        (FullFileName.length() < 2),
+        L"");
+
+    for (SSIZE_T k = static_cast<SSIZE_T>(FullFileName.length()); k >= 0; k--)
+    {
+        if (FullFileName[k] == Delimiter)
+        {
+            return FullFileName.substr(0, static_cast<size_t>(k + 1));
+        }
+    }
+
+    return FullFileName;
+};
+
+std::wstring UTILS::MISC::ExtractFileExtension(
+    __in    const   std::wstring    &FileName)
+{
+
+    for (SSIZE_T k = static_cast<SSIZE_T>(FileName.length()); k >= 0; k--)
+    {
+        if (FileName[k] == L'.')
+        {
+            return FileName.substr(static_cast<size_t>(k));
+        }
+    };
+
+    return L"";
+};
+
+std::wstring UTILS::MISC::ChangeFileExtension(
+    __in    const   std::wstring    &FileName,
+    __in    const   std::wstring    &NewExtension)
+{
+    RETURN_VALUE_IF_FALSE(
+        FileName.length() > 0,
+        NewExtension);
+
+    std::wstring    CurrentExtension = ExtractFileExtension(FileName);
+    RETURN_VALUE_IF_TRUE(
+        CurrentExtension.length() == 0,
+        FileName + NewExtension);
+
+    return FileName.substr(0, FileName.length() - CurrentExtension.length()) + NewExtension;
+};
+
 std::wstring UTILS::MISC::GetApplicationFileName()
 {
     return GetModuleName(NULL);

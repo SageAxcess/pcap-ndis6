@@ -23,6 +23,27 @@ namespace UTILS
         std::wstring GetModuleName(
             __in    const   HMODULE ModuleHandle);
 
+        std::wstring ExtractFileName(
+            __in    const   std::wstring    &FullFileName);
+
+        std::wstring ExtractFileNameEx(
+            __in    const   std::wstring    &FullFileName,
+            __in    const   wchar_t         Delimiter = L'\\');
+
+        std::wstring ExtractFilePath(
+            __in    const   std::wstring    FullFileName);
+
+        std::wstring ExtractFilePathEx(
+            __in    const   std::wstring    &FullFileName,
+            __in    const   wchar_t         Delimiter = L'\\');
+
+        std::wstring ExtractFileExtension(
+            __in    const   std::wstring    &FileName);
+
+        std::wstring ChangeFileExtension(
+            __in    const   std::wstring    &FileName,
+            __in    const   std::wstring    &NewExtension);
+
         std::wstring GetApplicationFileName();
 
         std::wstring GetOsVersionStr();

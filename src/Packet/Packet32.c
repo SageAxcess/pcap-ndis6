@@ -82,6 +82,7 @@ std::wstring    Packet_DllFileVersionW;
 std::wstring    Packet_DriverNameW;
 std::wstring    Packet_DriverVersionW;
 std::wstring    Packet_ProcessNameW;
+std::wstring    Packet_LogFileNameW;
 
 std::string     Packet_DllFileNameA;
 std::string     Packet_DllFileVersionA;
@@ -128,9 +129,14 @@ BOOL APIENTRY DllMain(
             Packet_DllFileNameA = UTILS::STR::FormatA("%S", Packet_DllFileNameW.c_str());
 
             Packet_ProcessNameW = UTILS::MISC::GetModuleName(NULL);
+
+            Packet_LogFileNameW =
+                UTILS::MISC::ChangeFileExtension(
+                    Packet_ProcessNameW,
+                    UTILS::MISC::ExtractFileName(UTILS::MISC::ChangeFileExtension(Packet_DllFileNameW, L".log")));
             
             LOG::Initialize(
-                Packet_ProcessNameW + L".log",
+                Packet_LogFileNameW,
                 HKEY_LOCAL_MACHINE,
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
@@ -191,80 +197,6 @@ BOOL APIENTRY DllMain(
     }
     
     return Status;
-}
-
-/*! 
-  \brief Convert a Unicode dotted-quad to a 32-bit IP address.
-  \param cp A string containing the address.
-  \return the converted 32-bit numeric address.
-
-   Doesn't check to make sure the address is valid.
-*/
-ULONG inet_addrU(const WCHAR *cp)
-{
-    ULONG val, part;
-    WCHAR c;
-    int i;
-
-    val = 0;
-    for (i = 0; i < 4; i++) {
-        part = 0;
-        while ((c = *cp++) != '\0' && c != '.') {
-            if (c < '0' || c > '9')
-                return (ULONG)-1;
-            part = part*10 + (c - '0');
-        }
-        if (part > 255)
-            return (ULONG)-1;	
-        val = val | (part << i*8);
-        if (i == 3) {
-            if (c != '\0')
-                return (ULONG)-1;	// extra gunk at end of string 
-        } else {
-            if (c == '\0')
-                return (ULONG)-1;	// string ends early 
-        }
-    }
-    return val;
-}
-
-/*! 
-  \brief Converts an ASCII string to UNICODE. Uses the MultiByteToWideChar() system function.
-  \param string The string to convert.
-  \return The converted string.
-*/
-static PWCHAR SChar2WChar(PCHAR string)
-{
-    PWCHAR TmpStr;
-    TmpStr = (WCHAR *) GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, (DWORD)(strlen(string)+2)*sizeof(WCHAR));
-
-    MultiByteToWideChar(CP_ACP, 0, string, -1, TmpStr, (DWORD)(strlen(string)+2));
-
-    return TmpStr;
-}
-
-/*! 
-  \brief Converts an UNICODE string to ASCII. Uses the WideCharToMultiByte() system function.
-  \param string The string to convert.
-  \return The converted string.
-*/
-static PCHAR WChar2SChar(PWCHAR string)
-{
-    PCHAR TmpStr;
-    TmpStr = (CHAR*) GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, (DWORD)(wcslen(string)+2));
-
-    // Conver to ASCII
-    WideCharToMultiByte(
-        CP_ACP,
-        0,
-        string,
-        -1,
-        TmpStr,
-        (DWORD)(wcslen(string)+2),          // size of buffer
-        NULL,
-        NULL);
-
-    return TmpStr;
 }
 
 /*! 
@@ -681,7 +613,7 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
         res = (BOOLEAN)NdisDriverNextPacket(
             (PCAP_NDIS_ADAPTER*)AdapterObject->hFile, 
-            &lpPacket->Buffer, 
+            &lpPacket->Buffer,
             lpPacket->Length, 
             &lpPacket->ulBytesReceived,
             NULL);
