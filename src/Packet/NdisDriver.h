@@ -86,3 +86,9 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis);
 // Free adapter list
 void NdisDriverFreeAdapterList(
     __in    LPPCAP_NDIS_ADAPTER_LIST    List);
+
+void NdisDriverLogPacket(
+    __in    LPPACKET    Packet);
+
+void NdisDriverLogPacketEx(
+    __in    LPPACKET_EX Packet);

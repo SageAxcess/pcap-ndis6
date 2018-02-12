@@ -30,6 +30,8 @@
 
 #include "..\shared\StrUtils.h"
 
+#include "Logging.h"
+
 #ifdef DEBUG_CONSOLE
 #define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
 #else
@@ -377,4 +379,49 @@ void NdisDriverFreeAdapterList(
     RETURN_IF_FALSE(Assigned(List));
 
     free(List);
+};
+
+std::wstring NdisDriver_PacketToString(
+    __in    LPPACKET    Packet)
+{
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Packet),
+        L"");
+
+    PACKET_DESC Desc;
+
+    RtlZeroMemory(&Desc, sizeof(Desc));
+};
+
+std::wstring NdisDriver_PacketExToString(
+    __in    LPPACKET_EX Packet)
+{
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Packet),
+        L"");
+
+    return UTILS::STR::FormatW(
+        L"%s, PID: %I64d",
+        NdisDriver_PacketToString(&Packet->Packet).c_str(),
+        Packet->ProcessId);
+};
+
+void NdisDriverLogPacket(
+    __in    LPPACKET    Packet)
+{
+    RETURN_IF_FALSE(Assigned(Packet));
+
+    std::wstring    PacketStr = NdisDriver_PacketToString(Packet);
+
+    LOG::LogMessage(PacketStr);
+};
+
+void NdisDriverLogPacketEx(
+    __in    LPPACKET_EX Packet)
+{
+    RETURN_IF_FALSE(Assigned(Packet));
+
+    std::wstring    PacketStr = NdisDriver_PacketExToString(Packet);
+
+    LOG::LogMessage(PacketStr);
 };
