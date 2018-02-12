@@ -384,13 +384,8 @@ void NdisDriverFreeAdapterList(
 std::wstring NdisDriver_PacketToString(
     __in    LPPACKET    Packet)
 {
-    RETURN_VALUE_IF_FALSE(
-        Assigned(Packet),
-        L"");
-
-    PACKET_DESC Desc;
-
-    RtlZeroMemory(&Desc, sizeof(Desc));
+    UNREFERENCED_PARAMETER(Packet);
+    return L"";
 };
 
 std::wstring NdisDriver_PacketExToString(
