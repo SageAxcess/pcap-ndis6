@@ -579,7 +579,8 @@ pcap_read_win32_npf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			 * XXX A bpf_hdr matches a pcap_pkthdr.
 			 */
 			(*callback)(user, (struct pcap_pkthdr*)bp, datap);
-			bp += Packet_WORDALIGN(caplen + hdrlen);
+			//bp += Packet_WORDALIGN(caplen + hdrlen);
+			bp += caplen + hdrlen;
 			if (++n >= cnt && !PACKET_COUNT_IS_UNLIMITED(cnt)) {
 				p->bp = bp;
 				p->cc = (int) (ep - bp);
@@ -589,7 +590,8 @@ pcap_read_win32_npf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			/*
 			 * Skip this packet.
 			 */
-			bp += Packet_WORDALIGN(caplen + hdrlen);
+			//bp += Packet_WORDALIGN(caplen + hdrlen);
+			bp += caplen + hdrlen;
 		}
 	}
 #undef bhp

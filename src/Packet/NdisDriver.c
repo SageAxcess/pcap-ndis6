@@ -256,6 +256,8 @@ BOOL NdisDriverNextPacket(
         DWORD   BytesRead = 0;
         DWORD   ErrorCode = 0;
 
+		Sleep(100); //This is for performance
+
         RETURN_VALUE_IF_FALSE(
             NdisDriver_ControlDevice(
                 Adapter->Handle,
