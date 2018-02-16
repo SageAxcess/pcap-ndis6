@@ -211,6 +211,7 @@
     <ClCompile Include="..\Logging.cpp" />
     <ClCompile Include="..\NdisDriver.c" />
     <ClCompile Include="..\Packet32.c" />
+    <ClCompile Include="..\PacketParser.cpp" />
     <ClCompile Include="..\Util.c" />
   </ItemGroup>
   <ItemGroup>
@@ -220,6 +221,7 @@
     <ClInclude Include="..\..\shared\LogWriter.h" />
     <ClInclude Include="..\..\shared\MiscUtils.h" />
     <ClInclude Include="..\..\shared\RegUtils.h" />
+    <ClInclude Include="..\..\shared\SharedTypes.h" />
     <ClInclude Include="..\..\shared\StrUtils.h" />
     <ClInclude Include="..\..\shared\SvcUtils.h" />
     <ClInclude Include="..\..\shared\win_bpf.h" />
@@ -227,6 +229,7 @@
     <ClInclude Include="..\Logging.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
+    <ClInclude Include="..\PacketParser.h" />
     <ClInclude Include="..\Util.h" />
     <ClInclude Include="..\valid_insns.h" />
   </ItemGroup>

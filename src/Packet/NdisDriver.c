@@ -29,8 +29,11 @@
 #include <string>
 
 #include "..\shared\StrUtils.h"
+#include "PacketParser.h"
 
 #include "Logging.h"
+
+#include "..\shared\SharedTypes.h"
 
 #ifdef DEBUG_CONSOLE
 #define DEBUG_PRINT(x,...) printf(x, __VA_ARGS__)
@@ -384,8 +387,21 @@ void NdisDriverFreeAdapterList(
 std::wstring NdisDriver_PacketToString(
     __in    LPPACKET    Packet)
 {
-    UNREFERENCED_PARAMETER(Packet);
-    return L"";
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Packet),
+        L"");
+
+    PACKET_DESC PacketDesc;
+
+    RETURN_VALUE_IF_FALSE(
+        UTILS::PKT::Parse(
+            Packet->Buffer,
+            Packet->Length,
+            0,
+            &PacketDesc),
+        L"");
+
+    return UTILS::PKT::PacketDescToStringW(&PacketDesc);
 };
 
 std::wstring NdisDriver_PacketExToString(
@@ -395,10 +411,17 @@ std::wstring NdisDriver_PacketExToString(
         Assigned(Packet),
         L"");
 
-    return UTILS::STR::FormatW(
-        L"%s, PID: %I64d",
-        NdisDriver_PacketToString(&Packet->Packet).c_str(),
-        Packet->ProcessId);
+    PACKET_DESC PacketDesc;
+
+    RETURN_VALUE_IF_FALSE(
+        UTILS::PKT::Parse(
+            Packet->Packet.Buffer,
+            Packet->Packet.Length,
+            static_cast<ULONG>(Packet->ProcessId),
+            &PacketDesc),
+        L"");
+
+    return UTILS::PKT::PacketDescToStringW(&PacketDesc);
 };
 
 void NdisDriverLogPacket(
@@ -406,7 +429,7 @@ void NdisDriverLogPacket(
 {
     RETURN_IF_FALSE(Assigned(Packet));
 
-    std::wstring    PacketStr = NdisDriver_PacketToString(Packet);
+    std::wstring    PacketStr = NdisDriver_PacketToString(Packet) + L'\n';
 
     LOG::LogMessage(PacketStr);
 };

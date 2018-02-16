@@ -618,6 +618,10 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
             &lpPacket->ulBytesReceived,
             NULL);
 
+        #ifdef _DEBUG
+        NdisDriverLogPacket(lpPacket);
+        #endif
+
         if(!res)
         {
             lpPacket->ulBytesReceived = 0;
