@@ -628,11 +628,6 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
             res = FALSE;
         }
 
-        /*if(lpPacket->ulBytesReceived > 0)
-        {
-            Sleep(100);
-        }*/
-
         if (!CheckFilter(AdapterObject, lpPacket))
         {
             lpPacket->ulBytesReceived = 0;
