@@ -43,6 +43,7 @@
     <ClInclude Include="KmConnections.h" />
     <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
+    <ClInclude Include="..\shared\SharedTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

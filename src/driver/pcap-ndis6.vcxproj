@@ -378,6 +378,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\CommonDefs.h" />
+    <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
     <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
