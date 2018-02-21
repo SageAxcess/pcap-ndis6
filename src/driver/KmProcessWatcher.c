@@ -22,6 +22,45 @@ typedef struct _KM_PROCESS_WATCHER_DATA
 
 PKM_PROCESS_WATCHER_DATA    ProcessWatcherData = NULL;
 
+void Km_ProcessWatcher_NotifyRoutine(
+    __in    HANDLE  ParentId,
+    __in    HANDLE  ProcessId,
+    __in    BOOLEAN Create)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    RETURN_IF_FALSE(
+        Assigned(ProcessWatcherData));
+
+    Status = Km_List_Lock(&ProcessWatcherData->CallbacksList);
+    RETURN_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        PLIST_ENTRY Entry;
+
+        for (Entry = ProcessWatcherData->CallbacksList.Head.Flink;
+            Entry != &ProcessWatcherData->CallbacksList.Head;
+            Entry = Entry->Flink)
+        {
+            PKM_PROCESS_WATCHER_CALLBACK_ITEM   Item =
+                CONTAINING_RECORD(Entry, KM_PROCESS_WATCHER_CALLBACK_ITEM, Link);
+
+            if (Assigned(Item->Callback))
+            {
+                Item->Callback(
+                    ParentId,
+                    ProcessId,
+                    Create,
+                    Item->Context);
+            }
+        };
+    }
+    __finally
+    {
+        Km_List_Unlock(&ProcessWatcherData->CallbacksList);
+    }
+};
+
 NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
     __in    PKM_MEMORY_MANAGER  MemoryManager)
 {
@@ -31,6 +70,11 @@ NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_1);
+
+    Status = PsSetCreateProcessNotifyRoutine(
+        Km_ProcessWatcher_NotifyRoutine,
+        FALSE);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     NewData = Km_MM_AllocMemTyped(
         MemoryManager,
@@ -47,6 +91,8 @@ NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     
     NewData->MemoryManager = MemoryManager;
+
+    
 
     InterlockedExchangePointer(
         (PVOID *)&ProcessWatcherData,
