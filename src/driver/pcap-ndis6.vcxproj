@@ -250,6 +250,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -269,6 +271,8 @@
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
       <GenerateWindowsMetadata>true</GenerateWindowsMetadata>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -299,6 +303,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -317,6 +323,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -357,6 +365,7 @@
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmMemoryManager.c" />
+    <ClCompile Include="KmProcessWatcher.c" />
     <ClCompile Include="KmThreads.c" />
     <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="Packet.c" />
@@ -392,6 +401,7 @@
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="KmMemoryManager.h" />
+    <ClInclude Include="KmProcessWatcher.h" />
     <ClInclude Include="KmThreads.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="NdisMemoryManager.h" />
