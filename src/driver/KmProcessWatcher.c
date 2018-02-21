@@ -92,8 +92,6 @@ NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
     
     NewData->MemoryManager = MemoryManager;
 
-    
-
     InterlockedExchangePointer(
         (PVOID *)&ProcessWatcherData,
         (PVOID)NewData);
