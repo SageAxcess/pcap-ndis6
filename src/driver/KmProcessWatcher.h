@@ -32,7 +32,8 @@
 typedef void(__stdcall _KM_PROCESS_WATCHER_CALLBACK)(
     __in_opt    HANDLE  ParentProcessId,
     __in        HANDLE  ProcessId,
-    __in        BOOLEAN NewProcess);
+    __in        BOOLEAN NewProcess,
+    __in        PVOID   Context);
 typedef _KM_PROCESS_WATCHER_CALLBACK    KM_PROCESS_WATCHER_CALLBACK, *PKM_PROCESS_WATCHER_CALLBACK;
 
 NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
