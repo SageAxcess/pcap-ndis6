@@ -68,6 +68,10 @@ NTSTATUS __stdcall Km_ProcessWatcher_Initialize(
     PKM_PROCESS_WATCHER_DATA    NewData = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        KeGetCurrentIrql() == PASSIVE_LEVEL,
+        STATUS_UNSUCCESSFUL);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_1);
 
@@ -118,6 +122,10 @@ NTSTATUS __stdcall Km_ProcessWatcher_Finalize()
     LIST_ENTRY                  TmpList;
     ULARGE_INTEGER              Count;
 
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        KeGetCurrentIrql() == PASSIVE_LEVEL,
+        STATUS_UNSUCCESSFUL);
+
     Data = (PKM_PROCESS_WATCHER_DATA)InterlockedExchangePointer(
         (PVOID *)&ProcessWatcherData,
         NULL);
@@ -125,6 +133,17 @@ NTSTATUS __stdcall Km_ProcessWatcher_Finalize()
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
         STATUS_UNSUCCESSFUL);
+
+    Status = PsSetCreateProcessNotifyRoutine(
+        Km_ProcessWatcher_NotifyRoutine,
+        TRUE);
+    if (!NT_SUCCESS(Status))
+    {
+        InterlockedExchangePointer(
+            (PVOID *)&ProcessWatcherData,
+            Data);
+        goto cleanup;
+    }
 
     InitializeListHead(&TmpList);
 
@@ -268,6 +287,13 @@ NTSTATUS __stdcall Km_ProcessWatcher_UnregisterCallback(
     __finally
     {
         Km_List_Unlock(&ProcessWatcherData->CallbacksList);
+    }
+
+    if (NT_SUCCESS(Status))
+    {
+        PsSetCreateProcessNotifyRoutine(
+            Km_ProcessWatcher_NotifyRoutine,
+            TRUE);
     }
 
 cleanup:
