@@ -105,7 +105,6 @@ int __stdcall Km_Connections_GetPID_ItemCmpCallback(
     return COMPARE_VALUES(ItemDefinition, (PVOID)Item);
 };
 
-
 int __stdcall Km_Connections_ItemCmpCallback(
     __in    PKM_LIST    List,
     __in    PVOID       ItemDefinition,
