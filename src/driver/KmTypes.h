@@ -163,29 +163,49 @@ typedef struct _ADAPTER
 
 typedef struct _DRIVER_DATA
 {
+    //  Boolean flag that's set when the driver unload begins
     LONG                DriverUnload;
 
     struct Ndis
     {
+        //  Memory manager for NDIS module
         KM_MEMORY_MANAGER   MemoryManager;
-        NDIS_HANDLE         DriverHandle;
+
+        //  NDIS Protocol Handle
         NDIS_HANDLE         ProtocolHandle;
     } Ndis;
 
     struct Wfp
     {
+        //  Memory manager for WFP module
         KM_MEMORY_MANAGER   MemoryManager;
-        HANDLE  Instance;
+
+        //  WFP module instance handle
+        HANDLE              Instance;
+
     } Wfp;
 
     struct Other
     {
+        //  Driver object received in DriverEntry routine
         PDRIVER_OBJECT  DriverObject;
+
+        //  Handle to KmConnections object instance
         HANDLE          Connections;
+
+        //  List of pre-allocated packet buffers
+        //  Each entry in this list is an instance of PACKET structure
+        KM_LIST         PacketsPool;
+
+        //  List of received (intercepted) packets
+        KM_LIST         ReceivedPackets;
+
     } Other;
 
+    //  Device used for adapters list retrieval 
     PDEVICE             ListAdaptersDevice;
 
+    //  List of adapters the protocol driver is attached to
     KM_LIST             AdaptersList;
 
 } DRIVER_DATA, *PDRIVER_DATA;
