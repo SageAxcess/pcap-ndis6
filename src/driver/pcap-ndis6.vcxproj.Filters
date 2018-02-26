@@ -21,6 +21,7 @@
     <ClCompile Include="WfpUtils.c" />
     <ClCompile Include="KmConnections.c" />
     <ClCompile Include="KmProcessWatcher.c" />
+    <ClCompile Include="KmMemoryPool.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -46,6 +47,7 @@
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="KmProcessWatcher.h" />
+    <ClInclude Include="KmMemoryPool.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
