@@ -160,6 +160,7 @@ typedef struct _ADAPTER
 
 } ADAPTER, *PADAPTER;
 
+#define PACKETS_POOL_INITIAL_SIZE   0x400
 
 typedef struct _DRIVER_DATA
 {
@@ -193,9 +194,12 @@ typedef struct _DRIVER_DATA
         //  Handle to KmConnections object instance
         HANDLE          Connections;
 
-        //  List of pre-allocated packet buffers
-        //  Each entry in this list is an instance of PACKET structure
-        KM_LIST         PacketsPool;
+        //  Memory pool instance handle.
+        //  Contains pre-allocated storage entries for packets (PACKET structure).
+        //  The number of pre-allocated entries is defined as PACKETS_POOL_INITIAL_SIZE.
+        //  The actual number of entries in the pool depends on the number of packets
+        //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE
+        HANDLE          PacketsPool;
 
         //  List of received (intercepted) packets
         KM_LIST         ReceivedPackets;
