@@ -198,7 +198,7 @@ typedef struct _DRIVER_DATA
         //  Contains pre-allocated storage entries for packets (PACKET structure).
         //  The number of pre-allocated entries is defined as PACKETS_POOL_INITIAL_SIZE.
         //  The actual number of entries in the pool depends on the number of packets
-        //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE
+        //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE.
         HANDLE          PacketsPool;
 
         //  List of received (intercepted) packets
