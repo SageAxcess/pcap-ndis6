@@ -322,7 +322,6 @@ NTSTATUS __stdcall Km_MP_Release(
     __in    PVOID   Block)
 {
     NTSTATUS                        Status = STATUS_SUCCESS;
-    PKM_MEMORY_POOL                 Pool = NULL;
     PKM_MEMORY_POOL_BLOCK_HEADER    BlockHeader = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
