@@ -54,7 +54,6 @@ NTSTATUS GetAdapterTime(
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
 
-
 NDIS_STATUS _Function_class_(SET_OPTIONS) Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE DriverContext);
 NDIS_STATUS _Function_class_(PROTOCOL_NET_PNP_EVENT) Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification);
 void _Function_class_(PROTOCOL_UNINSTALL) Protocol_UninstallHandler(VOID);
