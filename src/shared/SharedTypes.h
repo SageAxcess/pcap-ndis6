@@ -13,6 +13,10 @@
 
 #pragma once
 
+#ifndef ETH_MAXIMUM_FRAME_SIZE
+#define ETH_MAXIMUM_FRAME_SIZE  1522
+#endif
+
 #ifndef ETH_ADDRESS_LENGTH
 #define ETH_ADDRESS_LENGTH  0x6
 #endif
@@ -199,8 +203,3 @@ typedef struct _PACKET_DESC
     } DestinationPortOrIcmpCode;
 
 } PACKET_DESC, *PPACKET_DESC, *LPPACKET_DESC;
-
-#define PACKET_DESC_FLAG_IP_HEADER_VALID        0x1
-#define PACKET_DESC_FLAG_TRANSPORT_HEADER_VALID 0x2
-#define PACKET_DESC_FLAG_ETH_HEADER_VALID       0x4
-#define PACKET_DESC_FLAG_PROCESS_ID_VALID       0x8
