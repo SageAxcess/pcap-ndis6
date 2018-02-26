@@ -226,6 +226,10 @@ typedef struct _DRIVER_DATA
 #define IPPROTO_ICMPV6  58
 #endif
 
+#ifndef AF_UNSPEC
+#define AF_UNSPEC   0
+#endif
+
 #ifndef AF_INET
 #define AF_INET 2
 #endif
