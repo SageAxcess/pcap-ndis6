@@ -277,6 +277,7 @@ NTSTATUS __stdcall Km_List_ExtractEntriesEx(
     __inout PULARGE_INTEGER Count,
     __in    BOOLEAN         CheckParams,
     __in    BOOLEAN         LockList);
+
 /*
     Km_List_ExtractEntriesEx routine.
 
