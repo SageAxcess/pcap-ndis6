@@ -804,7 +804,6 @@ Protocol_SendNetBufferListsCompleteHandler(
     DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
 };
 
-
 NDIS_STATUS
 _Function_class_(SET_OPTIONS)
 Protocol_SetOptionsHandler(

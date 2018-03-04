@@ -104,6 +104,6 @@ NTSTATUS __stdcall Km_MP_Allocate(
         STATUS_INVALID_PARAMETER_1  - The Block parameter is NULL or 
                                       the memory block header contains invalid data.
         Other status codes          - An error occured.
-*/
+u*/
 NTSTATUS __stdcall Km_MP_Release(
     __in    PVOID   Block);
