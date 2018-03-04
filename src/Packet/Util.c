@@ -19,45 +19,6 @@
 #include <stdlib.h>
 #include "Util.h"
 
-MUTEX* PacketCreateMutex()
-{
-	MUTEX* mutex = (MUTEX*)malloc(sizeof(MUTEX));
-	if(!mutex)
-	{
-		return NULL;
-	}
-	memset(&mutex->cs, 0, sizeof(CRITICAL_SECTION));
-	InitializeCriticalSection(&mutex->cs);
-	return mutex;
-}
-
-void PacketFreeMutex(MUTEX* lock)
-{
-	if(lock)
-	{
-		DeleteCriticalSection(&lock->cs);
-		free(lock);
-	}
-}
-
-void PacketLockMutex(MUTEX* lock)
-{
-	if(!lock)
-	{
-		return;
-	}
-	EnterCriticalSection(&lock->cs);
-}
-
-void PacketUnlockMutex(MUTEX* lock)
-{
-	if (!lock)
-	{
-		return;
-	}
-	LeaveCriticalSection(&lock->cs);
-}
-
 BOOL IsWow64()
 {
 #ifdef _AMD64

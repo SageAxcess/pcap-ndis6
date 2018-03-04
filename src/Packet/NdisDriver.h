@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "winpcap_ndis.h"
+#include "..\shared\SharedTypes.h"
 #include <string>
 
 #define READ_BUFFER_SIZE 32000
