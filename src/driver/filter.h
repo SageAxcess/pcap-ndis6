@@ -22,7 +22,7 @@
 
 #include <ndis.h>
 
-#include "winpcap_ndis.h"
+#include "..\shared\SharedTypes.h"
 
 //  ChangeDynamix wfp filter (CDwf)
 #define WFP_FLT_MEMORY_TAG          'fwDC'

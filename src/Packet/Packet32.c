@@ -34,6 +34,7 @@
 #include <ws2tcpip.h>
 
 #include "..\shared\win_bpf.h"
+#include "..\shared\CSObject.h"
 #include <packet32.h>
 
 #include "Packet32-Int.h"
@@ -163,6 +164,8 @@ BOOL APIENTRY DllMain(
             //
             // Retrieve driver version information from the file. 
             //
+
+            std::wstring DriverServiceImagePath = UTILS::SVC::GetServiceImagePath(PCAP_NDIS6_DRIVER_SERVICE_NAME_W);
 
             Packet_DriverNameW = L"c:\\windows\\system32\\drivers\\pcap-ndis6.sys";
             
@@ -452,7 +455,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
             {
                 RtlZeroMemory(Result, sizeof(ADAPTER));
                 Result->hFile = NdisDriverOpenAdapter(ndis, AdapterNameStrA.c_str());
-                Result->FilterLock = PacketCreateMutex();
+                Result->FilterLock = reinterpret_cast<PVOID>(new CCSObject());
                 Result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
                 RtlCopyMemory(
@@ -503,23 +506,30 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
     if(lpAdapter->Filter != NULL)
     {
         TRACE_PRINT1("lock mutex, lock=0x%08x", lpAdapter->FilterLock);
-        PacketLockMutex(lpAdapter->FilterLock);
 
-        TRACE_PRINT2("releasing filter, ins=0x%08x, filter=0x%08x", lpAdapter->Filter->bf_insns, lpAdapter->Filter);
-        free(lpAdapter->Filter->bf_insns);
-        free(lpAdapter->Filter);
+        reinterpret_cast<CCSObject *>(lpAdapter->FilterLock)->Enter();
+        __try
+        {
+            TRACE_PRINT2("releasing filter, ins=0x%08x, filter=0x%08x", lpAdapter->Filter->bf_insns, lpAdapter->Filter);
+            free(lpAdapter->Filter->bf_insns);
+            free(lpAdapter->Filter);
 
-        lpAdapter->Filter = NULL;
+            lpAdapter->Filter = NULL;
 
-        TRACE_PRINT("unlock mutex");
-        PacketUnlockMutex(lpAdapter->FilterLock);
+            TRACE_PRINT("unlock mutex");
+        }
+        __finally
+        {
+            reinterpret_cast<CCSObject *>(lpAdapter->FilterLock)->Leave();
+        }
     }
 
     TRACE_PRINT("releasing mutex");
-    PacketFreeMutex(lpAdapter->FilterLock);
+
+    delete reinterpret_cast<CCSObject *>(lpAdapter->FilterLock);
 
     TRACE_PRINT("closing event");
-    if(lpAdapter->ReadEvent!=NULL)
+    if(lpAdapter->ReadEvent != NULL)
     {
         CloseHandle(lpAdapter->ReadEvent);
     }
@@ -583,7 +593,8 @@ BOOLEAN CheckFilter(LPADAPTER AdapterObject, LPPACKET lpPacket)
 
     BOOLEAN res = TRUE;
 
-    PacketLockMutex(AdapterObject->FilterLock);
+    reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Enter();
+    __try
     {
         UINT f = bpf_filter(AdapterObject->Filter->bf_insns, buf, bpf->bh_caplen, bpf->bh_caplen);
 
@@ -592,7 +603,10 @@ BOOLEAN CheckFilter(LPADAPTER AdapterObject, LPPACKET lpPacket)
             res = FALSE;
         }
     }
-    PacketUnlockMutex(AdapterObject->FilterLock);
+    __finally
+    {
+        reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Leave();
+    }
 
     return res;
 }
@@ -718,7 +732,6 @@ BOOLEAN PacketSetMinToCopy(LPADAPTER AdapterObject,int nbytes)
     return TRUE;
 }
 
-
 BOOLEAN PacketSetMode(LPADAPTER AdapterObject,int mode)
 {
     UNREFERENCED_PARAMETER(AdapterObject);
@@ -837,7 +850,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
         }
     }
 
-    PacketLockMutex(AdapterObject->FilterLock);
+    reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Enter();
     __try
     {
         if (Assigned(AdapterObject->Filter))
@@ -854,7 +867,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
     }
     __finally
     {
-        PacketUnlockMutex(AdapterObject->FilterLock);
+        reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Leave();
     }
 
     TRACE_EXIT("PacketSetBpf");

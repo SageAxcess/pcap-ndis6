@@ -249,7 +249,7 @@ typedef struct _ADAPTER
 
 	UINT                CurrentTimeout;
 
-	struct MUTEX        *FilterLock;
+    PVOID               FilterLock;
 
 	struct bpf_program  *Filter;	
 
