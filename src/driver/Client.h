@@ -30,29 +30,6 @@
 // Client definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct _CLIENT
-{
-    LIST_ENTRY          Link;
-
-    PKM_MEMORY_MANAGER  MemoryManager;
-
-    PDEVICE             Device;
-
-    PFILE_OBJECT        FileObject;
-
-    EVENT               Event;
-
-    KM_LIST             PacketList;
-
-    KM_LOCK             ReadLock;
-
-	volatile ULONG      PendingSendPackets;
-
-	ULONG               BytesSent;
-
-    BOOLEAN             Releasing;
-
-} CLIENT, *PCLIENT;
 
 //////////////////////////////////////////////////////////////////////
 // Client methods

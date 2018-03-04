@@ -30,22 +30,6 @@
 // Packet definitions
 //////////////////////////////////////////////////////////////////////
 
-typedef struct _PACKET
-{
-    LIST_ENTRY          Link;
-
-    PKM_MEMORY_MANAGER  MemoryManager;
-
-    KM_TIME             Timestamp;
-
-    ULONGLONG           ProcessId;
-
-    ULONG               DataSize;
-
-    UCHAR               Data[1];
-
-} PACKET, *PPACKET;
-
 //////////////////////////////////////////////////////////////////////
 // Packet methods
 //////////////////////////////////////////////////////////////////////

@@ -18,8 +18,6 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#include "filter.h"
-#include "Adapter.h"
 #include "Client.h"
 #include "Device.h"
 #include "Events.h"

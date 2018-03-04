@@ -101,14 +101,14 @@ typedef struct _NETWORK_EVENT_INFO
 typedef struct _ADAPTER
 {
     //  List link
-    LIST_ENTRY      Link;
+    LIST_ENTRY          Link;
 
     //  Unicode string containing adapter id
     UNICODE_STRING      Name;
 
     //  Size of the data stored in DisplayName field
     ULONG               DisplayNameSize;
-
+    
     //  Adapter display name
     char                DisplayName[256];
 
@@ -159,6 +159,86 @@ typedef struct _ADAPTER
     NETWORK_EVENT_INFO  CurrentEventInfo;
 
 } ADAPTER, *PADAPTER;
+
+typedef struct _PACKET
+{
+    LIST_ENTRY          Link;
+
+    PKM_MEMORY_MANAGER  MemoryManager;
+
+    KM_TIME             Timestamp;
+
+    ULONGLONG           ProcessId;
+
+    ULONG               DataSize;
+
+    UCHAR               Data[1];
+
+} PACKET, *PPACKET;
+
+typedef struct _PACKET_REFERENCE
+{
+    //  List link
+    LIST_ENTRY  Link;
+
+    //  Referenced packet pointer
+    PPACKET     Packet;
+
+} PACKET_REFERENCE, *PPACKET_REFERENCE;
+
+typedef struct _DRIVER_CLIENT
+{
+    //  List link
+    LIST_ENTRY          Link;
+
+    //  Pointer to DRIVER_DATA structure
+    PDRIVER_DATA        DriverData;
+
+    //  Process id of the owning process
+    HANDLE              ProcessId;
+
+    //  Event object passed from usermode code
+    PVOID               NotificationEvent;
+
+    //  Packets pool
+    //  (contains pre-allocated PACKET_REFERENCE structures)
+    HANDLE              PacketPool;
+
+    //  Allocated packets pool
+    KM_LIST             PacketList;
+
+} DRIVER_CLIENT, *PDRIVER_CLIENT;
+
+typedef struct _EVENT
+{
+    char    Name[256];
+    PKEVENT Event;
+    HANDLE  EventHandle;
+} EVENT, *PEVENT;
+
+typedef struct _CLIENT
+{
+    LIST_ENTRY          Link;
+
+    PKM_MEMORY_MANAGER  MemoryManager;
+
+    PDEVICE             Device;
+
+    PFILE_OBJECT        FileObject;
+
+    EVENT               Event;
+
+    KM_LIST             PacketList;
+
+    KM_LOCK             ReadLock;
+
+    volatile ULONG      PendingSendPackets;
+
+    ULONG               BytesSent;
+
+    BOOLEAN             Releasing;
+
+} CLIENT, *PCLIENT;
 
 #define PACKETS_POOL_INITIAL_SIZE   0x400
 
