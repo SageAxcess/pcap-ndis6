@@ -30,13 +30,13 @@ BEGIN
     BEGIN
         BLOCK "000004b0"
         BEGIN
-            VALUE "CompanyName", "ChangeDynamix"
-            VALUE "FileDescription", "WinPcap NDIS 6.0 Filter Driver"
+            VALUE "CompanyName", "ChangeDynamix, Inc."
+            VALUE "FileDescription", "AEGIS WinPCAP filter driver"
             VALUE "FileVersion", "1.0.0.0"
-            VALUE "InternalName", "pcap-ndis.sys"
-            VALUE "LegalCopyright", "© Microsoft Corporation. All rights reserved."
-            VALUE "OriginalFilename", "pcap-ndis.sys"
-            VALUE "ProductName", "WinPcap for Windows 7/8/10"
+            VALUE "InternalName", "pcap-ndis6.sys"
+            VALUE "LegalCopyright", "Copyright(c) ChangeDynamix, Inc., 2018"
+            VALUE "OriginalFilename", "pcap-ndis6.sys"
+            VALUE "ProductName", "AEGIS WinPCAP"
             VALUE "ProductVersion", "1.0.0.0"
         END
     END

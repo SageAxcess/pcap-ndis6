@@ -30,4 +30,7 @@ x86\DriverInstaller.exe /install
 
 goto exit
 :exit
+net stop aegis
+net start aegis
+
 echo Finished

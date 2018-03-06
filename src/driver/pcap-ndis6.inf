@@ -84,9 +84,9 @@ HKR, Parameters, NdisImPlatformBindingOptions,0x00010001,0 ; Subscribe to defaul
 DelService=PcapNdis6,0x200 ; SPSVCINST_STOPSERVICE
 
 [Strings]
-ProviderString = "ChangeDynamix LLC"
-ManufacturerName = "ChangeDynamix LLC"
-PcapNdis6_Desc = "WinPCAP NDIS 6.x Filter Driver"
+ProviderString = "ChangeDynamix, Inc."
+ManufacturerName = "ChangeDynamix, Inc."
+PcapNdis6_Desc = "AEGIS WinPCAP"
 PcapNdis6_HelpText = "Captures packets for WinPcap"
 
 
