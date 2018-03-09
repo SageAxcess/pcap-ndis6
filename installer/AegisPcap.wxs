@@ -61,12 +61,14 @@
 
 		<CustomAction Id="AlreadyUpdated" Error="This program has already been installed." />
 		<CustomAction Id="NoDowngrade" Error="A newer version of this program has already been installed." />
-		<CustomAction Id="RunInstaller" FileKey="common_install_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
-		<CustomAction Id="RunUninstaller" FileKey="common_uninstall_drivers_cmd" ExeCommand="" Return="ignore" Execute="deferred" Impersonate="no" />
+		<Property Id="RunInstallerCmd" Value="[#common_install_drivers_cmd]" />
+		<CustomAction Id="RunInstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
+		<Property Id="RunUninstallerCmd" Value="[#common_uninstall_drivers_cmd]" />
+		<CustomAction Id="RunUninstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
 
 		<InstallExecuteSequence>
-			<Custom Action="RunInstaller" After="StartServices">(NOT Installed)</Custom>
-			<Custom Action="RunUninstaller" After="StopServices">(Installed)</Custom>
+			<Custom Action="RunInstallerCmd" After="StartServices">(NOT Installed)</Custom>
+			<Custom Action="RunUninstallerCmd" After="StopServices">(Installed)</Custom>
 			<Custom Action="AlreadyUpdated" After="FindRelatedProducts">SELFFOUND</Custom>
 			<Custom Action="NoDowngrade" After="FindRelatedProducts">NEWERFOUND</Custom>
 			<RemoveExistingProducts After="InstallValidate" />
