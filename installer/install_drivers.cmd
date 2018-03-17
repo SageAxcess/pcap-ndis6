@@ -2,6 +2,8 @@
 SET mypath=%~dp0
 cd %mypath:~0,-1%
 
+for /f "tokens=2*" %%a in ('reg query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v PROCESSOR_ARCHITECTURE') do set "PROCESSOR_ARCHITECTURE=%%b"
+
 echo WinPCAP NDIS6.0 driver installer
 echo    architecture = %PROCESSOR_ARCHITECTURE% 
 echo    system dir = %SystemRoot%

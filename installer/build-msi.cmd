@@ -1,5 +1,5 @@
 @echo off
-set path=%path%;"C:\Program Files (x86)\WiX toolset v3.9\bin\"
+set path=%path%;"C:\Program Files (x86)\WiX toolset v3.11\bin\"
 del *.wixobj
 del Output\*.wixpdb
 
