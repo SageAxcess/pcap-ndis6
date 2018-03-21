@@ -74,7 +74,7 @@ NTSTATUS __stdcall Km_MP_Finalize(
         Allocates a memory block from the memory pool.
 
     Parameters:
-        Instance    - Handle to a memory pool instance to finalize.
+        Instance    - Handle to a memory pool instance.
         Block       - Pointer to the variable to recieve the allocated
                       memory block.
 
@@ -89,6 +89,35 @@ NTSTATUS __stdcall Km_MP_Finalize(
 NTSTATUS __stdcall Km_MP_Allocate(
     __in    HANDLE  Instance,
     __out   PVOID   *Block);
+
+/*
+    Km_MP_AllocateCheckSize routine.
+
+    Purpose:
+        Checks whether a block of requested size can
+        be allocated from the pool and allocates it.
+        
+    Parameters:
+        Instance    - Handle to a memory pool instance.
+        Block       - Pointer to the variable to recieve the allocated
+    memory block.
+
+    Return values:
+        STATUS_SUCCESS                  - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1      - The Instance parameter is NULL.
+        STATUS_INVALID_PARAMETER_2      - The Size parameter is 0.
+        STATUS_INVALID_PARAMETER_3      - The Block parameter is NULL.
+        STATUS_INSUFFICIENT_RESOURCES   - Low resources situation.
+                                          The pool failed to allocated a new block.
+        STATUS_BUFFER_TOO_SMALL         - The size requested is more than the size
+                                          of the elements in the pool.
+
+        STATUS_UNSUCCESSFUL             - Pool allocation failed.
+*/
+NTSTATUS __stdcall Km_MP_AllocateCheckSize(
+    __in    HANDLE  Instance,
+    __in    SIZE_T  Size,
+    __out   PVOID   *Block); 
 
 /*
     Km_MP_Release routine.

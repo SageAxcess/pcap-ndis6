@@ -20,7 +20,7 @@
 
 #include "filter.h"
 #include "Packet.h"
-#include "NdisMemoryManager.h"
+#include "KmMemoryPool.h"
 #include "..\shared\CommonDefs.h"
 
 //////////////////////////////////////////////////////////////////////
@@ -28,36 +28,37 @@
 //////////////////////////////////////////////////////////////////////
 
 PPACKET CreatePacket(
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __in    PVOID               Data,
-    __in    ULONG               DataSize,
-    __in    ULONGLONG           ProcessId,
-    __in    PKM_TIME            Timestamp)
+    __in    HANDLE      MemoryPool,
+    __in    PVOID       Data,
+    __in    ULONG       DataSize,
+    __in    ULONGLONG   ProcessId,
+    __in    PKM_TIME    Timestamp)
 {
-    PPACKET NewPacket = NULL;
-    ULONG   SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PPACKET     NewPacket = NULL;
+    ULONG       SizeRequired = (ULONG)sizeof(PACKET) + DataSize - 1;
 
     RETURN_VALUE_IF_FALSE(
-        (Assigned(MemoryManager)) &&
+        (Assigned(MemoryPool)) &&
         (Assigned(Data)) &&
         (DataSize > 0) &&
         (Assigned(Timestamp)),
         NULL);
 
-    NewPacket = Km_MM_AllocMemTypedWithSize(
-        MemoryManager,
-        PACKET,
-        SizeRequired);
+    Status = Km_MP_AllocateCheckSize(
+        MemoryPool,
+        SizeRequired,
+        (PVOID *)&NewPacket);
     RETURN_VALUE_IF_FALSE(
-        Assigned(NewPacket),
+        NT_SUCCESS(Status),
         NULL);
 
     RtlZeroMemory(NewPacket, SizeRequired);
 
     NewPacket->DataSize = DataSize;
     RtlCopyMemory(
-        &NewPacket->Timestamp, 
-        Timestamp, 
+        &NewPacket->Timestamp,
+        Timestamp,
         sizeof(KM_TIME));
     RtlCopyMemory(
         &NewPacket->Data,
@@ -66,39 +67,5 @@ PPACKET CreatePacket(
 
     NewPacket->ProcessId = ProcessId;
 
-    NewPacket->MemoryManager = MemoryManager;
-
     return NewPacket;
-};
-
-void FreePacket(
-    __in    PPACKET Packet)
-{
-    RETURN_IF_FALSE(Assigned(Packet));
-    RETURN_IF_FALSE(Assigned(Packet->MemoryManager));
-
-    Km_MM_FreeMem(
-        Packet->MemoryManager,
-        Packet);
-};
-
-void __stdcall ClearPacketList_ItemCallback(
-    __in    PKM_LIST    List,
-    __in    PLIST_ENTRY Item)
-{
-    PPACKET Packet = CONTAINING_RECORD(Item, PACKET, Link);
-
-    UNREFERENCED_PARAMETER(List);
-
-    RETURN_IF_FALSE(Assigned(Item));
-
-    FreePacket(Packet);
-};
-
-void ClearPacketList(
-    __in    PKM_LIST    List)
-{
-    RETURN_IF_FALSE(Assigned(List));
-
-    Km_List_Clear(List, ClearPacketList_ItemCallback);
 };

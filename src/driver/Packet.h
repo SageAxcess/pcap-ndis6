@@ -35,14 +35,11 @@
 //////////////////////////////////////////////////////////////////////
 
 PPACKET CreatePacket(
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __in    PVOID               Data,
-    __in    ULONG               DataSize,
-    __in    ULONGLONG           ProcessId,
-    __in    PKM_TIME            Timestamp);
-
-void FreePacket(
-    __in    PPACKET Packet);
+    __in    HANDLE      MemoryPool,
+    __in    PVOID       Data,
+    __in    ULONG       DataSize,
+    __in    ULONGLONG   ProcessId,
+    __in    PKM_TIME    Timestamp);
 
 void ClearPacketList(
     __in    PKM_LIST    List);

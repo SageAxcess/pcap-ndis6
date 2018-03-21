@@ -27,23 +27,23 @@
 // String helper functions
 ///////////////////////////////////////////////////
 
-PUNICODE_STRING CreateString(
+PUNICODE_STRING __stdcall CreateString(
     __in            PKM_MEMORY_MANAGER  MemoryManager,
     __in    const   char                *Str);
 
-PUNICODE_STRING CopyString(
+PUNICODE_STRING __stdcall CopyString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     SourceString);
 
-BOOLEAN StringStartsWith(
+BOOLEAN __stdcall StringStartsWith(
     __in    PUNICODE_STRING     String,
     __in    PUNICODE_STRING     SubString);
 
-void FreeString(
+void __stdcall FreeString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     String);
 
-PUNICODE_STRING AllocateString(
+PUNICODE_STRING __stdcall AllocateString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    USHORT              StringLengthInBytes);
 
@@ -51,13 +51,17 @@ PUNICODE_STRING AllocateString(
 // Other helper functions
 ///////////////////////////////////////////////////
 
-void DriverSleep(long msec);
+void __stdcall DriverSleep(long msec);
 
-LARGE_INTEGER KmGetTicks(
+LARGE_INTEGER __stdcall KmGetTicks(
     __in    BOOLEAN SkipFrequency);
 
-NTSTATUS KmGetStartTime(
+NTSTATUS __stdcall KmGetStartTime(
     __out   PKM_TIME    Time);
+
+NTSTATUS __stdcall KmReferenceEvent(
+    __in    HANDLE  EventObjectHandle,
+    __out   PVOID   *EventObject);
 
 ///////////////////////////////////////////////////
 // Network eEvent info helpers

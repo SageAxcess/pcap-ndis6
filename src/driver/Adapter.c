@@ -20,14 +20,13 @@
 
 #include "precomp.h"
 #include "Adapter.h"
-#include "Client.h"
-#include "Device.h"
 #include "Events.h"
 #include "Packet.h"
 #include "KernelUtil.h"
 #include "KmList.h"
 #include "KmMemoryManager.h"
 #include "KmConnections.h"
+#include "KmMemoryPool.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -69,11 +68,6 @@ NTSTATUS __stdcall Adapter_Allocate(
         Assigned(Adapter),
         STATUS_INVALID_PARAMETER_4);
 
-    SizeRequired +=
-        Assigned(BindParameters->AdapterName) ?
-        BindParameters->AdapterName->Length + sizeof(wchar_t) :
-        sizeof(wchar_t);
-
     NewAdapter = Km_MM_AllocMemTypedWithSize(
         MemoryManager,
         ADAPTER,
@@ -84,34 +78,33 @@ NTSTATUS __stdcall Adapter_Allocate(
 
     RtlZeroMemory(NewAdapter, sizeof(ADAPTER));
 
-    NewAdapter->Name.Buffer =
-        (PWCH)((PUCHAR)NewAdapter + sizeof(ADAPTER));
-
-    NewAdapter->Name.MaximumLength = BindParameters->AdapterName->Length;
-
     if (BindParameters->AdapterName->Length > 0)
     {
+        ULONG   IdLength = BindParameters->AdapterName->Length;
+        ULONG   IdOffset = 0;
+
         if (StringStartsWith(
             BindParameters->AdapterName,
             &TmpStr))
         {
-            NewAdapter->Name.Length = BindParameters->AdapterName->Length - TmpStr.Length;
-
-            RtlCopyMemory(
-                NewAdapter->Name.Buffer,
-                BindParameters->AdapterName->Buffer + TmpStr.Length / sizeof(wchar_t),
-                NewAdapter->Name.Length);
+            IdOffset += TmpStr.Length / sizeof(wchar_t);
+            IdLength -= TmpStr.Length;
         }
-        else
+
+        if (IdLength > PCAP_NDIS_ADAPTER_ID_SIZE_MAX * sizeof(wchar_t))
         {
-            NewAdapter->Name.Length = BindParameters->AdapterName->Length;
-            
-
-            RtlCopyMemory(
-                NewAdapter->Name.Buffer,
-                BindParameters->AdapterName->Buffer,
-                BindParameters->AdapterName->Length);
+            IdLength = PCAP_NDIS_ADAPTER_ID_SIZE_MAX * sizeof(wchar_t);
         }
+
+        if (IdLength > 0)
+        {
+            RtlCopyMemory(
+                NewAdapter->AdapterId.Buffer,
+                BindParameters->AdapterName->Buffer + IdOffset,
+                IdLength);
+        }
+        
+        NewAdapter->AdapterId.Length = IdLength;
     }
     
     if (BindParameters->MacAddressLength > 0)
@@ -253,16 +246,9 @@ BOOL FreeAdapter(
         Assigned(Adapter->DriverData),
         FALSE);
 
+    Adapter_StopFiltering(Adapter);
+
     MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
-
-    if (Assigned(Adapter->Device))
-    {
-        Adapter->Device->Releasing = TRUE;
-
-        FreeDevice(Adapter->Device);
-
-        Adapter->Device = NULL;
-    }
 
     Km_MM_FreeMem(
         MemoryManager,
@@ -331,6 +317,290 @@ NTSTATUS GetAdapterTime(
         Time->Seconds++;
         Time->Microseconds -= MicrosecondsInASecond;
     }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS FindAdapterById(
+    __in        PKM_LIST                AdapterList,
+    __in        PPCAP_NDIS_ADAPTER_ID   AdapterId,
+    __out_opt   PADAPTER                *Adapter,
+    __in        BOOLEAN                 LockList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PLIST_ENTRY Entry = NULL;
+    PADAPTER    ExistingAdapter = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(AdapterList),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(AdapterId),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        AdapterId->Length >= sizeof(wchar_t),
+        STATUS_INVALID_PARAMETER_2);
+
+    if (LockList)
+    {
+        Status = Km_List_Lock(AdapterList);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        for (Entry = AdapterList->Head.Flink;
+            Entry != &AdapterList->Head;
+            Entry = Entry->Flink)
+        {
+            PADAPTER    Tmp = CONTAINING_RECORD(Entry, ADAPTER, Link);
+            CONTINUE_IF_FALSE(
+                Tmp->AdapterId.Length != AdapterId->Length);
+
+            if (RtlCompareMemory(
+                AdapterId->Buffer,
+                Tmp->AdapterId.Buffer,
+                AdapterId->Length) == AdapterId->Length)
+            {
+                ExistingAdapter = Tmp;
+                break;
+            }
+        }
+    }
+    __finally
+    {
+        if (LockList)
+        {
+            Km_List_Unlock(AdapterList);
+        }
+    }
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(ExistingAdapter),
+        STATUS_NOT_FOUND);
+
+    if (Assigned(Adapter))
+    {
+        *Adapter = ExistingAdapter;
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Adapter_Reference(
+    __in    PADAPTER    Adapter)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = Km_Lock_Acquire(&Adapter->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        Adapter->OpenCount++;
+        if (Adapter->OpenCount == 1)
+        {
+            Status = Adapter_StartFiltering(Adapter);
+            if (!NT_SUCCESS(Status))
+            {
+                Adapter->OpenCount--;
+            }
+        }
+    }
+    __finally
+    {
+        Km_Lock_Release(&Adapter->Lock);
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Adapter_Dereference(
+    __in    PADAPTER    Adapter)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = Km_Lock_Acquire(&Adapter->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        Adapter->OpenCount--;
+        if (Adapter->OpenCount == 0)
+        {
+            Status = Adapter_StopFiltering(Adapter);
+            if (!NT_SUCCESS(Status))
+            {
+                Adapter->OpenCount++;
+            }
+        }
+    }
+    __finally
+    {
+        Km_Lock_Release(&Adapter->Lock);
+    }
+
+cleanup:
+    return Status;
+};
+
+void __stdcall Adapter_WorkerThreadRoutine(
+    __in    PKM_THREAD  Thread)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PADAPTER    Adapter = NULL;
+    PVOID       WaitArray[2];
+    BOOL        StopThread = FALSE;
+    
+    RETURN_IF_FALSE(Assigned(Thread));
+    RETURN_IF_FALSE(Assigned(Thread->Context));
+    
+    Adapter = (PADAPTER)Thread->Context;
+    RETURN_IF_FALSE(Assigned(Adapter->DriverData));
+
+    WaitArray[0] = (PVOID)&Thread->StopEvent;
+    WaitArray[1] = (PVOID)&Adapter->Packets.NewPacketEvent;
+
+    while (!StopThread)
+    {
+        Status = KeWaitForMultipleObjects(
+            2,
+            WaitArray,
+            WaitAny,
+            Executive,
+            KernelMode,
+            FALSE,
+            NULL,
+            NULL);
+
+        switch (Status)
+        {
+        case STATUS_WAIT_0:
+            {
+                StopThread = TRUE;
+            }break;
+
+        case STATUS_WAIT_1:
+            {
+
+            }break;
+        };
+    }
+};
+
+NTSTATUS Adapter_StartFiltering(
+    __in    PADAPTER    Adapter)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = KmThreads_CreateThread(
+        &Adapter->DriverData->Ndis.MemoryManager,
+        &Adapter->WorkerThread,
+        Adapter_WorkerThreadRoutine,
+        Adapter);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    if (NT_SUCCESS(Status))
+    {
+        UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
+
+        SendOidRequest(
+            Adapter,
+            TRUE,
+            OID_GEN_CURRENT_PACKET_FILTER,
+            &PacketFilter,
+            sizeof(PacketFilter));
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Adapter_StopFiltering(
+    __in    PADAPTER    Adapter)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = Km_Lock_Acquire(&Adapter->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+
+    }
+    __finally
+    {
+        Km_Lock_Release(&Adapter->Lock);
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS Adapter_AllocateAndFillPacket(
+    __in    PADAPTER    Adapter,
+    __in    PVOID       PacketData,
+    __in    ULONG       PacketDataSize,
+    __in    ULONGLONG   ProcessId,
+    __in    PKM_TIME    Timestamp,
+    __out   PPACKET     *Packet)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PPACKET     NewPacket = NULL;
+    SIZE_T      SizeRequired = sizeof(PACKET) + PacketDataSize - 1;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Adapter),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(PacketData),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        PacketDataSize > 0,
+        STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Timestamp),
+        STATUS_INVALID_PARAMETER_5);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Packet),
+        STATUS_INVALID_PARAMETER_6);
+
+    Status = Km_MP_AllocateCheckSize(
+        Adapter->Packets.Pool,
+        SizeRequired,
+        (PVOID *)&NewPacket);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    RtlZeroMemory(
+        NewPacket,
+        SizeRequired);
+
+    NewPacket->DataSize = PacketDataSize;
+    RtlCopyMemory(
+        &NewPacket->Timestamp,
+        Timestamp,
+        sizeof(KM_TIME));
+    RtlCopyMemory(
+        &NewPacket->Data,
+        PacketData,
+        PacketDataSize);
+
+    NewPacket->ProcessId = ProcessId;
 
 cleanup:
     return Status;
@@ -460,28 +730,18 @@ Protocol_OpenAdapterCompleteHandlerEx(
 
     if (Status == NDIS_STATUS_SUCCESS)
     {
-        PDEVICE Device = CreateDevice(
-            Adapter->DriverData->Other.DriverObject,
-            Adapter->DriverData,
-            &Adapter->Name);
-        if (Assigned(Device))
+        SendOidRequest(
+            Adapter,
+            FALSE,
+            OID_GEN_VENDOR_DESCRIPTION,
+            Adapter->DisplayName,
+            sizeof(Adapter->DisplayName) - 1);
+
+        if (Assigned(Adapter->DriverData))
         {
-            SendOidRequest(
-                Adapter,
-                FALSE,
-                OID_GEN_VENDOR_DESCRIPTION,
-                Adapter->DisplayName,
-                sizeof(Adapter->DisplayName) - 1);
-
-            Device->Adapter = Adapter;
-            Adapter->Device = Device;
-
-            if (Assigned(Adapter->DriverData))
-            {
-                Km_List_AddItem(
-                    &Adapter->DriverData->AdaptersList,
-                    &Adapter->Link);
-            }
+            Km_List_AddItem(
+                &Adapter->DriverData->AdaptersList,
+                &Adapter->Link);
         }
 
         Adapter->Ready = TRUE;
@@ -566,68 +826,6 @@ Protocol_OidRequestCompleteHandler(
     InterlockedDecrement((volatile LONG *)&Adapter->PendingOidRequests);
 };
 
-void LockClients(
-    __in    PDEVICE Device,
-    __in    BOOLEAN LockList)
-{
-    PLIST_ENTRY ListEntry = NULL;
-
-    RETURN_IF_FALSE(Assigned(Device));
-
-    if (LockList)
-    {
-        Km_List_Lock(&Device->ClientList);
-    }
-
-    for (ListEntry = Device->ClientList.Head.Flink;
-         ListEntry != &Device->ClientList.Head;
-         ListEntry = ListEntry->Flink)
-    {
-        PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
-
-        Km_Lock_Acquire(&Client->ReadLock);
-
-        Km_List_Lock(&Client->PacketList);
-    }
-};
-
-void UnlockClients(
-    __in    PDEVICE Device,
-    __in    BOOLEAN UnlockList,
-    __in    BOOLEAN SignalEvents)
-{
-    PLIST_ENTRY ListEntry = NULL;
-
-    RETURN_IF_FALSE(Assigned(Device));
-
-    for (ListEntry = Device->ClientList.Head.Flink;
-        ListEntry != &Device->ClientList.Head;
-        ListEntry = ListEntry->Flink)
-    {
-        PCLIENT  Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
-
-        if (SignalEvents)
-        {
-            if (Assigned(Client->Event.Event))
-            {
-                KeSetEvent(Client->Event.Event, 0, FALSE);
-            }
-        }
-
-        Km_List_Unlock(&Client->PacketList);
-
-        if (Assigned(Client))
-        {
-            Km_Lock_Release(&Client->ReadLock);
-        }
-    }
-
-    if (UnlockList)
-    {
-        Km_List_Unlock(&Device->ClientList);
-    }
-};
-
 void
 _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS)
 Protocol_ReceiveNetBufferListsHandler(
@@ -637,8 +835,10 @@ Protocol_ReceiveNetBufferListsHandler(
     ULONG                   NumberOfNetBufferLists,
     ULONG                   ReceiveFlags)
 {
-    ADAPTER     *adapter = (ADAPTER*)ProtocolBindingContext;
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
     ULONG       ReturnFlags = 0;
+    LIST_ENTRY  TmpPacketList;
 
     UNREFERENCED_PARAMETER(PortNumber);
 
@@ -654,40 +854,47 @@ Protocol_ReceiveNetBufferListsHandler(
     }
 
     RETURN_IF_FALSE(
-        (Assigned(adapter)) &&
-        (adapter->AdapterHandle != NULL));
+        (Assigned(Adapter)) &&
+        (Adapter->AdapterHandle != NULL));
 
     RETURN_IF_FALSE_EX(
-        (adapter->Ready) &&
-        (Assigned(adapter->Device)),
+        (Adapter->Ready),
         NdisReturnNetBufferLists(
-            adapter->AdapterHandle,
+            Adapter->AdapterHandle,
             NetBufferLists, 
             ReturnFlags));
 
-    LockClients(adapter->Device, TRUE);
+    InitializeListHead(&TmpPacketList);
+
+    Status = Km_Lock_Acquire(&Adapter->Lock);
+    RETURN_IF_FALSE_EX(
+        NT_SUCCESS(Status),
+        NdisReturnNetBufferLists(
+            Adapter->AdapterHandle,
+            NetBufferLists,
+            ReturnFlags));
     __try
     {
         PNET_BUFFER_LIST    CurrentNbl;
         KM_TIME             PacketTimeStamp = { 0, };
 
         GetAdapterTime(
-            adapter,
+            Adapter,
             &PacketTimeStamp);
 
         for (CurrentNbl = NetBufferLists;
-             Assigned(CurrentNbl);
-             CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
+            Assigned(CurrentNbl);
+            CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
         {
             PUCHAR              MdlVA = NULL;
             PNET_BUFFER         NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
             PMDL                Mdl = NET_BUFFER_CURRENT_MDL(NB);
             ULONG               Offset = NET_BUFFER_DATA_OFFSET(NB);
             ULONG               BufferLength = 0;
-            
+
             if (Assigned(Mdl))
             {
-                PLIST_ENTRY ListEntry = NULL;
+                PPACKET     NewPacket = NULL;
 
                 NdisQueryMdl(
                     Mdl,
@@ -708,52 +915,67 @@ Protocol_ReceiveNetBufferListsHandler(
                 NetEventInfo_FillFromBuffer(
                     (PVOID)(MdlVA + Offset),
                     BufferLength,
-                    &adapter->CurrentEventInfo);
+                    &Adapter->CurrentEventInfo);
 
                 Km_Connections_GetPIDForPacket(
-                    adapter->DriverData->Other.Connections,
-                    &adapter->CurrentEventInfo,
-                    &adapter->CurrentEventInfo.Process.Id);
+                    Adapter->DriverData->Other.Connections,
+                    &Adapter->CurrentEventInfo,
+                    &Adapter->CurrentEventInfo.Process.Id);
 
-                for (ListEntry = adapter->Device->ClientList.Head.Flink;
-                     ListEntry != &adapter->Device->ClientList.Head;
-                     ListEntry = ListEntry->Flink)
-                {
-                    PCLIENT Client = CONTAINING_RECORD(ListEntry, CLIENT, Link);
-                    PPACKET NewPacket = CreatePacket(
-                        &adapter->DriverData->Ndis.MemoryManager,
-                        MdlVA + Offset,
-                        BufferLength,
-                        adapter->CurrentEventInfo.Process.Id,
-                        &PacketTimeStamp);
+                //  We may loose certain extra-large packets here
+                //  (the ones exceeding the size of the mem pool entry
+                NewPacket = CreatePacket(
+                    Adapter->Packets.Pool,
+                    MdlVA + Offset,
+                    BufferLength,
+                    Adapter->CurrentEventInfo.Process.Id,
+                    &PacketTimeStamp);
 
-                    if ((Client->PacketList.Count.QuadPart < MAX_PACKET_QUEUE_SIZE) &&
-                        (!Client->Releasing)) //TODO: it seems we lose packets here
-                    {
-                        NTSTATUS    InsertStatus = Km_List_AddItemEx(
-                            &Client->PacketList,
-                            &NewPacket->Link,
-                            FALSE,
-                            FALSE);
+                CONTINUE_IF_FALSE(Assigned(NewPacket));
 
-                        if (!NT_SUCCESS(InsertStatus))
-                        {
-                            FreePacket(NewPacket);
-                        }
-                    }
-
-                }
+                InsertTailList(
+                    &TmpPacketList,
+                    &NewPacket->Link);
             }
+        }
+
+        LEAVE_IF_TRUE(IsListEmpty(&TmpPacketList));
+
+        Km_List_Lock(&Adapter->Packets.Allocated);
+        __try
+        {
+            ULARGE_INTEGER  NumberOfPacketsInQueue = { 0 };
+
+            Km_List_GetCountEx(
+                &Adapter->Packets.Allocated, 
+                &NumberOfPacketsInQueue, 
+                FALSE, 
+                FALSE);
+            
+            Km_List_AddLinkedListEx(
+                &Adapter->Packets.Allocated,
+                &TmpPacketList,
+                TRUE,
+                FALSE);
+
+            if (NumberOfPacketsInQueue.QuadPart == 0)
+            {
+                KeSetEvent(&Adapter->Packets.NewPacketEvent, 0, FALSE);
+            }
+        }
+        __finally
+        {
+            Km_List_Unlock(&Adapter->Packets.Allocated);
         }
     }
     __finally
     {
-        UnlockClients(adapter->Device, TRUE, TRUE);
+        Km_Lock_Release(&Adapter->Lock);
     }
     
     if (NDIS_TEST_RECEIVE_CAN_PEND(ReceiveFlags))
     {
-        NdisReturnNetBufferLists(adapter->AdapterHandle, NetBufferLists, ReturnFlags);
+        NdisReturnNetBufferLists(Adapter->AdapterHandle, NetBufferLists, ReturnFlags);
     }
 };
 

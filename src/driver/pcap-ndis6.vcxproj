@@ -345,8 +345,6 @@
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
     <ClCompile Include="BfeStateWatcher.c" />
-    <ClCompile Include="Client.c" />
-    <ClCompile Include="Device.c" />
     <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -362,6 +360,7 @@
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
     <ClCompile Include="KmConnections.c" />
+    <ClCompile Include="KmInterModeComms.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmMemoryManager.c" />
@@ -390,15 +389,14 @@
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
-    <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="Device.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="filter.h" />
     <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmConnections.h" />
+    <ClInclude Include="KmInterModeComms.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="KmMemoryManager.h" />

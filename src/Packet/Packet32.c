@@ -432,11 +432,11 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 
         for (ULONG k = 0; k < AdapterList->Count; k++)
         {
-            if (AdapterList->Items[k].AdapterIdLength > 0)
+            if (AdapterList->Items[k].AdapterId.Length > 0)
             {
                 std::wstring    AdapterIdStr(
-                    AdapterList->Items[k].AdapterId,
-                    AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t));
+                    AdapterList->Items[k].AdapterId.Buffer,
+                    AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
                 std::wstring    AdapterNameStr = UTILS::STR::FormatW(L"%S", AdapterNameWA);
 
                 if (AdapterNameStr == AdapterIdStr)
@@ -454,7 +454,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
             if (Assigned(Result))
             {
                 RtlZeroMemory(Result, sizeof(ADAPTER));
-                Result->hFile = NdisDriverOpenAdapter(ndis, AdapterNameStrA.c_str());
+                Result->hFile = NdisDriverOpenAdapter(ndis, &AdapterInfo->AdapterId);
                 Result->FilterLock = reinterpret_cast<PVOID>(new CCSObject());
                 Result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
@@ -466,13 +466,9 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
                     AdapterNameStrA.length());
 
                 PPCAP_NDIS_ADAPTER  Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(Result->hFile);
-                std::wstring        AdapterEventName = NdisDriverGetAdapterEventName(ndis, Adapter);
 
-                Result->ReadEvent = OpenEventW(
-                    EVENT_ALL_ACCESS, 
-                    FALSE, 
-                    AdapterEventName.c_str());
-                
+                Result->ReadEvent = Adapter->NewPacketEvent;
+
                 PacketSetReadTimeout(Result, Result->ReadTimeOut);
             }
         }
@@ -901,20 +897,20 @@ BOOLEAN PacketGetStats(
     __in    LPADAPTER       AdapterObject,
     __out   struct bpf_stat *s)
 {
-    PPCAP_NDIS_ADAPTER  a = nullptr;
+    PPCAP_NDIS_ADAPTER  Adapter = nullptr;
 
     RETURN_VALUE_IF_FALSE(
         (Assigned(AdapterObject)) &&
         (Assigned(s)),
         FALSE);
 
-    a = reinterpret_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
+    Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
 
     s->ps_ifdrop = 0;
 
-    s->bs_capt = a->Stat.Captured;
-    s->bs_drop = a->Stat.Dropped;
-    s->bs_recv = a->Stat.Received;
+    s->bs_capt = Adapter->Stat.Captured;
+    s->bs_drop = Adapter->Stat.Dropped;
+    s->bs_recv = Adapter->Stat.Received;
 
     return TRUE;
 };
@@ -994,11 +990,11 @@ BOOLEAN PacketGetAdapterNames(
         for (ULONG k = 0; k < AdapterList->Count; k++)
         {
             SizeNeeded +=
-                (ULONG)AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t) +
+                (ULONG)AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) +
                 AdapterList->Items[k].DisplayNameLength + 2;
                 //(ULONG)strlen(AdapterList->Items[k].DisplayName) + 2;
 
-            SizeNames += AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t) + 1;
+            SizeNames += AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) + 1;
         }
 
         if ((SizeNeeded + 2 > *BufferSize) ||
@@ -1017,8 +1013,8 @@ BOOLEAN PacketGetAdapterNames(
             for (ULONG k = 0; k < AdapterList->Count; k++)
             {
                 std::wstring    AdapterId(
-                    AdapterList->Items[k].AdapterId, 
-                    AdapterList->Items[k].AdapterIdLength / sizeof(wchar_t));
+                    AdapterList->Items[k].AdapterId.Buffer, 
+                    AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
                 std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
 
                 StringCchCopyA(
