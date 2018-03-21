@@ -151,7 +151,7 @@ typedef __declspec(align(4)) struct bpf_hdr
 	u_short     bh_hdrlen;	/* length of bpf header (this struct plus alignment padding) */
 } bpf_hdr, *pbpf_hdr;
 
-typedef __declspec(align(4)) struct bpf_hdr2
+typedef __declspec(align(4)) struct _bpf_hdr2
 {
     //  Timestamp
     TIMEVAL         bh_tstamp;

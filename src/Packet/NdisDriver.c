@@ -104,92 +104,86 @@ void NdisDriverClose(
 };
 
 PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
-    __in            PCAP_NDIS   *ndis,
-    __in    const   char        *szAdapterId)
+    __in    PPCAP_NDIS              Ndis,
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId)
 {
-    PPCAP_NDIS_ADAPTER  Adapter = nullptr;
-    HANDLE              FileHandle = INVALID_HANDLE_VALUE;
+    PPCAP_NDIS_ADAPTER                  Adapter = nullptr;
+    PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA OpenRequestData;
+    HANDLE                              NewPacketEvent = NULL;
 
     RETURN_VALUE_IF_FALSE(
-        Assigned(ndis),
+        Assigned(Ndis),
         nullptr);
 
-    std::wstring    DeviceName = UTILS::STR::FormatW(
-        L"\\\\.\\%s%S",
-        ADAPTER_ID_PREFIX_W,
-        szAdapterId);
-
-    FileHandle = CreateFileW(
-        DeviceName.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        NULL);
+    NewPacketEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     RETURN_VALUE_IF_FALSE(
-        FileHandle != INVALID_HANDLE_VALUE,
+        NewPacketEvent != NULL,
         nullptr);
+
+    RtlCopyMemory(
+        &OpenRequestData.AdapterId,
+        AdapterId,
+        sizeof(PCAP_NDIS_ADAPTER_ID));
+
+    OpenRequestData.EventHandle = ULONG_PTR(NewPacketEvent);
+    RETURN_VALUE_IF_FALSE(
+        OpenRequestData.EventHandle != NULL,
+        nullptr);
+
     try
     {
-        Adapter = (PPCAP_NDIS_ADAPTER)malloc(sizeof(PCAP_NDIS_ADAPTER));
+        Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(malloc(sizeof(PCAP_NDIS_ADAPTER)));
+
         if (Assigned(Adapter))
         {
             RtlZeroMemory(Adapter, sizeof(PCAP_NDIS_ADAPTER));
 
-            Adapter->Handle = FileHandle;
+            if (!NdisDriver_ControlDevice(
+                Ndis->Handle,
+                static_cast<DWORD>(IOCTL_OPEN_ADAPTER),
+                reinterpret_cast<LPVOID>(&OpenRequestData),
+                static_cast<DWORD>(sizeof(OpenRequestData)),
+                reinterpret_cast<LPVOID>(&Adapter->ClientId),
+                static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID))))
+            {
+                free(reinterpret_cast<void *>(Adapter));
+                return nullptr;
+            }
+
+            Adapter->NewPacketEvent = NewPacketEvent;
+            Adapter->Ndis = Ndis;
         }
     }
-    catch(...)
+    catch (...)
     {
-
     }
     if (!Assigned(Adapter))
     {
-        CloseHandle(FileHandle);
+        CloseHandle(NewPacketEvent);
     }
 
     return Adapter;
-};
-
-std::wstring NdisDriverGetAdapterEventName(
-    __in            PCAP_NDIS           *Ndis,
-    __in            PCAP_NDIS_ADAPTER   *Adapter)
-{
-    char    NameBuffer[1024];
-    DWORD   BytesReturned = 0;
-
-    RETURN_VALUE_IF_FALSE(
-        (Assigned(Ndis)) &&
-        (Assigned(Adapter)),
-        L"");
-
-    RtlZeroMemory(NameBuffer, sizeof(NameBuffer));
-
-    RETURN_VALUE_IF_FALSE(
-        NdisDriver_ControlDevice(
-            Adapter->Handle,
-            static_cast<DWORD>(IOCTL_GET_EVENT_NAME),
-            nullptr,
-            0,
-            reinterpret_cast<LPVOID>(NameBuffer),
-            static_cast<DWORD>(sizeof(NameBuffer) - 1),
-            &BytesReturned),
-        L"");
-
-    return UTILS::STR::FormatW(
-        L"Global\\%S",
-        NameBuffer);
 };
 
 void NdisDriverCloseAdapter(
     __in    LPPCAP_NDIS_ADAPTER Adapter)
 {
     RETURN_IF_FALSE(Assigned(Adapter));
-
-    if (Adapter->Handle != INVALID_HANDLE_VALUE)
+    
+    if (Assigned(Adapter->Ndis))
     {
-        CloseHandle(Adapter->Handle);
+        NdisDriver_ControlDevice(
+            Adapter->Ndis->Handle,
+            static_cast<DWORD>(IOCTL_CLOSE_ADAPTER),
+            reinterpret_cast<LPVOID>(&Adapter->ClientId),
+            static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID)),
+            nullptr,
+            0);
+    }
+
+    if (Adapter->NewPacketEvent != NULL)
+    {
+        CloseHandle(Adapter->NewPacketEvent);
     }
 
     free(Adapter);
@@ -245,7 +239,7 @@ BOOL NdisDriverNextPacket(
         (Assigned(BytesReceived)),
         FALSE);
     RETURN_VALUE_IF_FALSE(
-        Adapter->Handle != INVALID_HANDLE_VALUE,
+        Assigned(Adapter->Ndis),
         FALSE);
 
     *BytesReceived = 0;
@@ -263,10 +257,10 @@ BOOL NdisDriverNextPacket(
 
         RETURN_VALUE_IF_FALSE(
             NdisDriver_ControlDevice(
-                Adapter->Handle,
+                Adapter->Ndis->Handle,
                 static_cast<DWORD>(IOCTL_READ_PACKETS),
-                nullptr,
-                0,
+                reinterpret_cast<LPVOID>(&Adapter->ClientId),
+                static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID)),
                 Adapter->ReadBuffer,
                 READ_BUFFER_SIZE,
                 &BytesRead,

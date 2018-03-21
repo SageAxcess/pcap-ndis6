@@ -50,6 +50,32 @@ NTSTATUS GetAdapterTime(
     __in    PADAPTER    Adapter,
     __out   PKM_TIME    Time);
 
+NTSTATUS FindAdapterById(
+    __in        PKM_LIST                AdapterList,
+    __in        PPCAP_NDIS_ADAPTER_ID   AdapterId,
+    __out_opt   PADAPTER                *Adapter,
+    __in        BOOLEAN                 LockList);
+
+NTSTATUS Adapter_Reference(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_Dereference(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_StartFiltering(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_StopFiltering(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_AllocateAndFillPacket(
+    __in    PADAPTER    Adapter,
+    __in    PVOID       PacketData,
+    __in    ULONG       PacketDataSize,
+    __in    ULONGLONG   ProcessId,
+    __in    PKM_TIME    Timestamp,
+    __out   PPACKET     *Packet);
+
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////

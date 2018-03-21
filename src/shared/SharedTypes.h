@@ -219,6 +219,8 @@ typedef struct _PACKET_DESC
 #define	EVENT_NAME_FMT				                "EVT_PCAP_NDIS_%u_%llu"
 #define DEVICE_STR_W                                L"\\DEVICE\\"
 
+#define FILTER_DEVICE_NAME_W                        L"CDyn_PcapNdis6"
+
 #define IOCTL_VENDOR_DEVICE_BASE 0x8000
 #define IOCTL_VENDOR_FUNC_BASE 0x800
 
@@ -229,23 +231,36 @@ typedef struct _PACKET_DESC
 #define IOCTL_OPEN_ADAPTER          CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 4, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_CLOSE_ADAPTER         CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 5, METHOD_NEITHER, FILE_ANY_ACCESS)
 
-
 // Adapter data
 
-#define MAX_ADAPTERS            256
-#define MAX_PACKET_SIZE         32767
-#define MAX_PACKET_QUEUE_SIZE   1000
+#define MAX_ADAPTERS                    256
+#define MAX_PACKET_SIZE                 32767
+#define MAX_PACKET_QUEUE_SIZE           1000
 
-#define PCAP_NDIS_ADAPTER_ID_SIZE_MAX       1024
+#define PCAP_NDIS_ADAPTER_ID_SIZE_MAX   1024
+
+typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_ID
+{
+    //  Adapter id length in bytes
+    unsigned long   Length;
+
+    //  Adapter id buffer
+    wchar_t         Buffer[PCAP_NDIS_ADAPTER_ID_SIZE_MAX];
+
+} PCAP_NDIS_ADAPTER_ID, *PPCAP_NDIS_ADAPTER_ID;
+
+typedef __declspec(align(8)) struct _PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA
+{
+    unsigned long long      EventHandle;
+    PCAP_NDIS_ADAPTER_ID    AdapterId;
+} PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA, *PPCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA;
+
 #define PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE  0x6
 
 typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_INFO
 {
-    //  Adapter id length in bytes
-    unsigned long   AdapterIdLength;
-
-    //  Adapter id buffer
-    wchar_t         AdapterId[PCAP_NDIS_ADAPTER_ID_SIZE_MAX];
+    //  Adapter id
+    PCAP_NDIS_ADAPTER_ID    AdapterId;
 
     //  Display name length in bytes
     unsigned long   DisplayNameLength;
@@ -270,3 +285,9 @@ typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_INFO_LIST
     PCAP_NDIS_ADAPTER_INFO  Items[1];
 
 } PCAP_NDIS_ADAPTER_INFO_LIST, *PPCAP_NDIS_ADAPTER_INFO_LIST;
+
+typedef __declspec(align(8)) struct _PCAP_NDIS_CLIENT_ID
+{
+    unsigned long long  Index;
+    unsigned long long  Handle;
+} PCAP_NDIS_CLIENT_ID, *PPCAP_NDIS_CLIENT_ID;
