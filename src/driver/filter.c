@@ -333,6 +333,63 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Filter_DestroyClient(
+    __in    PDRIVER_DATA    Data,
+    __in    PDRIVER_CLIENT  Client)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    LIST_ENTRY  TmpList;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_INVALID_PARAMETER_2);
+    
+    InitializeListHead(&TmpList);
+
+    Status = Km_List_Lock(&Client->AllocatedPackets);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        ULARGE_INTEGER Count;
+
+        Count.QuadPart = MAXULONGLONG;
+
+        Km_List_ExtractEntriesEx(
+            &Client->AllocatedPackets,
+            &TmpList,
+            &Count,
+            FALSE,
+            FALSE);
+
+        while (!IsListEmpty(&TmpList))
+        {
+            PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
+            PPACKET     Packet = CONTAINING_RECORD(Entry, PACKET, Link);
+
+            Km_MP_Release(Packet);
+        }
+    }
+    __finally
+    {
+        Km_List_Unlock(&Client->AllocatedPackets);
+    }
+
+    Km_MP_Finalize(Client->PacketsPool);
+
+    if (Assigned(Client->NewPacketEvent))
+    {
+        ObDereferenceObject(Client->NewPacketEvent);
+    }
+
+    Km_MM_FreeMem(&Data->Ndis.MemoryManager, Client);
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Filter_OpenAdapter(
     __in    PDRIVER_DATA                            Data,
     __in    HANDLE                                  ProcessId,
