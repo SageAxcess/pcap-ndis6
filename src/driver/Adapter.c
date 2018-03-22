@@ -514,14 +514,19 @@ NTSTATUS Adapter_StartFiltering(
 
     if (NT_SUCCESS(Status))
     {
-        UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
+        if (!Adapter->FilteringEnabled)
+        {
+            UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
 
-        SendOidRequest(
-            Adapter,
-            TRUE,
-            OID_GEN_CURRENT_PACKET_FILTER,
-            &PacketFilter,
-            sizeof(PacketFilter));
+            SendOidRequest(
+                Adapter,
+                TRUE,
+                OID_GEN_CURRENT_PACKET_FILTER,
+                &PacketFilter,
+                sizeof(PacketFilter));
+
+            Adapter->FilteringEnabled = TRUE;
+        }
     }
 
 cleanup:
@@ -532,6 +537,7 @@ NTSTATUS Adapter_StopFiltering(
     __in    PADAPTER    Adapter)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
+    PKM_THREAD  Thread = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
@@ -541,11 +547,18 @@ NTSTATUS Adapter_StopFiltering(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-
+        Thread = Adapter->WorkerThread;
+        Adapter->WorkerThread = NULL;
     }
     __finally
     {
         Km_Lock_Release(&Adapter->Lock);
+    }
+
+    if (Assigned(Thread))
+    {
+        KmThreads_StopThread(Thread, MAXULONG);
+        KmThreads_DestroyThread(Thread);
     }
 
 cleanup:
@@ -858,7 +871,8 @@ Protocol_ReceiveNetBufferListsHandler(
         (Adapter->AdapterHandle != NULL));
 
     RETURN_IF_FALSE_EX(
-        (Adapter->Ready),
+        (Adapter->Ready) &&
+        (Assigned(Adapter->WorkerThread)),
         NdisReturnNetBufferLists(
             Adapter->AdapterHandle,
             NetBufferLists, 
@@ -924,14 +938,16 @@ Protocol_ReceiveNetBufferListsHandler(
 
                 //  We may loose certain extra-large packets here
                 //  (the ones exceeding the size of the mem pool entry
-                NewPacket = CreatePacket(
-                    Adapter->Packets.Pool,
+
+                Status = Adapter_AllocateAndFillPacket(
+                    Adapter,
                     MdlVA + Offset,
                     BufferLength,
                     Adapter->CurrentEventInfo.Process.Id,
-                    &PacketTimeStamp);
+                    &PacketTimeStamp,
+                    &NewPacket);
 
-                CONTINUE_IF_FALSE(Assigned(NewPacket));
+                CONTINUE_IF_FALSE(NT_SUCCESS(Status));
 
                 InsertTailList(
                     &TmpPacketList,

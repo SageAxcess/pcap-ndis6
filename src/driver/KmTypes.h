@@ -145,6 +145,9 @@ typedef struct _ADAPTER
     //  Readiness flag
     ULONG                   Ready;
 
+    //  A flag that tells whether the promiscuous mode is enabled or not
+    ULONG                   FilteringEnabled;
+
     //  Number of pending OID requests
     volatile ULONG          PendingOidRequests;
 
