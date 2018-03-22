@@ -345,7 +345,6 @@
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
     <ClCompile Include="BfeStateWatcher.c" />
-    <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>
@@ -390,7 +389,6 @@
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="Events.h" />
     <ClInclude Include="filter.h" />
     <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />

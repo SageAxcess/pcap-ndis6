@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
-    <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c" />
     <ClCompile Include="flt_dbg.c" />
     <ClCompile Include="KernelUtil.c" />
@@ -24,7 +23,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="..\shared\CommonDefs.h" />
