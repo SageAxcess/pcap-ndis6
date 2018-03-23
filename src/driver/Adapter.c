@@ -20,7 +20,6 @@
 
 #include "precomp.h"
 #include "Adapter.h"
-#include "Packet.h"
 #include "KernelUtil.h"
 #include "KmList.h"
 #include "KmMemoryManager.h"
