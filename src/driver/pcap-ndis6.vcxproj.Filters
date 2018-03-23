@@ -5,7 +5,6 @@
     <ClCompile Include="filter.c" />
     <ClCompile Include="flt_dbg.c" />
     <ClCompile Include="KernelUtil.c" />
-    <ClCompile Include="Packet.c" />
     <ClCompile Include="precompsrc.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
@@ -24,7 +23,6 @@
   <ItemGroup>
     <ClInclude Include="Adapter.h" />
     <ClInclude Include="KernelUtil.h" />
-    <ClInclude Include="Packet.h" />
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
