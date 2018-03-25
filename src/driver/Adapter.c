@@ -307,7 +307,17 @@ BOOL FreeAdapter(
     return TRUE;
 };
 
-void _stdcall ClearAdaptersList_ItemCallback(
+int __stdcall UnbindAdapter_SearchCallback(
+    __in    PKM_LIST    List,
+    __in    PVOID       ItemDefinition,
+    __in    PLIST_ENTRY Item)
+{
+    UNREFERENCED_PARAMETER(List);
+
+    return (ItemDefinition == Item) ? 0 : 1;
+};
+
+void __stdcall ClearAdaptersList_ItemCallback(
     __in    PKM_LIST    List,
     __in    PLIST_ENTRY Item)
 {
@@ -717,6 +727,49 @@ cleanup:
     return Status;
 };
 
+NTSTATUS Adapters_Unbind(
+    __in    PKM_LIST    AdaptersList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    LIST_ENTRY  TmpList;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(AdaptersList),
+        STATUS_INVALID_PARAMETER_1);
+
+    InitializeListHead(&TmpList);
+
+    Status = Km_List_Lock(AdaptersList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        ULARGE_INTEGER  Count;
+        Count.QuadPart = MAXULONGLONG;
+
+        Km_List_ExtractEntriesEx(
+            AdaptersList,
+            &TmpList,
+            &Count,
+            FALSE,
+            FALSE);
+    }
+    __finally
+    {
+        Km_List_Unlock(AdaptersList);
+    }
+
+    while (!IsListEmpty(&TmpList))
+    {
+        PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
+        PADAPTER    Adapter = CONTAINING_RECORD(Entry, ADAPTER, Link);
+
+        NdisUnbindAdapter(Adapter->AdapterHandle);
+    }
+
+cleanup:
+    return Status;
+};
+
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
@@ -810,9 +863,16 @@ Protocol_UnbindAdapterHandlerEx(
 
     if (Assigned(Adapter->DriverData))
     {
-        Km_List_RemoveItem(
+        if (NT_SUCCESS(Km_List_FindItem(
             &Adapter->DriverData->AdaptersList,
-            &Adapter->Link);
+            Adapter,
+            UnbindAdapter_SearchCallback,
+            NULL)))
+        {
+            Km_List_RemoveItem(
+                &Adapter->DriverData->AdaptersList,
+                &Adapter->Link);
+        }
     }
 
     while ((Adapter->PendingOidRequests > 0) ||
@@ -878,8 +938,9 @@ _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)
 Protocol_CloseAdapterCompleteHandlerEx(
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
+    PADAPTER    adapter = (PADAPTER)ProtocolBindingContext;
+
     DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
-    ADAPTER* adapter = (ADAPTER*)ProtocolBindingContext;
 
     if (adapter->UnbindContext != NULL)
     {
@@ -887,6 +948,7 @@ Protocol_CloseAdapterCompleteHandlerEx(
     }
 
     FreeAdapter(adapter);
+
     DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
 }
 

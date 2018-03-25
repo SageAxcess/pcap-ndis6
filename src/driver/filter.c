@@ -993,7 +993,9 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
             DriverData.Other.Connections);
     }
 
-    ClearAdaptersList(&DriverData.AdaptersList);
+    Adapters_Unbind(&DriverData.AdaptersList);
+
+//    ClearAdaptersList(&DriverData.AdaptersList);
 
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
