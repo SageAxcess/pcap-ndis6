@@ -70,6 +70,9 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     __in    PKM_TIME    Timestamp,
     __out   PPACKET     *Packet);
 
+NTSTATUS Adapters_Unbind(
+    __in    PKM_LIST    AdaptersList);
+
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
