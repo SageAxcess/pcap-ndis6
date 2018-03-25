@@ -42,6 +42,12 @@ extern DRIVER_DATA  DriverData;
 UINT    SelectedMediumIndex = 0;
 
 //////////////////////////////////////////////////////////////////////
+// Forward declarations
+//////////////////////////////////////////////////////////////////////
+void __stdcall Adapter_WorkerThreadRoutine(
+    __in    PKM_THREAD  Thread);
+
+//////////////////////////////////////////////////////////////////////
 // Adapter methods
 //////////////////////////////////////////////////////////////////////
 
@@ -76,6 +82,25 @@ NTSTATUS __stdcall Adapter_Allocate(
 
     RtlZeroMemory(NewAdapter, sizeof(ADAPTER));
 
+    Status = Km_List_Initialize(&NewAdapter->Packets.Allocated);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_MP_Initialize(
+        MemoryManager,
+        CalcRequiredPacketSize(BindParameters->MtuSize),
+        PACKETS_POOL_INITIAL_SIZE,
+        FALSE,
+        &NewAdapter->Packets.Pool);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    KeInitializeEvent(&NewAdapter->Packets.NewPacketEvent, NotificationEvent, FALSE);
+
+    Status = KmThreads_CreateThread(
+        MemoryManager,
+        &NewAdapter->WorkerThread,
+        Adapter_WorkerThreadRoutine,
+        NewAdapter);
+
     if (BindParameters->AdapterName->Length > 0)
     {
         ULONG   IdLength = BindParameters->AdapterName->Length;
@@ -101,10 +126,10 @@ NTSTATUS __stdcall Adapter_Allocate(
                 BindParameters->AdapterName->Buffer + IdOffset,
                 IdLength);
         }
-        
+
         NewAdapter->AdapterId.Length = IdLength;
     }
-    
+
     if (BindParameters->MacAddressLength > 0)
     {
         NewAdapter->MacAddressSize = BindParameters->MacAddressLength;
@@ -125,6 +150,24 @@ cleanup:
     if (NT_SUCCESS(Status))
     {
         *Adapter = NewAdapter;
+    }
+    else
+    {
+        if (Assigned(NewAdapter))
+        {
+            if (Assigned(NewAdapter->WorkerThread))
+            {
+                KmThreads_StopThread(NewAdapter->WorkerThread, MAXULONG);
+                KmThreads_DestroyThread(NewAdapter->WorkerThread);
+            }
+
+            if (NewAdapter->Packets.Pool != NULL)
+            {
+                Km_MP_Finalize(NewAdapter->Packets.Pool);
+            }
+
+            Km_MM_FreeMem(MemoryManager, NewAdapter);
+        }
     }
 
     return Status;
@@ -244,7 +287,16 @@ BOOL FreeAdapter(
         Assigned(Adapter->DriverData),
         FALSE);
 
-    Adapter_StopFiltering(Adapter);
+    if (Assigned(Adapter->WorkerThread))
+    {
+        KmThreads_StopThread(Adapter->WorkerThread, MAXULONG);
+        KmThreads_DestroyThread(Adapter->WorkerThread);
+    }
+
+    if (Adapter->Packets.Pool != NULL)
+    {
+        Km_MP_Finalize(Adapter->Packets.Pool);
+    }
 
     MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
 
@@ -400,13 +452,19 @@ NTSTATUS Adapter_Reference(
     __try
     {
         Adapter->OpenCount++;
-        if (Adapter->OpenCount == 1)
+        if ((Adapter->OpenCount == 1) &&
+            (!Adapter->PacketsInterceptionEnabled))
         {
-            Status = Adapter_StartFiltering(Adapter);
-            if (!NT_SUCCESS(Status))
-            {
-                Adapter->OpenCount--;
-            }
+            UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
+
+            SendOidRequest(
+                Adapter,
+                TRUE,
+                OID_GEN_CURRENT_PACKET_FILTER,
+                &PacketFilter,
+                sizeof(PacketFilter));
+
+            Adapter->PacketsInterceptionEnabled = TRUE;
         }
     }
     __finally
@@ -432,14 +490,6 @@ NTSTATUS Adapter_Dereference(
     __try
     {
         Adapter->OpenCount--;
-        if (Adapter->OpenCount == 0)
-        {
-            Status = Adapter_StopFiltering(Adapter);
-            if (!NT_SUCCESS(Status))
-            {
-                Adapter->OpenCount++;
-            }
-        }
     }
     __finally
     {
@@ -453,10 +503,12 @@ cleanup:
 void __stdcall Adapter_WorkerThreadRoutine(
     __in    PKM_THREAD  Thread)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
-    PADAPTER    Adapter = NULL;
-    PVOID       WaitArray[2];
-    BOOL        StopThread = FALSE;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PADAPTER        Adapter = NULL;
+    PVOID           WaitArray[2];
+    BOOL            StopThread = FALSE;
+    LIST_ENTRY      TmpList;
+    ULARGE_INTEGER  Count;
     
     RETURN_IF_FALSE(Assigned(Thread));
     RETURN_IF_FALSE(Assigned(Thread->Context));
@@ -466,6 +518,8 @@ void __stdcall Adapter_WorkerThreadRoutine(
 
     WaitArray[0] = (PVOID)&Thread->StopEvent;
     WaitArray[1] = (PVOID)&Adapter->Packets.NewPacketEvent;
+
+    InitializeListHead(&TmpList);
 
     while (!StopThread)
     {
@@ -488,79 +542,125 @@ void __stdcall Adapter_WorkerThreadRoutine(
 
         case STATUS_WAIT_1:
             {
+                Km_List_Lock(&Adapter->Packets.Allocated);
+                __try
+                {
+                    Count.QuadPart = MAXULONGLONG;
 
+                    Km_List_ExtractEntriesEx(
+                        &Adapter->Packets.Allocated,
+                        &TmpList,
+                        &Count,
+                        FALSE,
+                        FALSE);
+
+                    KeClearEvent(&Adapter->Packets.NewPacketEvent);
+                }
+                __finally
+                {
+                    Km_List_Unlock(&Adapter->Packets.Allocated);
+                }
+
+                while (!IsListEmpty(&TmpList))
+                {
+                    PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
+                    PPACKET     Packet = CONTAINING_RECORD(Entry, PACKET, Link);
+                    __try
+                    {
+                        Km_Lock_Acquire(&Adapter->DriverData->Clients.Lock);
+                        __try
+                        {
+                            ULONG   k;
+                            ULONG   Cnt;
+
+                            for (k = 0, Cnt = 0;
+                                (k < DRIVER_MAX_CLIENTS) && (Cnt < Adapter->DriverData->Clients.Count);
+                                k++)
+                            {
+                                CONTINUE_IF_FALSE(Assigned(Adapter->DriverData->Clients.Items[k]));
+                                CONTINUE_IF_FALSE(
+                                    Adapter->DriverData->Clients.Items[k]->AdapterId.Length == Adapter->AdapterId.Length);
+
+                                if (RtlCompareMemory(
+                                    Adapter->DriverData->Clients.Items[k]->AdapterId.Buffer,
+                                    Adapter->AdapterId.Buffer,
+                                    Adapter->AdapterId.Length) == Adapter->AdapterId.Length)
+                                {
+                                    ULARGE_INTEGER  ClientPacketsCount;
+                                    PPACKET NewPacket = NULL;
+                                    Status = Km_MP_AllocateCheckSize(
+                                        Adapter->DriverData->Clients.Items[k]->PacketsPool,
+                                        sizeof(PACKET) + Packet->DataSize - 1,
+                                        (PVOID *)&NewPacket);
+                                    Cnt++;
+                                    CONTINUE_IF_FALSE(NT_SUCCESS(Status));
+
+                                    RtlCopyMemory(
+                                        NewPacket,
+                                        Packet,
+                                        sizeof(PACKET) + Packet->DataSize - 1);
+
+                                    Km_List_Lock(&Adapter->DriverData->Clients.Items[k]->AllocatedPackets);
+                                    __try
+                                    {
+                                        Km_List_GetCountEx(
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &ClientPacketsCount,
+                                            FALSE,
+                                            FALSE);
+
+                                        Status = Km_List_AddItemEx(
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &NewPacket->Link,
+                                            FALSE,
+                                            FALSE);
+                                        if (!NT_SUCCESS(Status))
+                                        {
+                                            Km_MP_Release(NewPacket);
+                                            __leave;
+                                        }
+
+                                        if ((Assigned(Adapter->DriverData->Clients.Items[k]->NewPacketEvent)) &&
+                                            (ClientPacketsCount.QuadPart == 0))
+                                        {
+                                            KeSetEvent(Adapter->DriverData->Clients.Items[k]->NewPacketEvent, 0, FALSE);
+                                        }
+                                    }
+                                    __finally
+                                    {
+                                        Km_List_Unlock(&Adapter->DriverData->Clients.Items[k]->AllocatedPackets);
+                                    }
+                                }
+                            }
+                        }
+                        __finally
+                        {
+                            Km_Lock_Release(&Adapter->DriverData->Clients.Lock);
+                        }
+                    }
+                    __finally
+                    {
+                        Km_MP_Release((PVOID)Packet);
+                    }
+                }
             }break;
         };
     }
-};
 
-NTSTATUS Adapter_StartFiltering(
-    __in    PADAPTER    Adapter)
-{
-    NTSTATUS    Status = STATUS_SUCCESS;
+    Count.QuadPart = MAXULONGLONG;
 
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Adapter),
-        STATUS_INVALID_PARAMETER_1);
+    Km_List_ExtractEntriesEx(
+        &Adapter->Packets.Allocated, 
+        &TmpList, 
+        &Count, 
+        FALSE, 
+        TRUE);
 
-    Status = KmThreads_CreateThread(
-        &Adapter->DriverData->Ndis.MemoryManager,
-        &Adapter->WorkerThread,
-        Adapter_WorkerThreadRoutine,
-        Adapter);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-
-    if (NT_SUCCESS(Status))
+    while (!IsListEmpty(&TmpList))
     {
-        if (!Adapter->FilteringEnabled)
-        {
-            UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
-
-            SendOidRequest(
-                Adapter,
-                TRUE,
-                OID_GEN_CURRENT_PACKET_FILTER,
-                &PacketFilter,
-                sizeof(PacketFilter));
-
-            Adapter->FilteringEnabled = TRUE;
-        }
+        PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
+        Km_MP_Release(CONTAINING_RECORD(Entry, PACKET, Link));
     }
-
-cleanup:
-    return Status;
-};
-
-NTSTATUS Adapter_StopFiltering(
-    __in    PADAPTER    Adapter)
-{
-    NTSTATUS    Status = STATUS_SUCCESS;
-    PKM_THREAD  Thread = NULL;
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Adapter),
-        STATUS_INVALID_PARAMETER_1);
-
-    Status = Km_Lock_Acquire(&Adapter->Lock);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-    __try
-    {
-        Thread = Adapter->WorkerThread;
-        Adapter->WorkerThread = NULL;
-    }
-    __finally
-    {
-        Km_Lock_Release(&Adapter->Lock);
-    }
-
-    if (Assigned(Thread))
-    {
-        KmThreads_StopThread(Thread, MAXULONG);
-        KmThreads_DestroyThread(Thread);
-    }
-
-cleanup:
-    return Status;
 };
 
 NTSTATUS Adapter_AllocateAndFillPacket(
