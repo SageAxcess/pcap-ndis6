@@ -146,7 +146,7 @@ typedef struct _ADAPTER
     ULONG                   Ready;
 
     //  A flag that tells whether the promiscuous mode is enabled or not
-    ULONG                   FilteringEnabled;
+    ULONG                   PacketsInterceptionEnabled;
 
     //  Number of pending OID requests
     volatile ULONG          PendingOidRequests;
@@ -189,6 +189,9 @@ typedef struct _PACKET
     UCHAR               Data[1];
 
 } PACKET, *PPACKET;
+
+#define CalcRequiredPacketSize(MTUSize) \
+    (sizeof(PACKET) + MTUSize - sizeof(UCHAR))
 
 typedef struct _EVENT
 {

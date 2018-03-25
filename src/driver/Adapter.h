@@ -62,12 +62,6 @@ NTSTATUS Adapter_Reference(
 NTSTATUS Adapter_Dereference(
     __in    PADAPTER    Adapter);
 
-NTSTATUS Adapter_StartFiltering(
-    __in    PADAPTER    Adapter);
-
-NTSTATUS Adapter_StopFiltering(
-    __in    PADAPTER    Adapter);
-
 NTSTATUS Adapter_AllocateAndFillPacket(
     __in    PADAPTER    Adapter,
     __in    PVOID       PacketData,
