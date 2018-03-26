@@ -995,8 +995,6 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
 
     Adapters_Unbind(&DriverData.AdaptersList);
 
-//    ClearAdaptersList(&DriverData.AdaptersList);
-
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
     if (DriverData.Ndis.ProtocolHandle != NULL)
