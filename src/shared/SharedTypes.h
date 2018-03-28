@@ -253,7 +253,9 @@ typedef __declspec(align(8)) struct _PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA
 {
     unsigned long long      EventHandle;
     PCAP_NDIS_ADAPTER_ID    AdapterId;
-} PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA, *PPCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA;
+} PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA;
+
+typedef PCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA *PPCAP_NDIS_OPEN_ADAPTER_REQUEST_DATA;
 
 #define PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE  0x6
 
@@ -290,4 +292,6 @@ typedef __declspec(align(8)) struct _PCAP_NDIS_CLIENT_ID
 {
     unsigned long long  Index;
     unsigned long long  Handle;
-} PCAP_NDIS_CLIENT_ID, *PPCAP_NDIS_CLIENT_ID;
+} PCAP_NDIS_CLIENT_ID;
+
+typedef PCAP_NDIS_CLIENT_ID *PPCAP_NDIS_CLIENT_ID;
