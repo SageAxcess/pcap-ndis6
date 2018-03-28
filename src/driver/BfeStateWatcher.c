@@ -150,7 +150,7 @@ NTSTATUS __stdcall BfeStateWatcher_Finalize(
         FwpmBfeStateUnsubscribeChanges(Watcher->ChangeHandle);
     }
 
-    if (Watcher->DeviceObject != NULL)
+    if (Assigned(Watcher->DeviceObject))
     {
         IoDeleteDevice(Watcher->DeviceObject);
     }
