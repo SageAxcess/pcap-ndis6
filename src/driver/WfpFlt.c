@@ -1165,6 +1165,8 @@ void Wfp_CleanupFlowContexts(
 
     InitializeListHead(&TmpList);
 
+    Count.QuadPart = MAXULONGLONG;
+
     Status = Km_List_Lock(&Data->FlowContexts);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
