@@ -85,11 +85,18 @@ void __stdcall Filter_Wfp_EventCallback(
 NTSTATUS __stdcall RegisterNdisProtocol(
     __inout PDRIVER_DATA    Data);
 
+DRIVER_INITIALIZE DriverEntry;
+
 _Use_decl_annotations_
 NTSTATUS
 DriverEntry(
     PDRIVER_OBJECT      DriverObject,
     PUNICODE_STRING     RegistryPath);
+
+_Use_decl_annotations_
+void
+_Function_class_(DRIVER_UNLOAD)
+DriverUnload(DRIVER_OBJECT *driver_object);
 
 // This directive puts the DriverEntry function into the INIT segment of the
 // driver.  To conserve memory, the code will be discarded when the driver's

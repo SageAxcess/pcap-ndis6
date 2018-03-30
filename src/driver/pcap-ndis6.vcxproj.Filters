@@ -28,7 +28,6 @@
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="KmTypes.h" />
-    <ClInclude Include="filter.h" />
     <ClInclude Include="WfpFlt.h" />
     <ClInclude Include="KmThreads.h" />
     <ClInclude Include="WfpMemoryManager.h" />
