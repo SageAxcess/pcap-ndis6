@@ -388,7 +388,6 @@
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="filter.h" />
     <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />

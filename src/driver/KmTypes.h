@@ -324,6 +324,9 @@ typedef struct _DRIVER_DATA
 
 } DRIVER_DATA, *PDRIVER_DATA;
 
+#define WFP_FLT_MEMORY_TAG          'fwDC'
+#define NDIS_FLT_MEMORY_TAG         'nyDC'
+
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6
 #endif

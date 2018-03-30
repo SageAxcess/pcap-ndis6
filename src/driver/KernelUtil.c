@@ -21,7 +21,6 @@
 #include <ntstatus.h>
 #include <ntstrsafe.h>
 
-#include "filter.h"
 #include "KernelUtil.h"
 #include "..\shared\CommonDefs.h"
 #include <flt_dbg.h>
