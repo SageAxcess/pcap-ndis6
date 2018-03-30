@@ -18,7 +18,10 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#include "precomp.h"
+#include <ndis.h>
+
+#include "filteruser.h"
+#include "flt_dbg.h"
 #include "Adapter.h"
 #include "KernelUtil.h"
 #include "KmList.h"
