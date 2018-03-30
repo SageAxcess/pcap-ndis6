@@ -5,7 +5,6 @@
     <ClCompile Include="filter.c" />
     <ClCompile Include="flt_dbg.c" />
     <ClCompile Include="KernelUtil.c" />
-    <ClCompile Include="precompsrc.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="NdisMemoryManager.c" />

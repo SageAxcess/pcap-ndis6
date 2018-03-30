@@ -18,7 +18,6 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#include "precomp.h"
 #include "KernelUtil.h"
 #include "Adapter.h"
 #include "KmTypes.h"
