@@ -20,7 +20,6 @@
 
 #include <ndis.h>
 
-#include "filteruser.h"
 #include "flt_dbg.h"
 #include "Adapter.h"
 #include "KernelUtil.h"
@@ -418,7 +417,7 @@ NTSTATUS FindAdapterById(
         {
             PADAPTER    Tmp = CONTAINING_RECORD(Entry, ADAPTER, Link);
             CONTINUE_IF_FALSE(
-                Tmp->AdapterId.Length != AdapterId->Length);
+                Tmp->AdapterId.Length == AdapterId->Length);
 
             if (RtlCompareMemory(
                 AdapterId->Buffer,

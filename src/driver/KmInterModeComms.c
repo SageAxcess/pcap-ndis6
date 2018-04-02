@@ -24,6 +24,26 @@ Km_IMC_IoControlHandler(
     __in    PDEVICE_OBJECT  DeviceObject,
     __in    IRP             *Irp);
 
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CREATE)
+Km_IMC_CreateHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLOSE)
+Km_IMC_CloseHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLEANUP)
+Km_IMC_CleanupHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp);
 
 typedef struct _KM_IMC_DATA
 {
@@ -117,6 +137,48 @@ cleanup:
     }
 
     return Status;
+};
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CREATE)
+Km_IMC_CreateHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp)
+{
+    UNREFERENCED_PARAMETER(DeviceObject);
+
+    Irp->IoStatus.Status = STATUS_SUCCESS;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    return STATUS_SUCCESS;
+};
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLOSE)
+Km_IMC_CloseHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp)
+{
+    UNREFERENCED_PARAMETER(DeviceObject);
+
+    Irp->IoStatus.Status = STATUS_SUCCESS;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    return STATUS_SUCCESS;
+};
+
+NTSTATUS
+_Function_class_(DRIVER_DISPATCH)
+_Dispatch_type_(IRP_MJ_CLEANUP)
+Km_IMC_CleanupHandler(
+    __in    PDEVICE_OBJECT  DeviceObject,
+    __in    IRP             *Irp)
+{
+    UNREFERENCED_PARAMETER(DeviceObject);
+
+    Irp->IoStatus.Status = STATUS_SUCCESS;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    return STATUS_SUCCESS;
 };
 
 NTSTATUS __stdcall Km_IMC_Initialize(
@@ -221,7 +283,7 @@ NTSTATUS __stdcall Km_IMC_Initialize(
 
     ((PKM_IMC_DEVICE_EXTENSION)NewData->DeviceObject->DeviceExtension)->Data = NewData;
 
-    Status = IoCreateSymbolicLink(SymLinkName, DeviceName);
+    Status = IoCreateSymbolicLink(SymLinkName, DevName);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     NewData->SymLinkName = SymLinkName;
@@ -230,6 +292,9 @@ NTSTATUS __stdcall Km_IMC_Initialize(
     *InstanceHandle = (HANDLE)NewData;
 
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = Km_IMC_IoControlHandler;
+    DriverObject->MajorFunction[IRP_MJ_CREATE] = Km_IMC_CreateHandler;
+    DriverObject->MajorFunction[IRP_MJ_CLOSE] = Km_IMC_CloseHandler;
+    DriverObject->MajorFunction[IRP_MJ_CLEANUP] = Km_IMC_CleanupHandler;
 
 cleanup:
 

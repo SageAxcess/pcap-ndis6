@@ -34,7 +34,6 @@
     <ClInclude Include="KmMemoryManager.h" />
     <ClInclude Include="WfpUtils.h" />
     <ClInclude Include="KmConnections.h" />
-    <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="KmProcessWatcher.h" />

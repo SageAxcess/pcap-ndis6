@@ -88,6 +88,7 @@ DRIVER_INITIALIZE DriverEntry;
 
 _Use_decl_annotations_
 NTSTATUS
+_Function_class_(DRIVER_INITIALIZE)
 DriverEntry(
     PDRIVER_OBJECT      DriverObject,
     PUNICODE_STRING     RegistryPath);
@@ -865,6 +866,7 @@ cleanup:
 
 _Use_decl_annotations_
 NTSTATUS
+_Function_class_(DRIVER_INITIALIZE)
 DriverEntry(
     PDRIVER_OBJECT      DriverObject,
     PUNICODE_STRING     RegistryPath)

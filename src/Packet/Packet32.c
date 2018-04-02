@@ -183,6 +183,7 @@ BOOL APIENTRY DllMain(
             Packet_DriverVersionA = UTILS::STR::FormatA("%S", Packet_DriverVersionW.c_str());
 
             ndis = NdisDriverOpen();
+
         }break;
         
     case DLL_PROCESS_DETACH:
@@ -450,26 +451,42 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 
         if (Assigned(AdapterInfo))
         {
-            Result = (PADAPTER)malloc(sizeof(ADAPTER));
-            if (Assigned(Result))
+            PPCAP_NDIS_ADAPTER  NdisAdapter = NdisDriverOpenAdapter(
+                ndis,
+                &AdapterInfo->AdapterId);
+            if (Assigned(NdisAdapter))
             {
-                RtlZeroMemory(Result, sizeof(ADAPTER));
-                Result->hFile = NdisDriverOpenAdapter(ndis, &AdapterInfo->AdapterId);
-                Result->FilterLock = reinterpret_cast<PVOID>(new CCSObject());
-                Result->Flags = INFO_FLAG_NDIS_ADAPTER;
+                try
+                {
+                    Result = (PADAPTER)malloc(sizeof(ADAPTER));
+                    if (Assigned(Result))
+                    {
+                        RtlZeroMemory(Result, sizeof(ADAPTER));
+                        Result->hFile = static_cast<HANDLE>(NdisAdapter);
+                        Result->FilterLock = reinterpret_cast<PVOID>(new CCSObject());
+                        Result->Flags = INFO_FLAG_NDIS_ADAPTER;
 
-                RtlCopyMemory(
-                    Result->Name,
-                    AdapterNameStrA.c_str(),
-                    AdapterNameStrA.length() >= ADAPTER_NAME_LENGTH - 1 ?
-                    ADAPTER_NAME_LENGTH - 1 :
-                    AdapterNameStrA.length());
+                        RtlCopyMemory(
+                            Result->Name,
+                            AdapterNameStrA.c_str(),
+                            AdapterNameStrA.length() >= ADAPTER_NAME_LENGTH - 1 ?
+                            ADAPTER_NAME_LENGTH - 1 :
+                            AdapterNameStrA.length());
 
-                PPCAP_NDIS_ADAPTER  Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(Result->hFile);
+                        PPCAP_NDIS_ADAPTER  Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(Result->hFile);
 
-                Result->ReadEvent = Adapter->NewPacketEvent;
+                        Result->ReadEvent = Adapter->NewPacketEvent;
 
-                PacketSetReadTimeout(Result, Result->ReadTimeOut);
+                        PacketSetReadTimeout(Result, Result->ReadTimeOut);
+                    }
+                }
+                catch (...)
+                {
+                }
+                if (!Assigned(Result))
+                {
+                    NdisDriverCloseAdapter(NdisAdapter);
+                }
             }
         }
     }
