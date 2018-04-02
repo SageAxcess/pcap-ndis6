@@ -209,17 +209,9 @@ typedef struct _PACKET_DESC
 #define FILTER_SERVICE_NAME                         L"PcapNdis6"
 #define FILTER_PROTOCOL_NAME		                L"PcapNdis6"
 
-#define ADAPTER_ID_PREFIX_W                         L"PCAPNDIS6_A_"
-#define ADAPTER_ID_PREFIX_LENGTH                    ARRAYSIZE(ADAPTER_ID_PREFIX_W)
-
-#define ADAPTER_DEVICE_NAME_PREFIX_W                L"\\Device\\"ADAPTER_ID_PREFIX_W
-#define ADAPTER_DEVICE_SYM_LINK_NAME_PREFIX_W       L"\\DosDevices\\Global\\"ADAPTER_ID_PREFIX_W
-
-#define ADAPTER_NAME_FORLIST_W                      L"{00000000-0000-0000-0000-000000000000}"
-#define	EVENT_NAME_FMT				                "EVT_PCAP_NDIS_%u_%llu"
 #define DEVICE_STR_W                                L"\\DEVICE\\"
 
-#define FILTER_DEVICE_NAME_W                        L"CDyn_PcapNdis6"
+#define FILTER_DEVICE_NAME_W                        L"PcapNdis6"
 
 #define IOCTL_VENDOR_DEVICE_BASE 0x8000
 #define IOCTL_VENDOR_FUNC_BASE 0x800

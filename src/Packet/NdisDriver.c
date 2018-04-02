@@ -55,10 +55,10 @@ LPPCAP_NDIS NdisDriverOpen()
 {
     LPPCAP_NDIS     Result = nullptr;
     HANDLE          FileHandle = INVALID_HANDLE_VALUE;
+    DWORD           ErrorCode = 0;
     std::wstring    DeviceName = UTILS::STR::FormatW(
-        L"\\\\.\\%s%s",
-        ADAPTER_ID_PREFIX_W,
-        ADAPTER_NAME_FORLIST_W);
+        L"\\\\.\\Global\\%s",
+        FILTER_DEVICE_NAME_W);
 
     FileHandle = CreateFileW(
         DeviceName.c_str(),
@@ -68,6 +68,10 @@ LPPCAP_NDIS NdisDriverOpen()
         OPEN_EXISTING,
         0,
         NULL);
+    ErrorCode = GetLastError();
+
+    printf("%s: Error code: %x\n", __FUNCTION__, ErrorCode);
+
     RETURN_VALUE_IF_FALSE(
         FileHandle != INVALID_HANDLE_VALUE,
         nullptr);
