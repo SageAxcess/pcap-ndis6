@@ -725,6 +725,8 @@ NTSTATUS Adapter_AllocateAndFillPacket(
 
     NewPacket->ProcessId = ProcessId;
 
+    *Packet = NewPacket;
+
 cleanup:
     return Status;
 };
