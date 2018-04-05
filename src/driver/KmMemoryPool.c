@@ -377,7 +377,7 @@ NTSTATUS __stdcall Km_MP_AllocateCheckSize(
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(BlockHeader),
-        STATUS_UNSUCCESSFUL);
+        Status == STATUS_SUCCESS ? STATUS_UNSUCCESSFUL : Status);
 
     *Block = (PVOID)((PUCHAR)BlockHeader + sizeof(KM_MEMORY_POOL_BLOCK_HEADER));
 
