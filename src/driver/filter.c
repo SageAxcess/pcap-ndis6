@@ -269,7 +269,7 @@ NTSTATUS __stdcall Filter_CreateClient(
 
     Status = Km_MP_Initialize(
         &Data->Ndis.MemoryManager,
-        (ULONG)sizeof(PACKET),
+        (ULONG)sizeof(PACKET) + Adapter->MtuSize - 1,
         PACKETS_POOL_INITIAL_SIZE,
         FALSE,
         &NewClient->PacketsPool);
@@ -304,6 +304,7 @@ NTSTATUS __stdcall Filter_CreateClient(
             if (!Assigned(Data->Clients.Items[k]))
             {
                 Data->Clients.Items[k] = NewClient;
+                Data->Clients.Count++;
                 NewClientId.Index = k;
                 __leave;
             }
@@ -508,6 +509,7 @@ NTSTATUS __stdcall Filter_CloseAdapter(
 
         Client = Data->Clients.Items[ClientId->Index];
         Data->Clients.Items[ClientId->Index] = NULL;
+        Data->Clients.Count--;
     }
     __finally
     {
