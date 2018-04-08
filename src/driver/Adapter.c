@@ -416,13 +416,8 @@ NTSTATUS FindAdapterById(
             Entry = Entry->Flink)
         {
             PADAPTER    Tmp = CONTAINING_RECORD(Entry, ADAPTER, Link);
-            CONTINUE_IF_FALSE(
-                Tmp->AdapterId.Length == AdapterId->Length);
 
-            if (RtlCompareMemory(
-                AdapterId->Buffer,
-                Tmp->AdapterId.Buffer,
-                AdapterId->Length) == AdapterId->Length)
+            if (EqualAdapterIds(AdapterId, &Tmp->AdapterId))
             {
                 ExistingAdapter = Tmp;
                 break;
@@ -590,13 +585,10 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                 k++)
                             {
                                 CONTINUE_IF_FALSE(Assigned(Adapter->DriverData->Clients.Items[k]));
-                                CONTINUE_IF_FALSE(
-                                    Adapter->DriverData->Clients.Items[k]->AdapterId.Length == Adapter->AdapterId.Length);
 
-                                if (RtlCompareMemory(
-                                    Adapter->DriverData->Clients.Items[k]->AdapterId.Buffer,
-                                    Adapter->AdapterId.Buffer,
-                                    Adapter->AdapterId.Length) == Adapter->AdapterId.Length)
+                                if (EqualAdapterIds(
+                                    &Adapter->DriverData->Clients.Items[k]->AdapterId,
+                                    &Adapter->AdapterId))
                                 {
                                     ULARGE_INTEGER  ClientPacketsCount;
                                     PPACKET NewPacket = NULL;

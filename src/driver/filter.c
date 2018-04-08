@@ -587,7 +587,6 @@ NTSTATUS __stdcall Filter_ReadPackets(
         Assigned(BytesReturned),
         STATUS_INVALID_PARAMETER_5);
     
-
     Status = Km_Lock_Acquire(&Data->Clients.Lock);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try

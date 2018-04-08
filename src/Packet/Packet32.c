@@ -216,59 +216,98 @@ BOOL APIENTRY DllMain(
 
 BOOLEAN PacketSetMaxLookaheadsize(LPADAPTER AdapterObject)
 {
-    BOOLEAN    Status;
-    ULONG      IoCtlBufferLength = (sizeof(PACKET_OID_DATA) + sizeof(ULONG) - 1);
-    PPACKET_OID_DATA  OidData;
+    BOOLEAN             Result = FALSE;
+    ULONG               BufferSize = static_cast<ULONG>(sizeof(PACKET_OID_DATA) + sizeof(ULONG) - 1);
+    PPACKET_OID_DATA    OidData = nullptr;
 
-    TRACE_ENTER("PacketSetMaxLookaheadsize");
+    TRACE_ENTER();
 
-    OidData = (PPACKET_OID_DATA)GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT, IoCtlBufferLength);
-    if (OidData == NULL) {
-        TRACE_PRINT("PacketSetMaxLookaheadsize failed");
-        Status = FALSE;
+    OidData = reinterpret_cast<PPACKET_OID_DATA>(new UCHAR[BufferSize]);
+    if (!Assigned(OidData))
+    {
+        TRACE_LOG_MESSAGE(
+            "%s failed. (insufficient resources)\n",
+            __FUNCTION__);
     }
     else
     {
-        //set the size of the lookahead buffer to the maximum available by the the NIC driver
         OidData->Oid = OID_GEN_MAXIMUM_LOOKAHEAD;
         OidData->Length = sizeof(ULONG);
-        PacketRequest(AdapterObject, FALSE, OidData); // Ignore response
+
+        PacketRequest(
+            AdapterObject, 
+            FALSE, 
+            OidData); // Ignore response
+
         OidData->Oid = OID_GEN_CURRENT_LOOKAHEAD;
-        Status = PacketRequest(AdapterObject, TRUE, OidData);
-        GlobalFreePtr(OidData);
+
+        Result = PacketRequest(
+            AdapterObject,
+            TRUE,
+            OidData);
+
+        delete [] reinterpret_cast<PUCHAR>(OidData);
     }
 
-    TRACE_EXIT("PacketSetMaxLookaheadsize");
-    return Status;
-}
+    TRACE_EXIT();
+    
+    return Result;
+};
 
 BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
 {
-    HANDLE hEvent;
+    BOOLEAN Result = FALSE;
+    HANDLE  EventHandle = NULL;
 
-    TRACE_ENTER("PacketSetReadEvt");
+    TRACE_ENTER();
+
+    if (!Assigned(AdapterObject))
+    {
+        TRACE_LOG_MESSAGE(
+            "%s: AdapterObject == NULL\n",
+            __FUNCTION__);
+        SetLastError(ERROR_INVALID_PARAMETER);
+        
+        TRACE_EXIT();
+
+        return FALSE;
+    }
 
     if (AdapterObject->ReadEvent != NULL)
     {
+        TRACE_LOG_MESSAGE(
+            "%s: AdapterObject == NULL\n",
+            __FUNCTION__);
         SetLastError(ERROR_INVALID_FUNCTION);
+
+        TRACE_EXIT();
+
         return FALSE;
     }
 
-    hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-    if (hEvent == NULL)
+    EventHandle = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (EventHandle == NULL)
     {
-        //SetLastError done by CreateEvent	
-        TRACE_EXIT("PacketSetReadEvt");
-        return FALSE;
+        DWORD   ErrorCode = GetLastError();
+        TRACE_LOG_MESSAGE(
+            "%s: CreateEventW failed. ErrorCode = %x\n",
+            __FUNCTION__,
+            ErrorCode);
+
+        SetLastError(ErrorCode);
+    }
+    else
+    {
+        AdapterObject->ReadEvent = EventHandle;
+        AdapterObject->ReadTimeOut = 0;
+
+        Result = TRUE;
     }
 
-    AdapterObject->ReadEvent = hEvent;
-    AdapterObject->ReadTimeOut = 0;
+    TRACE_EXIT();
 
-    TRACE_EXIT("PacketSetReadEvt");
-    return TRUE;
-}
+    return Result;
+};
 
 /*! 
   \brief Installs the NPF device driver.
@@ -279,85 +318,75 @@ BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
 
 BOOLEAN PacketInstallDriver()
 {
-    BOOLEAN result = FALSE;
-    ULONG err = 0;
-    SC_HANDLE svcHandle;
-    SC_HANDLE scmHandle;
-//  
-//	Old registry based WinPcap names
-//
-//	CHAR driverName[MAX_WINPCAP_KEY_CHARS];
-//	CHAR driverDesc[MAX_WINPCAP_KEY_CHARS];
-//	CHAR driverLocation[MAX_WINPCAP_KEY_CHARS;
-//	UINT len;
+    BOOLEAN     Result = FALSE;
+    ULONG       ErrorCode = 0;
+    SC_HANDLE   ServiceHandle = NULL;
+    SC_HANDLE   SCMHandle = NULL;
 
-    CHAR driverName[MAX_WINPCAP_KEY_CHARS] = NPF_DRIVER_NAME;
-    CHAR driverDesc[MAX_WINPCAP_KEY_CHARS] = NPF_SERVICE_DESC;
-    CHAR driverLocation[MAX_WINPCAP_KEY_CHARS] = NPF_DRIVER_COMPLETE_PATH;
+    TRACE_ENTER();
 
-    TRACE_ENTER("PacketInstallDriver");
-
-//  
-//	Old registry based WinPcap names
-//
-//	len = sizeof(driverName)/sizeof(driverName[0]);
-//	if (QueryWinPcapRegistryStringA(NPF_DRIVER_NAME_REG_KEY, driverName, &len, NPF_DRIVER_NAME) == FALSE && len == 0)
-//		return FALSE;
-//
-//	len = sizeof(driverDesc)/sizeof(driverDesc[0]);
-//	if (QueryWinPcapRegistryStringA(NPF_SERVICE_DESC_REG_KEY, driverDesc, &len, NPF_SERVICE_DESC) == FALSE && len == 0)
-//		return FALSE;
-//
-//	len = sizeof(driverLocation)/sizeof(driverLocation[0]);
-//	if (QueryWinPcapRegistryStringA(NPF_DRIVER_COMPLETE_PATH_REG_KEY, driverLocation, &len, NPF_DRIVER_COMPLETE_PATH) == FALSE && len == 0)
-//		return FALSE;
-    
-    scmHandle = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    
-    if(scmHandle == NULL)
-        return FALSE;
-
-    svcHandle = CreateServiceA(scmHandle, 
-        driverName,
-        driverDesc,
-        SERVICE_ALL_ACCESS,
-        SERVICE_KERNEL_DRIVER,
-        SERVICE_DEMAND_START,
-        SERVICE_ERROR_NORMAL,
-        driverLocation,
-        NULL, NULL, NULL, NULL, NULL);
-    if (svcHandle == NULL) 
+    SCMHandle = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
+    if (SCMHandle != NULL)
     {
-        err = GetLastError();
-        if (err == ERROR_SERVICE_EXISTS) 
+        __try
         {
-            TRACE_PRINT("Service npf.sys already exists");
-            //npf.sys already existed
-            err = 0;
-            result = TRUE;
+            ServiceHandle = CreateServiceW(
+                SCMHandle,
+                NPF_DRIVER_NAME_W,
+                NPF_SERVICE_DESC_W,
+                SERVICE_ALL_ACCESS,
+                SERVICE_KERNEL_DRIVER,
+                SERVICE_DEMAND_START,
+                SERVICE_ERROR_NORMAL,
+                NPF_DRIVER_COMPLETE_PATH_W,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr);
+
+            if (ServiceHandle == NULL)
+            {
+                ErrorCode = GetLastError();
+                if (ErrorCode == ERROR_SERVICE_EXISTS)
+                {
+                    ErrorCode = 0;
+                    Result = TRUE;
+                }
+                else
+                {
+                    TRACE_LOG_MESSAGE(
+                        "%s: CreateServiceW failed. ErrorCode = %x\n",
+                        __FUNCTION__,
+                        ErrorCode);
+                }
+            }
+            else
+            {
+                Result = TRUE;
+                CloseServiceHandle(ServiceHandle);
+            }
+        }
+        __finally
+        {
+            CloseServiceHandle(SCMHandle);
         }
     }
-    else 
+    else
     {
-        TRACE_PRINT("Created service for npf.sys");
-        //Created service for npf.sys
-        result = TRUE;
+        ErrorCode = GetLastError();
+        TRACE_LOG_MESSAGE(
+            "%s: OpenSCManagerW failed. ErrorCode = %x\n",
+            __FUNCTION__,
+            ErrorCode);
     }
 
-    if (svcHandle != NULL)
-        CloseServiceHandle(svcHandle);
-
-    if(result == FALSE)
-    {
-        TRACE_PRINT1("PacketInstallDriver failed, Error=%u",err);
-    }
-
-    CloseServiceHandle(scmHandle);
-    SetLastError(err);
-    TRACE_EXIT("PacketInstallDriver");
-    return result;
+    SetLastError(ErrorCode);
     
-}
+    TRACE_EXIT();
+
+    return Result;
+};
 
 /*! 
   \brief Dumps a registry key to disk in text format. Uses regedit.
@@ -506,30 +535,40 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 */
 VOID PacketCloseAdapter(LPADAPTER lpAdapter)
 {
-    TRACE_ENTER("PacketCloseAdapter");
-    if(!lpAdapter)
+    TRACE_ENTER();
+
+    if (!Assigned(lpAdapter))
     {
-        TRACE_PRINT("PacketCloseAdapter: attempt to close a NULL adapter");
-        TRACE_EXIT("PacketCloseAdapter");
+        TRACE_LOG_MESSAGE(
+            "%s: attempt to close a NULL adapter (invalid params)\n",
+            __FUNCTION__);
+        
+        TRACE_EXIT();
+
         return;
     }
 
     NdisDriverCloseAdapter(static_cast<LPPCAP_NDIS_ADAPTER>(lpAdapter->hFile));
 
-    if(lpAdapter->Filter != NULL)
+    if (Assigned(lpAdapter->Filter))
     {
-        TRACE_PRINT1("lock mutex, lock=0x%08x", lpAdapter->FilterLock);
-
         reinterpret_cast<CCSObject *>(lpAdapter->FilterLock)->Enter();
         __try
         {
-            TRACE_PRINT2("releasing filter, ins=0x%08x, filter=0x%08x", lpAdapter->Filter->bf_insns, lpAdapter->Filter);
-            free(lpAdapter->Filter->bf_insns);
+            TRACE_LOG_MESSAGE(
+                "%s: Releasing filter. ins = %p, filter = %p\n",
+                __FUNCTION__,
+                lpAdapter->Filter->bf_insns,
+                lpAdapter->Filter);
+
+            if (Assigned(lpAdapter->Filter->bf_insns))
+            {
+                free(lpAdapter->Filter->bf_insns);
+            }
+
             free(lpAdapter->Filter);
 
-            lpAdapter->Filter = NULL;
-
-            TRACE_PRINT("unlock mutex");
+            lpAdapter->Filter = nullptr;
         }
         __finally
         {
@@ -537,102 +576,126 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
         }
     }
 
-    TRACE_PRINT("releasing mutex");
-
     delete reinterpret_cast<CCSObject *>(lpAdapter->FilterLock);
 
-    TRACE_PRINT("closing event");
+    TRACE_LOG_MESSAGE(
+        "%s: Closing event (%p)\n",
+        __FUNCTION__,
+        lpAdapter->ReadEvent);
+
     if(lpAdapter->ReadEvent != NULL)
     {
         CloseHandle(lpAdapter->ReadEvent);
     }
 
-    TRACE_PRINT("releasing adapter");
+    TRACE_LOG_MESSAGE(
+        "%s: Releasing adapter\n",
+        __FUNCTION__);
+
     free(lpAdapter);
-    TRACE_EXIT("PacketCloseAdapter");
-}
 
-LPPACKET PacketAllocatePacket(void)
+    TRACE_EXIT();
+};
+
+LPPACKET PacketAllocatePacket()
 {
-    LPPACKET    lpPacket;
+    LPPACKET    NewPacket = nullptr;
 
-    TRACE_ENTER("PacketAllocatePacket");
-    
-    lpPacket=(LPPACKET)GlobalAllocPtr(GMEM_MOVEABLE | GMEM_ZEROINIT,sizeof(PACKET));
-    if (lpPacket==NULL)
+    TRACE_ENTER();
+
+    try
     {
-        TRACE_PRINT("PacketAllocatePacket: GlobalAlloc Failed");
+        NewPacket = new PACKET;
+    }
+    catch (...)
+    {
+        TRACE_LOG_MESSAGE(
+            "%s: exception during memory allocation",
+            __FUNCTION__);
+        NewPacket = nullptr;
     }
 
-    TRACE_EXIT("PacketAllocatePacket");
+    TRACE_EXIT();
     
-    return lpPacket;
-}
+    return NewPacket;
+};
 
 VOID PacketFreePacket(LPPACKET lpPacket)
 {
-    TRACE_ENTER("PacketFreePacket");
-    GlobalFreePtr(lpPacket);
-    TRACE_EXIT("PacketFreePacket");
-}
+    TRACE_ENTER();
 
-VOID PacketInitPacket(LPPACKET lpPacket,PVOID Buffer,UINT Length)
+    if (Assigned(lpPacket))
+    {
+        delete lpPacket;
+    }
 
+    TRACE_EXIT();
+};
+
+VOID PacketInitPacket(
+    LPPACKET    lpPacket,
+    PVOID       Buffer,
+    UINT        Length)
 {
-    TRACE_ENTER("PacketInitPacket");
+    TRACE_ENTER();
 
     lpPacket->Buffer = Buffer;
     lpPacket->Length = Length;
     lpPacket->ulBytesReceived = 0;
     lpPacket->bIoComplete = FALSE;
 
-    TRACE_EXIT("PacketInitPacket");
-}
+    TRACE_EXIT();
+};
 
 BOOLEAN CheckFilter(LPADAPTER AdapterObject, LPPACKET lpPacket)
 {
-    if(!lpPacket->ulBytesReceived || AdapterObject->Filter==NULL)
-    {
-        return FALSE;
-    }
+    pbpf_hdr    bpf = nullptr;
+    PUCHAR      Buffer = nullptr;
+    BOOLEAN     Result = TRUE;
 
-    struct bpf_hdr* bpf = ((struct bpf_hdr *)lpPacket->Buffer);
-    if(bpf->bh_hdrlen>lpPacket->ulBytesReceived)
-    {
-        return FALSE;
-    }
+    RETURN_VALUE_IF_FALSE(
+        (lpPacket->ulBytesReceived > 0) &&
+        (Assigned(AdapterObject->Filter)),
+        FALSE);
 
-    UCHAR* buf = (UCHAR*)lpPacket->Buffer + bpf->bh_hdrlen;
+    bpf = reinterpret_cast<pbpf_hdr>(lpPacket->Buffer);
 
-    BOOLEAN res = TRUE;
+    RETURN_VALUE_IF_FALSE(
+        bpf->bh_hdrlen <= lpPacket->ulBytesReceived,
+        FALSE);
+
+    Buffer = reinterpret_cast<PUCHAR>(lpPacket->Buffer) + bpf->bh_hdrlen;
 
     reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Enter();
     __try
     {
-        UINT f = bpf_filter(AdapterObject->Filter->bf_insns, buf, bpf->bh_caplen, bpf->bh_caplen);
+        UINT f = bpf_filter(
+            AdapterObject->Filter->bf_insns, 
+            Buffer, 
+            bpf->bh_caplen, 
+            bpf->bh_caplen);
 
-        if(f==0)
-        {
-            res = FALSE;
-        }
+        Result = (f != 0) ? TRUE : FALSE;
     }
     __finally
     {
         reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Leave();
     }
 
-    return res;
+    return Result;
 }
 
 BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN Sync)
 {
-    TRACE_ENTER("PacketReceivePacket");
+    TRACE_ENTER();
+
     UNREFERENCED_PARAMETER(Sync);
+
     BOOLEAN res = FALSE;
 
     if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
     {
-        TRACE_PRINT("   ... NdisDriverNextPacket");
+        TRACE_LOG_MESSAGE("   ... NdisDriverNextPacket\n");
 
         WaitForSingleObject(
             AdapterObject->ReadEvent, 
@@ -663,12 +726,13 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
     }
     else
     {
-        TRACE_PRINT1("Request to read on an unknown device type (%u)", AdapterObject->Flags);
+        TRACE_LOG_MESSAGE("Request to read on an unknown device type (%u)", AdapterObject->Flags);
     }
     
-    TRACE_EXIT("PacketReceivePacket");
+    TRACE_EXIT();
+
     return res;
-}
+};
 
 BOOLEAN PacketReceivePacketEx(
     __in    LPADAPTER   AdapterObject,
@@ -710,7 +774,7 @@ BOOLEAN PacketReceivePacketEx(
         Result = FALSE;
     }
 
-    TRACE_EXIT("PacketReceivePacket");
+    TRACE_EXIT();
 
     return Result;
 };
@@ -721,7 +785,10 @@ BOOLEAN PacketSendPacket(LPADAPTER AdapterObject,LPPACKET lpPacket,BOOLEAN Sync)
     UNREFERENCED_PARAMETER(lpPacket);
     UNREFERENCED_PARAMETER(Sync);
 
-    TRACE_PRINT("PacketSendPacket not supported in this version");
+    TRACE_LOG_MESSAGE(
+        "%s not supported in this version",
+        __FUNCTION__);
+
     return FALSE; //TODO: Not supported at the moment
 }
 
@@ -732,7 +799,8 @@ INT PacketSendPackets(LPADAPTER AdapterObject, PVOID PacketBuff, ULONG Size, BOO
     UNREFERENCED_PARAMETER(Size);
     UNREFERENCED_PARAMETER(Sync);
 
-    TRACE_PRINT("PacketSendPackets not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return 0; //TODO: Not supported at the moment
 }
 
@@ -741,7 +809,8 @@ BOOLEAN PacketSetMinToCopy(LPADAPTER AdapterObject,int nbytes)
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(nbytes);
 
-    TRACE_PRINT("PacketSetMinToCopy not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return TRUE;
 }
 
@@ -749,14 +818,15 @@ BOOLEAN PacketSetMode(LPADAPTER AdapterObject,int mode)
 {
     UNREFERENCED_PARAMETER(AdapterObject);
 
-    TRACE_PRINT("PacketSetMode not supported in this version");
-    if(mode==PACKET_MODE_CAPT)
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
+    if(mode == PACKET_MODE_CAPT)
     {
         return TRUE;
     }
 
     return FALSE;
-}
+};
 
 BOOLEAN PacketSetDumpName(LPADAPTER AdapterObject, void *name, int len)
 {
@@ -764,9 +834,10 @@ BOOLEAN PacketSetDumpName(LPADAPTER AdapterObject, void *name, int len)
     UNREFERENCED_PARAMETER(name);
     UNREFERENCED_PARAMETER(len);
 
-    TRACE_PRINT("PacketSetDumpName not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return FALSE;
-}
+};
 
 BOOLEAN PacketSetDumpLimits(LPADAPTER AdapterObject, UINT maxfilesize, UINT maxnpacks)
 {
@@ -774,7 +845,8 @@ BOOLEAN PacketSetDumpLimits(LPADAPTER AdapterObject, UINT maxfilesize, UINT maxn
     UNREFERENCED_PARAMETER(maxfilesize);
     UNREFERENCED_PARAMETER(maxnpacks);
 
-    TRACE_PRINT("PacketSetDumpLimits not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return FALSE;
 }
 
@@ -783,25 +855,28 @@ BOOLEAN PacketIsDumpEnded(LPADAPTER AdapterObject, BOOLEAN sync)
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(sync);
 
-    TRACE_PRINT("PacketIsDumpEnded not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return FALSE;
 }
 
 HANDLE PacketGetReadEvent(LPADAPTER AdapterObject)
 {
-    TRACE_ENTER("PacketGetReadEvent");
-    TRACE_EXIT("PacketGetReadEvent");
+    TRACE_ENTER();
+    TRACE_EXIT();
+
     return AdapterObject->ReadEvent;
-}
+};
 
 BOOLEAN PacketSetNumWrites(LPADAPTER AdapterObject, int nwrites)
 {
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(nwrites);
 
-    TRACE_PRINT("PacketSetNumWrites not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return FALSE;
-}
+};
 
 BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject, int timeout)
 {
@@ -824,13 +899,14 @@ BOOLEAN PacketSetBuff(LPADAPTER AdapterObject, int dim)
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(dim);
 
-    TRACE_PRINT("PacketSetBuff not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
+
     return TRUE;
 }
 
 BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 {
-    TRACE_ENTER("PacketSetBpf");
+    TRACE_ENTER();
 
     RETURN_VALUE_IF_FALSE(
         Assigned(AdapterObject),
@@ -883,7 +959,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
         reinterpret_cast<CCSObject *>(AdapterObject->FilterLock)->Leave();
     }
 
-    TRACE_EXIT("PacketSetBpf");
+    TRACE_EXIT();
         
     return TRUE;
 };
@@ -894,7 +970,7 @@ BOOLEAN PacketSetLoopbackBehavior(LPADAPTER AdapterObject, UINT LoopbackBehavior
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(LoopbackBehavior);
 
-    TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
 
     return FALSE;
 }
@@ -904,7 +980,7 @@ INT PacketSetSnapLen(LPADAPTER AdapterObject, int snaplen)
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(snaplen);
 
-    TRACE_PRINT("PacketSetLoopbackBehavior not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
 
     return 0;
 }
@@ -945,7 +1021,7 @@ BOOLEAN PacketRequest(LPADAPTER AdapterObject, BOOLEAN Set, PPACKET_OID_DATA Oid
     UNREFERENCED_PARAMETER(Set);
     UNREFERENCED_PARAMETER(OidData);
 
-    TRACE_PRINT("PacketRequest not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
 
     return FALSE;
 }
@@ -955,7 +1031,7 @@ BOOLEAN PacketSetHwFilter(LPADAPTER AdapterObject, ULONG Filter)
     UNREFERENCED_PARAMETER(AdapterObject);
     UNREFERENCED_PARAMETER(Filter);
 
-    TRACE_PRINT("PacketRequest not supported in this version");
+    TRACE_FUNCTION_NOT_SUPPORTED();
 
     return TRUE;
 }
@@ -1087,13 +1163,16 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
         Assigned(AdapterName),
         FALSE);
 
-    TRACE_PRINT1("PacketGetNetInfoEx(%s)", AdapterName);
+    TRACE_LOG_MESSAGE(
+        "%s(%s)\n",
+        __FUNCTION__,
+        AdapterName);
 
     RetCode = GetIfTable2(&Table);
     if (RetCode != NO_ERROR)
     {
-        TRACE_PRINT2(
-            "%s: GetIfTable2 failed with code %x",
+        TRACE_LOG_MESSAGE(
+            "%s: GetIfTable2 failed with code %x\n",
             __FUNCTION__,
             RetCode);
         return FALSE;
@@ -1101,8 +1180,8 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
 
     if (!Assigned(Table))
     {
-        TRACE_PRINT1(
-            "%s: Table is null",
+        TRACE_LOG_MESSAGE(
+            "%s: Table is null\n",
             __FUNCTION__);
         return FALSE;
     }
@@ -1116,11 +1195,15 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
             PMIB_IF_ROW2    Row = &Table->Table[k];
             std::string     GuidStr = UTILS::STR::GuidToStringA(Row->InterfaceGuid);
 
-            TRACE_PRINT1("   adapter guid %s", GuidStr.c_str());
+            TRACE_LOG_MESSAGE(
+                "   adapter guid %s", 
+                GuidStr.c_str());
 
             if (UTILS::STR::SameTextA(GuidStr, AdapterName))
             {
-                TRACE_PRINT1("  detected interface index %u", Row->InterfaceIndex);
+                TRACE_LOG_MESSAGE(
+                    "  detected interface index %u", 
+                    Row->InterfaceIndex);
                 InterfaceIndex = static_cast<int>(Row->InterfaceIndex);
                 break;
             }
@@ -1155,7 +1238,9 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
                     {
                         ULONG   IP4 = 0;
 
-                        TRACE_PRINT1("  resolving address %s", Addr->IpAddress.String);
+                        TRACE_LOG_MESSAGE(
+                            "  resolving address %s", 
+                            Addr->IpAddress.String);
 
                         if (UTILS::MISC::StringToIpAddressV4A(
                             Addr->IpAddress.String,
@@ -1188,7 +1273,10 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
         return TRUE;
     }
 
-    TRACE_PRINT1("PacketGetNetInfoEx: adapter not found by guid %s", AdapterName);
+    TRACE_LOG_MESSAGE(
+        "%s: adapter not found by guid %s",
+        __FUNCTION__,
+        AdapterName);
     
     return FALSE;
 }
@@ -1208,6 +1296,7 @@ void* PacketGetAirPcapHandle(LPADAPTER AdapterObject)
 {
     UNREFERENCED_PARAMETER(AdapterObject);
 
-    TRACE_PRINT("PacketGetAirPcapHandle not supported in this version")
+    TRACE_LOG_MESSAGE("PacketGetAirPcapHandle not supported in this version");
+
     return NULL;
-}
+};
