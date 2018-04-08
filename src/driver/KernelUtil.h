@@ -63,6 +63,12 @@ NTSTATUS __stdcall KmReferenceEvent(
     __in    HANDLE  EventObjectHandle,
     __out   PVOID   *EventObject);
 
+int __stdcall CompareAdapterIds(
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId1,
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId2);
+
+#define EqualAdapterIds(AdapterIdPtr1, AdapterIdPtr2) (CompareAdapterIds((AdapterIdPtr1), (AdapterIdPtr2)) == 0)
+
 ///////////////////////////////////////////////////
 // Network eEvent info helpers
 ///////////////////////////////////////////////////

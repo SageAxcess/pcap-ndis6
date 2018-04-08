@@ -306,6 +306,33 @@ cleanup:
     return Status;
 };
 
+int __stdcall CompareAdapterIds(
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId1,
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId2)
+{
+    int Result;
+
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(AdapterId1)) &&
+        (Assigned(AdapterId2)),
+        COMPARE_VALUES(AdapterId1, AdapterId2));
+
+    Result = COMPARE_VALUES(AdapterId1->Length, AdapterId2->Length);
+
+    if (Result == 0)
+    {
+        unsigned long k;
+
+        for (k = 0; k < AdapterId1->Length; k++)
+        {
+            Result = COMPARE_VALUES(AdapterId1->Buffer[k], AdapterId2->Buffer[k]);
+            BREAK_IF_FALSE(Result == 0);
+        }
+    }
+
+    return Result;
+};
+
 NTSTATUS __stdcall NetEventInfo_Allocate(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __out   PNETWORK_EVENT_INFO *EventInfo)

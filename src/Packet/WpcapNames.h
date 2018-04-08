@@ -39,8 +39,8 @@
 //  - please do not use prefix names longer than 70 chars. 
 //  - the following characters are surely accepted in the prefixes:  "[A-Z][a-z][0-9]_-',"   
 //
-#define NPF_DRIVER_NAME							"pcap-ndis6"					///< (HHH) Packet.dll
-#define NPF_DRIVER_NAME_WIDECHAR				L"pcap-ndis6"				///< (HHH) Packet.dll
+#define NPF_DRIVER_NAME     "pcap-ndis6"					///< (HHH) Packet.dll
+#define NPF_DRIVER_NAME_W   L"pcap-ndis6"				///< (HHH) Packet.dll
 
 //
 // Derived strings
@@ -52,8 +52,10 @@
 #define FAKE_NDISWAN_ADAPTER_NAME			"\\Device\\" NPF_DRIVER_NAME "_GenericDialupAdapter"	///< (CCC) Name of a fake ndiswan adapter that is always available on 2000/XP/2003, used to capture NCP/LCP packets
 #define FAKE_NDISWAN_ADAPTER_DESCRIPTION	"Adapter for generic dialup and VPN capture"			///< (DDD) Description of a fake ndiswan adapter that is always available on 2000/XP/2003, used to capture NCP/LCP packets
 #define NPF_SERVICE_DESC					"WinPcap Packet Driver (" NPF_DRIVER_NAME ")"			///< (FFF) packet.dll
+#define NPF_SERVICE_DESC_W                  L"WinPcap Packet Driver (" NPF_DRIVER_NAME_W L")"
 #define NPF_DRIVER_COMPLETE_DEVICE_PREFIX	"\\Device\\" NPF_DRIVER_NAME "_"						///< (III) packet.dll
 #define NPF_DRIVER_COMPLETE_PATH			"system32\\drivers\\" NPF_DRIVER_NAME ".sys"			///< (LLL) packet.dll
+#define NPF_DRIVER_COMPLETE_PATH_W          L"system32\\drivers\\" NPF_DRIVER_NAME_W L".sys"
 
 
 //
