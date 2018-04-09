@@ -224,19 +224,15 @@ static __forceinline void TRACE_PRINT_OS_INFO()
 #define TRACE_PRINT_DLLMAIN(_x)
 
 #else
-#define TRACE_ENTER(_x)
-#define TRACE_PRINT_DLLMAIN(_x)
-#define TRACE_EXIT(_x) 
-#define TRACE_PRINT(_x)
-#define TRACE_PRINT1(_x, _y)
-#define TRACE_PRINT2(_x, _p1, _p2)
-#define TRACE_PRINT4(_x, _p1, _p2, _p3, _p4) 
-#define TRACE_PRINT6(_x, _p1, _p2, _p3, _p4, _p5, _p6) 
-#define TRACE_PRINT_OS_INFO()
+
+#define TRACE_LOG_MESSAGE(MessageFormat, ...)
+#define TRACE_ENTER()                           TRACE_LOG_MESSAGE("--> %s\n", __FUNCTION__)
+#define TRACE_PRINT_DLLMAIN(MessageFormat, ...) TRACE_LOG_MESSAGE("DllMain: "MessageFormat"\n", __VA_ARGS__)
+#define TRACE_EXIT()                            TRACE_LOG_MESSAGE("<-- %s\n", __FUNCTION__)
+#define TRACE_PRINT_OS_INFO()                   (void)
+#define TRACE_FUNCTION_NOT_SUPPORTED()          TRACE_LOG_MESSAGE("%s not supported in this version\n", __FUNCTION__)
 #endif
 
 #endif
-
-
 
 #endif //__PACKET_DEBUG_393073863432093179878957

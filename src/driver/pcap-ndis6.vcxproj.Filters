@@ -2,14 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
-    <ClCompile Include="Client.c" />
-    <ClCompile Include="Device.c" />
-    <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c" />
     <ClCompile Include="flt_dbg.c" />
     <ClCompile Include="KernelUtil.c" />
-    <ClCompile Include="Packet.c" />
-    <ClCompile Include="precompsrc.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="NdisMemoryManager.c" />
@@ -20,20 +15,18 @@
     <ClCompile Include="BfeStateWatcher.c" />
     <ClCompile Include="WfpUtils.c" />
     <ClCompile Include="KmConnections.c" />
+    <ClCompile Include="KmProcessWatcher.c" />
+    <ClCompile Include="KmMemoryPool.c" />
+    <ClCompile Include="KmInterModeComms.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Client.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="Device.h" />
-    <ClInclude Include="Events.h" />
     <ClInclude Include="KernelUtil.h" />
-    <ClInclude Include="Packet.h" />
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="KmTypes.h" />
-    <ClInclude Include="filter.h" />
     <ClInclude Include="WfpFlt.h" />
     <ClInclude Include="KmThreads.h" />
     <ClInclude Include="WfpMemoryManager.h" />
@@ -41,9 +34,11 @@
     <ClInclude Include="KmMemoryManager.h" />
     <ClInclude Include="WfpUtils.h" />
     <ClInclude Include="KmConnections.h" />
-    <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
+    <ClInclude Include="KmProcessWatcher.h" />
+    <ClInclude Include="KmMemoryPool.h" />
+    <ClInclude Include="KmInterModeComms.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

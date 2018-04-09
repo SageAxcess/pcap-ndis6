@@ -17,8 +17,12 @@
 #include <ndis.h>
 #include "KmLock.h"
 #include "KmList.h"
+#include "KmThreads.h"
 #include "NdisMemoryManager.h"
 #include "..\shared\SharedTypes.h"
+
+#define PACKETS_POOL_INITIAL_SIZE   0x400
+#define DRIVER_MAX_CLIENTS          0x400
 
 typedef struct _ADAPTER     ADAPTER, *PADAPTER;
 typedef struct _DEVICE      DEVICE, *PDEVICE;
@@ -42,8 +46,6 @@ typedef struct _DEVICE
 
     ULONG           Releasing;
 
-    ULONG           IsAdaptersList;
-
 } DEVICE, *PDEVICE;
 
 typedef struct _KM_TIME
@@ -51,7 +53,6 @@ typedef struct _KM_TIME
     long    Seconds;
     long    Microseconds;
 } KM_TIME, *PKM_TIME;
-
 
 #define NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE    1024
 
@@ -101,94 +102,230 @@ typedef struct _NETWORK_EVENT_INFO
 typedef struct _ADAPTER
 {
     //  List link
-    LIST_ENTRY      Link;
-
-    //  Unicode string containing adapter id
-    UNICODE_STRING      Name;
+    LIST_ENTRY              Link;
 
     //  Size of the data stored in DisplayName field
-    ULONG               DisplayNameSize;
-
+    ULONG                   DisplayNameSize;
+    
     //  Adapter display name
-    char                DisplayName[256];
+    char                    DisplayName[256];
+
+    //  Adapter ID
+    PCAP_NDIS_ADAPTER_ID    AdapterId;
 
     //  Size of the data stored in MacAddress field
-    ULONG               MacAddressSize;
+    ULONG                   MacAddressSize;
 
     //  Physical adapter address
-    UCHAR               MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+    UCHAR                   MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
 
     //  MTU size
-    ULONG               MtuSize;
+    ULONG                   MtuSize;
 
     //  NDIS adapter handle
-    NDIS_HANDLE         AdapterHandle;
+    NDIS_HANDLE             AdapterHandle;
 
     //  Adapter lock
-    PNDIS_SPIN_LOCK     Lock;
+    KM_LOCK                 Lock;
 
-    //  Associated device instance
-    PDEVICE             Device;
+    //  Adapter worker thread.
+    //  The thread distributes the intercepted packets
+    //  to all connected driver clients.
+    PKM_THREAD              WorkerThread;
 
     //  Bind operation timestamp
-    KM_TIME             BindTimestamp;
+    KM_TIME                 BindTimestamp;
 
     // To complete Bind request if necessary
-    NDIS_HANDLE         BindContext;
+    NDIS_HANDLE             BindContext;
 
     // To complete Unbind request if necessary
-    NDIS_HANDLE         UnbindContext;
+    NDIS_HANDLE             UnbindContext;
 
     //  Readiness flag
-    ULONG               Ready;
+    ULONG                   Ready;
+
+    //  A flag that tells whether the promiscuous mode is enabled or not
+    ULONG                   PacketsInterceptionEnabled;
 
     //  Number of pending OID requests
-    volatile ULONG      PendingOidRequests;
+    volatile ULONG          PendingOidRequests;
 
     //  Number of pending packet injectio requests
-    volatile ULONG      PendingSendPackets;
+    volatile ULONG          PendingSendPackets;
+
+    //  Number of current connected clients
+    LONG                    OpenCount;
+
+    struct Packets
+    {
+        HANDLE  Pool;
+        KM_LIST Allocated;
+        KEVENT  NewPacketEvent;
+    } Packets;
 
     //  Pointer to driver data
-    PDRIVER_DATA        DriverData;
+    PDRIVER_DATA            DriverData;
 
     //  RESERVED. 
     //  Do not use outside of packet reading routine.
     //  
     //  Current network event info
     //  This field is being used during packet receive.
-    NETWORK_EVENT_INFO  CurrentEventInfo;
+    NETWORK_EVENT_INFO      CurrentEventInfo;
 
 } ADAPTER, *PADAPTER;
 
+typedef struct _PACKET
+{
+    LIST_ENTRY          Link;
+
+    KM_TIME             Timestamp;
+
+    ULONGLONG           ProcessId;
+
+    ULONG               DataSize;
+
+    UCHAR               Data[1];
+
+} PACKET, *PPACKET;
+
+#define CalcRequiredPacketSize(MTUSize) \
+    (sizeof(PACKET) + MTUSize - sizeof(UCHAR))
+
+typedef struct _EVENT
+{
+    char    Name[256];
+    PKEVENT Event;
+    HANDLE  EventHandle;
+} EVENT, *PEVENT;
+
+typedef struct _ADAPTER_CLIENT
+{
+    PDRIVER_DATA    Data;
+    
+    PADAPTER        Adapter;
+
+} ADAPTER_CLIENT, *PADAPTER_CLIENT;
+
+typedef struct _CLIENT
+{
+    LIST_ENTRY          Link;
+
+    PKM_MEMORY_MANAGER  MemoryManager;
+
+    PDEVICE             Device;
+
+    PFILE_OBJECT        FileObject;
+
+    EVENT               Event;
+
+    KM_LIST             PacketList;
+
+    KM_LOCK             ReadLock;
+
+    volatile ULONG      PendingSendPackets;
+
+    ULONG               BytesSent;
+
+    BOOLEAN             Releasing;
+
+} CLIENT, *PCLIENT;
+
+typedef struct _DRIVER_CLIENT
+{
+    //  Process id of connected process
+    HANDLE                  OwnerProcessId;
+
+    //  KEVENT object 
+    //  This event object is referenced from handle received
+    //  during connecting a usermode process to the driver.
+    PVOID                   NewPacketEvent;
+
+    //  Handle to packets pool
+    HANDLE                  PacketsPool;
+
+    //  Allocated packets list
+    KM_LIST                 AllocatedPackets;
+
+    //  ID of associated (opened) adapter
+    PCAP_NDIS_ADAPTER_ID    AdapterId;
+
+} DRIVER_CLIENT, *PDRIVER_CLIENT;
+
+typedef struct _DRIVER_CLIENTS
+{
+    //  Lock object
+    KM_LOCK         Lock;
+
+    //  Number of curretly connected clients
+    ULONG           Count;
+
+    //  Array of connected clients
+    PDRIVER_CLIENT  Items[DRIVER_MAX_CLIENTS];
+
+} DRIVER_CLIENTS, *PDRIVER_CLIENTS;
 
 typedef struct _DRIVER_DATA
 {
-    LONG                DriverUnload;
+    //  Boolean flag that's set when the driver unload begins
+    LONG    DriverUnload;
 
     struct Ndis
     {
+        //  Memory manager for NDIS module
         KM_MEMORY_MANAGER   MemoryManager;
-        NDIS_HANDLE         DriverHandle;
+
+        //  NDIS Protocol Handle
         NDIS_HANDLE         ProtocolHandle;
     } Ndis;
 
     struct Wfp
     {
+        //  Memory manager for WFP module
         KM_MEMORY_MANAGER   MemoryManager;
-        HANDLE  Instance;
+
+        //  WFP module instance handle
+        HANDLE              Instance;
+
     } Wfp;
 
     struct Other
     {
+        //  Driver object received in DriverEntry routine
         PDRIVER_OBJECT  DriverObject;
+
+        //  Handle to KmConnections object instance
         HANDLE          Connections;
+
+        //  Memory pool instance handle.
+        //  Contains pre-allocated storage entries for packets (PACKET structure).
+        //  The number of pre-allocated entries is defined as PACKETS_POOL_INITIAL_SIZE.
+        //  The actual number of entries in the pool depends on the number of packets
+        //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE.
+        HANDLE          PacketsPool;
+
+        //  List of received (intercepted) packets
+        KM_LIST         ReceivedPackets;
+
+        //  Inter-mode comms instance handle
+        HANDLE          IMCInstance;
+
     } Other;
 
+    //  Connected clients
+    DRIVER_CLIENTS      Clients;
+
+    //  Device used for adapters list retrieval 
     PDEVICE             ListAdaptersDevice;
 
+    //  List of adapters the protocol driver is attached to
     KM_LIST             AdaptersList;
 
 } DRIVER_DATA, *PDRIVER_DATA;
+
+#define WFP_FLT_MEMORY_TAG          'fwDC'
+#define NDIS_FLT_MEMORY_TAG         'nyDC'
 
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6
@@ -204,6 +341,10 @@ typedef struct _DRIVER_DATA
 
 #ifndef IPPROTO_ICMPV6
 #define IPPROTO_ICMPV6  58
+#endif
+
+#ifndef AF_UNSPEC
+#define AF_UNSPEC   0
 #endif
 
 #ifndef AF_INET

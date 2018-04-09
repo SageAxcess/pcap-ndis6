@@ -74,6 +74,122 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Km_List_AddListEx(
+    __in    PKM_LIST    DestinationList,
+    __in    PKM_LIST    SourceList,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockSourceList,
+    __in    BOOLEAN     LockDestinationList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(DestinationList),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(SourceList),
+            STATUS_INVALID_PARAMETER_2);
+    }
+
+    if (LockDestinationList)
+    {
+        Status = Km_Lock_Acquire(&DestinationList->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        if (LockSourceList)
+        {
+            Status = Km_Lock_Release(&SourceList->Lock);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+        }
+        __try
+        {
+            LEAVE_IF_TRUE_SET_STATUS(
+                (CheckParams) &&
+                (SourceList->Count.QuadPart == 0),
+                STATUS_NO_MORE_ENTRIES);
+
+            while (!IsListEmpty(&SourceList->Head))
+            {
+                PLIST_ENTRY Entry = RemoveHeadList(&SourceList->Head);
+                InsertTailList(&DestinationList->Head, Entry);
+                DestinationList->Count.QuadPart++;
+            }
+
+            SourceList->Count.QuadPart = 0;
+        }
+        __finally
+        {
+            if (LockSourceList)
+            {
+                Km_Lock_Release(&SourceList->Lock);
+            }
+        }
+    }
+    __finally
+    {
+        if (LockDestinationList)
+        {
+            Km_Lock_Release(&DestinationList->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Km_List_AddLinkedListEx(
+    __in    PKM_LIST    DestinationList,
+    __in    PLIST_ENTRY SourceList,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockDestinationList)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(DestinationList),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(SourceList),
+            STATUS_INVALID_PARAMETER_2);
+        GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+            IsListEmpty(SourceList),
+            STATUS_NO_MORE_ENTRIES);
+    }
+
+    if (LockDestinationList)
+    {
+        Status = Km_Lock_Acquire(&DestinationList->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        while (!IsListEmpty(SourceList))
+        {
+            PLIST_ENTRY Entry = RemoveHeadList(SourceList);
+
+            InsertTailList(&DestinationList->Head, Entry);
+
+            DestinationList->Count.QuadPart++;
+        }
+    }
+    __finally
+    {
+        if (LockDestinationList)
+        {
+            Km_Lock_Release(&DestinationList->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Km_List_RemoveItemEx(
     __in    PKM_LIST    List,
     __in    PLIST_ENTRY Item,

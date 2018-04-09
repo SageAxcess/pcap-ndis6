@@ -116,6 +116,65 @@ NTSTATUS __stdcall Km_List_AddItemEx(
     __in    BOOLEAN     LockList);
 
 /*
+    Km_List_AddListEx routine.
+
+    Purpose:
+        Adds entries from source KM_LIST to destination one.
+        The source list is cleared after the routine succeedes.
+
+    Parameters:
+        Destinationlist     - Pointer to KM_LIST structure representing the source list.
+        SourceList          - Pointer to KM_LIST structure representing the destination list.
+        CheckParams         - A boolean value that specifies whether the routine
+                              should check the parameters it's being supplied by the caller.
+        LockSourceList      - A boolean value that specifies whether the routine should
+                              lock the source list.
+        LockDestinationList - A boolean value that specifies whether the routine should
+                              lock the destination list.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The DestinationList parameter is NULL.
+        STATUS_INVALID_PARAMETER_2  - The SourceList parameter is NULL.
+        STATUS_NO_MORE_ENTRIES      - The SourceList is empty.
+        STATUS_UNSUCCESSFUL         - Routine failed.
+*/
+NTSTATUS __stdcall Km_List_AddListEx(
+    __in    PKM_LIST    DestinationList,
+    __in    PKM_LIST    SourceList,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockSourceList,
+    __in    BOOLEAN     LockDestinationList);
+
+/*
+    Km_List_AddListEx routine.
+
+    Purpose:
+        Adds entries from source doubly-linked list destination KM_LIST.
+        The source list is cleared after the routine succeedes.
+
+    Parameters:
+        Destinationlist     - Pointer to KM_LIST structure representing the source list.
+        SourceList          - Pointer to the source doubly-linked list head.
+        CheckParams         - A boolean value that specifies whether the routine
+                              should check the parameters it's being supplied by the caller.
+        LockDestinationList - A boolean value that specifies whether the routine should
+                              lock the destination list.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The DestinationList parameter is NULL.
+        STATUS_INVALID_PARAMETER_2  - The SourceList parameter is NULL.
+        STATUS_NO_MORE_ENTRIES      - The SourceList is empty.
+        STATUS_UNSUCCESSFUL         - Routine failed.
+*/
+NTSTATUS __stdcall Km_List_AddLinkedListEx(
+    __in    PKM_LIST    DestinationList,
+    __in    PLIST_ENTRY SourceList,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockDestinationList);
+
+/*
     Km_List_RemoveItemEx routine.
 
     Purpose:
@@ -138,6 +197,7 @@ NTSTATUS __stdcall Km_List_AddItemEx(
         STATUS_SUCCESS              - The item was removed successfully.
         STATUS_INVALID_PARAMETER_1  - The List parameter is NULL.
         STATUS_INVALID_PARAMETER_2  - The Item parameter is NULL.
+        STATUS_NO_MORE_ENTRIES      - The source list is empty.
         STATUS_UNSUCCESSFUL         - The routine failed.
 */
 NTSTATUS __stdcall Km_List_RemoveItemEx(
@@ -277,6 +337,7 @@ NTSTATUS __stdcall Km_List_ExtractEntriesEx(
     __inout PULARGE_INTEGER Count,
     __in    BOOLEAN         CheckParams,
     __in    BOOLEAN         LockList);
+
 /*
     Km_List_ExtractEntriesEx routine.
 

@@ -50,10 +50,32 @@ NTSTATUS GetAdapterTime(
     __in    PADAPTER    Adapter,
     __out   PKM_TIME    Time);
 
+NTSTATUS FindAdapterById(
+    __in        PKM_LIST                AdapterList,
+    __in        PPCAP_NDIS_ADAPTER_ID   AdapterId,
+    __out_opt   PADAPTER                *Adapter,
+    __in        BOOLEAN                 LockList);
+
+NTSTATUS Adapter_Reference(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_Dereference(
+    __in    PADAPTER    Adapter);
+
+NTSTATUS Adapter_AllocateAndFillPacket(
+    __in    PADAPTER    Adapter,
+    __in    PVOID       PacketData,
+    __in    ULONG       PacketDataSize,
+    __in    ULONGLONG   ProcessId,
+    __in    PKM_TIME    Timestamp,
+    __out   PPACKET     *Packet);
+
+NTSTATUS Adapters_Unbind(
+    __in    PKM_LIST    AdaptersList);
+
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
-
 
 NDIS_STATUS _Function_class_(SET_OPTIONS) Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE DriverContext);
 NDIS_STATUS _Function_class_(PROTOCOL_NET_PNP_EVENT) Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification);

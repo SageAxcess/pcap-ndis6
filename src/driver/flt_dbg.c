@@ -18,7 +18,10 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#include  "precomp.h"
+//#include  "precomp.h"
+
+#include <ndis.h>
+#include "flt_dbg.h"
 
 #define __FILENUMBER 'GBED'
 

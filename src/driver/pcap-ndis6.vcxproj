@@ -250,6 +250,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -269,6 +271,8 @@
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
       <GenerateWindowsMetadata>true</GenerateWindowsMetadata>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -299,6 +303,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -317,6 +323,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies);$(DDK_LIB_PATH)\ndis.lib;Fwpkclnt.lib;uuid.lib</AdditionalDependencies>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
     </Link>
     <ClCompile>
       <ExceptionHandling>
@@ -337,35 +345,68 @@
   <ItemGroup>
     <ClCompile Include="Adapter.c" />
     <ClCompile Include="BfeStateWatcher.c" />
-    <ClCompile Include="Client.c" />
-    <ClCompile Include="Device.c" />
-    <ClCompile Include="Events.c" />
     <ClCompile Include="filter.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>
       <PreCompiledHeader>Use</PreCompiledHeader>
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="flt_dbg.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>
       <PreCompiledHeader>Use</PreCompiledHeader>
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
     <ClCompile Include="KmConnections.c" />
+    <ClCompile Include="KmInterModeComms.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmMemoryManager.c" />
+    <ClCompile Include="KmMemoryPool.c" />
+    <ClCompile Include="KmProcessWatcher.c" />
     <ClCompile Include="KmThreads.c" />
     <ClCompile Include="NdisMemoryManager.c" />
-    <ClCompile Include="Packet.c" />
-    <ClCompile Include="precompsrc.c">
-      <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>
-      <PreCompiledHeader>Create</PreCompiledHeader>
-      <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="WfpFlt.c" />
     <ClCompile Include="WfpMemoryManager.c" />
     <ClCompile Include="WfpUtils.c" />
@@ -380,22 +421,19 @@
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
-    <ClInclude Exclude="@(ClInclude)" Include="Client.h" />
     <ClInclude Include="Adapter.h" />
-    <ClInclude Include="Device.h" />
-    <ClInclude Include="Events.h" />
-    <ClInclude Include="filter.h" />
-    <ClInclude Include="filteruser.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmConnections.h" />
+    <ClInclude Include="KmInterModeComms.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
     <ClInclude Include="KmMemoryManager.h" />
+    <ClInclude Include="KmMemoryPool.h" />
+    <ClInclude Include="KmProcessWatcher.h" />
     <ClInclude Include="KmThreads.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="NdisMemoryManager.h" />
-    <ClInclude Include="Packet.h" />
     <ClInclude Include="WfpFlt.h" />
     <ClInclude Include="WfpMemoryManager.h" />
     <ClInclude Include="WfpUtils.h" />

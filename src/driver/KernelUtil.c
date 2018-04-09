@@ -21,7 +21,6 @@
 #include <ntstatus.h>
 #include <ntstrsafe.h>
 
-#include "filter.h"
 #include "KernelUtil.h"
 #include "..\shared\CommonDefs.h"
 #include <flt_dbg.h>
@@ -30,7 +29,7 @@
 // String helper functions
 ///////////////////////////////////////////////////
 
-PUNICODE_STRING CreateString(
+PUNICODE_STRING __stdcall CreateString(
     __in            PKM_MEMORY_MANAGER  MemoryManager,
     __in    const   char                *Str)
 {
@@ -70,7 +69,7 @@ PUNICODE_STRING CreateString(
     return NewString;
 };
 
-PUNICODE_STRING CopyString(
+PUNICODE_STRING __stdcall CopyString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     SourceString)
 {
@@ -101,7 +100,7 @@ PUNICODE_STRING CopyString(
     return Result;
 };
 
-BOOLEAN StringStartsWith(
+BOOLEAN __stdcall StringStartsWith(
     __in    PUNICODE_STRING     String,
     __in    PUNICODE_STRING     SubString)
 {
@@ -134,7 +133,7 @@ BOOLEAN StringStartsWith(
     return TRUE;
 };
 
-void FreeString(
+void __stdcall FreeString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    PUNICODE_STRING     String)
 {
@@ -154,7 +153,7 @@ void FreeString(
         String);
 };
 
-PUNICODE_STRING AllocateString(
+PUNICODE_STRING __stdcall AllocateString(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    USHORT              StringLengthInBytes)
 {
@@ -212,7 +211,7 @@ cleanup:
 // Other helper functions
 ///////////////////////////////////////////////////
 
-void DriverSleep(long msec)
+void __stdcall DriverSleep(long msec)
 {
     KTIMER timer;
     RtlZeroMemory(&timer, sizeof(KTIMER));
@@ -226,7 +225,7 @@ void DriverSleep(long msec)
     KeWaitForSingleObject(&timer, Executive, KernelMode, FALSE, NULL);	
 };
 
-LARGE_INTEGER KmGetTicks(
+LARGE_INTEGER __stdcall KmGetTicks(
     __in    BOOLEAN SkipFrequency)
 {
     LARGE_INTEGER   Frequency;
@@ -242,7 +241,7 @@ LARGE_INTEGER KmGetTicks(
     return Result;
 };
 
-NTSTATUS KmGetStartTime(
+NTSTATUS __stdcall KmGetStartTime(
     __out   PKM_TIME    Time)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
@@ -272,6 +271,66 @@ NTSTATUS KmGetStartTime(
 
 cleanup:
     return Status;
+};
+
+NTSTATUS __stdcall KmReferenceEvent(
+    __in    HANDLE  EventObjectHandle,
+    __out   PVOID   *EventObject)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PVOID       Object = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        EventObjectHandle != NULL,
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventObject),
+        STATUS_INVALID_PARAMETER_2);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        KeGetCurrentIrql() == PASSIVE_LEVEL,
+        STATUS_UNSUCCESSFUL);
+
+    Status = ObReferenceObjectByHandle(
+        EventObjectHandle,
+        EVENT_ALL_ACCESS,
+        *ExEventObjectType,
+        KernelMode,
+        &Object,
+        NULL);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    *EventObject = Object;
+
+cleanup:
+    return Status;
+};
+
+int __stdcall CompareAdapterIds(
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId1,
+    __in    PPCAP_NDIS_ADAPTER_ID   AdapterId2)
+{
+    int Result;
+
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(AdapterId1)) &&
+        (Assigned(AdapterId2)),
+        COMPARE_VALUES(AdapterId1, AdapterId2));
+
+    Result = COMPARE_VALUES(AdapterId1->Length, AdapterId2->Length);
+
+    if (Result == 0)
+    {
+        unsigned long k;
+
+        for (k = 0; k < AdapterId1->Length; k++)
+        {
+            Result = COMPARE_VALUES(AdapterId1->Buffer[k], AdapterId2->Buffer[k]);
+            BREAK_IF_FALSE(Result == 0);
+        }
+    }
+
+    return Result;
 };
 
 NTSTATUS __stdcall NetEventInfo_Allocate(
