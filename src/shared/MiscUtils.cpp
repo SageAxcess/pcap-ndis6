@@ -17,6 +17,8 @@
 #include "StrUtils.h"
 #include "MiscUtils.h"
 
+#include "UmMemoryManager.h"
+
 #include <vector>
 
 std::wstring UTILS::MISC::GetModuleName(
@@ -363,14 +365,14 @@ PIP_ADAPTER_INFO UTILS::MISC::GetAdaptersInformation()
         GetAdaptersInfo(&Tmp, &Size) == ERROR_BUFFER_OVERFLOW,
         nullptr);
 
-    Result = reinterpret_cast<PIP_ADAPTER_INFO>(malloc(Size));
+    Result = UMM_AllocTypedWithSize<IP_ADAPTER_INFO>(Size);
     RETURN_VALUE_IF_FALSE(
         Assigned(Result),
         nullptr);
 
     if (GetAdaptersInfo(Result, &Size) != ERROR_SUCCESS)
     {
-        free(reinterpret_cast<void *>(Result));
+        UMM_FreeMem(reinterpret_cast<LPVOID>(Result));
         Result = nullptr;
     }
 

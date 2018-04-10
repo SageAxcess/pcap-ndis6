@@ -16,18 +16,10 @@
 // All rights reserved.
 //////////////////////////////////////////////////////////////////////
 
-#pragma warning (disable : 4127)  // conditional expression is constant. Used for do{}while(FALSE) loops.
-#pragma warning (disable : 28183) // do not treat GlobalAlloc as warning
-#pragma warning (disable : 6387)  // do not treat GlobalAlloc as warning
-
-#if (MSC_VER < 1300)
-#pragma warning (disable : 4710) // inline function not expanded. used for strsafe functions
-#endif
-
 //
 // this should be removed in the long term.  GV 20080807
 //
-#define _CRT_SECURE_NO_WARNINGS
+//#define _CRT_SECURE_NO_WARNINGS
 
 #include <StrSafe.h>
 #include <winsock2.h>
@@ -50,20 +42,7 @@
 #include "..\shared\StrUtils.h"
 #include "..\shared\CommonDefs.h"
 
-#define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
-#define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
-#define PCAP_NDIS6_DRIVER_SERVICE_NAME_W    L"PcapNdis6"
-
-#ifndef UNUSED
-#define UNUSED(_x) (_x)
-#endif
-
-static PCAP_NDIS *ndis = NULL;
-
-#ifdef _DEBUG_TO_FILE
-LONG PacketDumpRegistryKey(PCHAR KeyName, PCHAR FileName);
-CHAR g_LogFileName[1024] = "winpcap_debug.txt";
-#endif //_DEBUG_TO_FILE
+#include "..\shared\UmMemoryManager.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -74,9 +53,18 @@ CHAR g_LogFileName[1024] = "winpcap_debug.txt";
 
 #include <string>
 
+static PCAP_NDIS *ndis = nullptr;
+
+#ifdef _DEBUG_TO_FILE
+LONG PacketDumpRegistryKey(PCHAR KeyName, PCHAR FileName);
+CHAR g_LogFileName[1024] = "winpcap_debug.txt";
+#endif //_DEBUG_TO_FILE
+
 char PacketLibraryVersion[64];  // Current packet-ndis6.dll Version. It can be retrieved directly or through the PacketGetVersion() function.
-//char PacketDriverVersion[64];   // Current pcap-ndis6.sys Version. It can be retrieved directly or through the PacketGetVersion() function.
-//char PacketDriverName[64];		// Current pcap-ndis6.sys driver name.
+
+#define AEGIS_REGISTRY_KEY_W                L"SOFTWARE\\ChangeDynamix\\AegisPcap"
+#define DEBUG_LOGGING_REG_VALUE_NAME_W      L"DebugLoggingLevel"
+#define PCAP_NDIS6_DRIVER_SERVICE_NAME_W    L"PcapNdis6"
 
 std::wstring    Packet_DllFileNameW;
 std::wstring    Packet_DllFileVersionW;
@@ -112,6 +100,8 @@ BOOL APIENTRY DllMain(
             //  Since we do not handle DLL_THREAD_ATTACH/DLL_THREAD_DETACH events
             //  we need to disable them.
             DisableThreadLibraryCalls(hinstDLL);
+
+            UMM_Initialize();
 
             #ifdef _DEBUG_TO_FILE
             PacketDumpRegistryKey("HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\" NPF_DRIVER_NAME, "aegis.reg");
@@ -193,6 +183,8 @@ BOOL APIENTRY DllMain(
         }
 
         LOG::Finalize();
+
+        UMM_Finalize();
 
         break;
         
@@ -487,7 +479,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
             {
                 try
                 {
-                    Result = (PADAPTER)malloc(sizeof(ADAPTER));
+                    Result = UMM_AllocTyped<ADAPTER>();
                     if (Assigned(Result))
                     {
                         RtlZeroMemory(Result, sizeof(ADAPTER));
@@ -563,10 +555,10 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
 
             if (Assigned(lpAdapter->Filter->bf_insns))
             {
-                free(lpAdapter->Filter->bf_insns);
+                UMM_FreeMem(reinterpret_cast<LPVOID>(lpAdapter->Filter->bf_insns));
             }
 
-            free(lpAdapter->Filter);
+            UMM_FreeMem(reinterpret_cast<LPVOID>(lpAdapter->Filter));
 
             lpAdapter->Filter = nullptr;
         }
@@ -592,7 +584,7 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
         "%s: Releasing adapter\n",
         __FUNCTION__);
 
-    free(lpAdapter);
+    UMM_FreeMem(reinterpret_cast<LPVOID>(lpAdapter));
 
     TRACE_EXIT();
 };
@@ -916,7 +908,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
 
     if (Assigned(fp))
     {
-        filter = reinterpret_cast<struct bpf_program *>(malloc(sizeof(struct bpf_program)));
+        filter = UMM_AllocTyped<bpf_program>();
         RETURN_VALUE_IF_FALSE(
             Assigned(filter),
             FALSE);
@@ -926,7 +918,7 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
         size_t size = sizeof(struct bpf_insn) * filter->bf_len;
         if (size > 0)
         {
-            filter->bf_insns = reinterpret_cast<struct bpf_insn *>(malloc(size));
+            filter->bf_insns = UMM_AllocTypedWithSize<bpf_insn>(size);
 
             RtlCopyMemory(
                 filter->bf_insns,
@@ -946,10 +938,10 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
         {
             if (Assigned(AdapterObject->Filter->bf_insns))
             {
-                free(AdapterObject->Filter->bf_insns);
+                UMM_FreeMem(reinterpret_cast<LPVOID>(AdapterObject->Filter->bf_insns));
             }
 
-            free(AdapterObject->Filter);
+            UMM_FreeMem(reinterpret_cast<LPVOID>(AdapterObject->Filter));
         }
 
         AdapterObject->Filter = filter;
@@ -1268,7 +1260,7 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
         {
         }
 
-        free(reinterpret_cast<void *>(AdapterInfo));
+        UMM_FreeMem(reinterpret_cast<LPVOID>(AdapterInfo));
         
         return TRUE;
     }

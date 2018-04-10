@@ -202,6 +202,7 @@
     <ClCompile Include="..\..\shared\RegUtils.cpp" />
     <ClCompile Include="..\..\shared\StrUtils.cpp" />
     <ClCompile Include="..\..\shared\SvcUtils.cpp" />
+    <ClCompile Include="..\..\shared\UmMemoryManager.cpp" />
     <ClCompile Include="..\..\shared\win_bpf_filter.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
@@ -224,6 +225,7 @@
     <ClInclude Include="..\..\shared\SharedTypes.h" />
     <ClInclude Include="..\..\shared\StrUtils.h" />
     <ClInclude Include="..\..\shared\SvcUtils.h" />
+    <ClInclude Include="..\..\shared\UmMemoryManager.h" />
     <ClInclude Include="..\..\shared\win_bpf.h" />
     <ClInclude Include="..\debug.h" />
     <ClInclude Include="..\Logging.h" />

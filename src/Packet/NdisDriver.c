@@ -33,6 +33,8 @@
 
 #include "Logging.h"
 
+#include "..\shared\UmMemoryManager.h"
+
 #include "..\shared\SharedTypes.h"
 
 #ifdef DEBUG_CONSOLE
@@ -48,8 +50,8 @@ BOOL NdisDriver_ControlDevice(
     __in_opt    DWORD   InBufferSize,
     __out_opt   LPVOID  OutBuffer,
     __out_opt   DWORD   OutBufferSize,
-    __out_opt   LPDWORD BytesReturned = NULL,
-    __out_opt   LPDWORD ErrorCode = NULL);
+    __out_opt   LPDWORD BytesReturned = nullptr,
+    __out_opt   LPDWORD ErrorCode = nullptr);
 
 LPPCAP_NDIS NdisDriverOpen()
 {
@@ -77,7 +79,7 @@ LPPCAP_NDIS NdisDriverOpen()
         nullptr);
     try
     {
-        Result = reinterpret_cast<LPPCAP_NDIS>(malloc(sizeof(PCAP_NDIS)));
+        Result = UMM_AllocTyped<PCAP_NDIS>();
         if (Assigned(Result))
         {
             Result->Handle = FileHandle;
@@ -104,7 +106,7 @@ void NdisDriverClose(
         CloseHandle(Ndis->Handle);
     }
 
-    free(Ndis);
+    UMM_FreeMem(reinterpret_cast<LPVOID>(Ndis));
 };
 
 PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
@@ -136,7 +138,7 @@ PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
 
     try
     {
-        Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(malloc(sizeof(PCAP_NDIS_ADAPTER)));
+        Adapter = UMM_AllocTyped<PCAP_NDIS_ADAPTER>();
 
         if (Assigned(Adapter))
         {
@@ -150,7 +152,7 @@ PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
                 reinterpret_cast<LPVOID>(&Adapter->ClientId),
                 static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID))))
             {
-                free(reinterpret_cast<void *>(Adapter));
+                UMM_FreeMem(reinterpret_cast<void *>(Adapter));
                 return nullptr;
             }
 
@@ -190,7 +192,7 @@ void NdisDriverCloseAdapter(
         CloseHandle(Adapter->NewPacketEvent);
     }
 
-    free(Adapter);
+    UMM_FreeMem(Adapter);
 };
 
 BOOL NdisDriver_ControlDevice(
@@ -223,7 +225,7 @@ BOOL NdisDriver_ControlDevice(
         OutBuffer,
         OutBufferSize,
         BytesReturned,
-        NULL);
+        nullptr);
     if (Assigned(ErrorCode))
     {
         *ErrorCode = GetLastError();
@@ -350,7 +352,7 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
         sizeof(PCAP_NDIS_ADAPTER_LIST) +
         (AdaptersCount - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO);
 
-    List = reinterpret_cast<LPPCAP_NDIS_ADAPTER_LIST>(malloc(SizeRequired));
+    List = UMM_AllocTypedWithSize<PCAP_NDIS_ADAPTER_LIST>(SizeRequired);
     RETURN_VALUE_IF_FALSE(
         Assigned(List),
         nullptr);
@@ -368,7 +370,7 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
     {
         if (Failed)
         {
-            free(reinterpret_cast<void *>(List));
+            UMM_FreeMem(reinterpret_cast<void *>(List));
             List = nullptr;
         }
     }
@@ -381,7 +383,7 @@ void NdisDriverFreeAdapterList(
 {
     RETURN_IF_FALSE(Assigned(List));
 
-    free(List);
+    UMM_FreeMem(reinterpret_cast<LPVOID>(List));
 };
 
 std::wstring NdisDriver_PacketToString(
