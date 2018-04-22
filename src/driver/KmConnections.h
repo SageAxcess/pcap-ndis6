@@ -10,8 +10,8 @@
 // 
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
-#ifndef KM_FLOWS_LIST_H
-#define KM_FLOWS_LIST_H
+#ifndef KM_CONNECTIONS_H
+#define KM_CONNECTIONS_H
 
 #include "KmList.h"
 #include "KmMemoryManager.h"
