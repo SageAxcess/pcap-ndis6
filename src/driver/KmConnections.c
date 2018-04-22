@@ -1,5 +1,6 @@
 #include "KmConnections.h"
 #include "KmTypes.h"
+#include "KmMemoryPool.h"
 
 typedef struct _KM_CONNECTIONS_ITEM
 {
@@ -14,6 +15,8 @@ typedef struct _KM_CONNECTIONS_DATA
     KM_LIST             List;
 
     PKM_MEMORY_MANAGER  MemoryManager;
+
+    HANDLE              MemoryPool;
 
 } KM_CONNECTIONS_DATA, *PKM_CONNECTIONS_DATA;
 
@@ -158,7 +161,7 @@ int __stdcall Km_Connections_ItemCmpCallback(
 };
 
 NTSTATUS __stdcall Km_Connections_AllocateItem(
-    __in    PKM_MEMORY_MANAGER      MemoryManager,
+    __in    HANDLE                  MemoryPool,
     __in    PNETWORK_EVENT_INFO     Info,
     __out   PKM_CONNECTIONS_ITEM    *Item)
 {
@@ -166,7 +169,7 @@ NTSTATUS __stdcall Km_Connections_AllocateItem(
     PKM_CONNECTIONS_ITEM    NewItem = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(MemoryManager),
+        MemoryPool != NULL,
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Info),
@@ -175,12 +178,11 @@ NTSTATUS __stdcall Km_Connections_AllocateItem(
         Assigned(Item),
         STATUS_INVALID_PARAMETER_3);
 
-    NewItem = Km_MM_AllocMemTyped(
-        MemoryManager,
-        KM_CONNECTIONS_ITEM);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(NewItem),
-        STATUS_INSUFFICIENT_RESOURCES);
+    Status = Km_MP_AllocateCheckSize(
+        MemoryPool,
+        sizeof(KM_CONNECTIONS_ITEM),
+        (PVOID *)&NewItem);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     RtlZeroMemory(
         NewItem,
@@ -223,6 +225,14 @@ NTSTATUS __stdcall Km_Connections_Initialize(
         sizeof(KM_CONNECTIONS_DATA));
 
     Status = Km_List_Initialize(&NewData->List);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_MP_Initialize(
+        MemoryManager,
+        (ULONG)sizeof(KM_CONNECTIONS_ITEM),
+        KM_CONNECTIONS_INITIAL_POOL_SIZE,
+        FALSE,
+        &NewData->MemoryPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     NewData->MemoryManager = MemoryManager;
@@ -284,7 +294,12 @@ NTSTATUS __stdcall Km_Connections_Finalize(
             KM_CONNECTIONS_ITEM,
             Link);
 
-        Km_MM_FreeMem(Data->MemoryManager, Item);
+        Km_MP_Release(Item);
+    }
+
+    if (Data->MemoryPool != NULL)
+    {
+        Km_MP_Finalize(Data->MemoryPool);
     }
 
     Km_MM_FreeMem(Data->MemoryManager, Data);
@@ -336,9 +351,7 @@ NTSTATUS __stdcall Km_Connections_Add(
                 FALSE);
             if (!NT_SUCCESS(Status))
             {
-                Km_MM_FreeMem(
-                    Data->MemoryManager,
-                    NewItem);
+                Km_MP_Release(NewItem);
             }
         }
     }
@@ -389,9 +402,11 @@ NTSTATUS __stdcall Km_Connections_Remove(
             FALSE);
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
-        Km_MM_FreeMem(
-            Data->MemoryManager,
-            CONTAINING_RECORD(FoundItem, KM_CONNECTIONS_ITEM, Link));
+        Km_MP_Release(
+            CONTAINING_RECORD(
+                FoundItem,
+                KM_CONNECTIONS_ITEM,
+                Link));
     }
     __finally
     {

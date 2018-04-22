@@ -17,6 +17,8 @@
 #include "KmMemoryManager.h"
 #include "KmTypes.h"
 
+#define KM_CONNECTIONS_INITIAL_POOL_SIZE    0x200
+
 NTSTATUS __stdcall Km_Connections_Initialize(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __out   PHANDLE             Instance);
