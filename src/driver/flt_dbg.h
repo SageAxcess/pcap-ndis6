@@ -36,71 +36,13 @@
 #define DL_ERROR            2
 #define DL_FATAL            0
 
-#if DBG_SPIN_LOCK
-
-typedef struct _FILTER_LOCK
-{
-    ULONG                   Signature;
-    ULONG                   IsAcquired;
-    ULONG                   TouchedByFileNumber;
-    ULONG                   TouchedInLineNumber;
-    NDIS_SPIN_LOCK          NdisLock;
-} FILTER_LOCK, *PFILTER_LOCK;
-
-#define FILT_LOCK_SIG    'kcoL'
-
-extern NDIS_SPIN_LOCK       filterDbgLogLock;
-
-extern
-VOID
-filterAllocateSpinLock(
-    IN  PFILTER_LOCK        pLock,
-    IN  ULONG               FileNumber,
-    IN  ULONG               LineNumber
-);
-
-extern
-VOID
-filterFreeSpinLock(
-    IN  PFILTER_LOCK        pLock
-
-);
-
-
-extern
-VOID
-filterAcquireSpinLock(
-    IN  PFILTER_LOCK        pLock,
-    IN  ULONG               FileNumber,
-    IN  ULONG               LineNumber,
-    IN  BOOLEAN             DispatchLevel
-);
-
-extern
-VOID
-filterReleaseSpinLock(
-    IN  PFILTER_LOCK        pLock,
-    IN  ULONG               FileNumber,
-    IN  ULONG               LineNumber,
-    IN  BOOLEAN             DispatchLevel
-);
-
-
-#else
-
-typedef NDIS_SPIN_LOCK      FILTER_LOCK;
-typedef PNDIS_SPIN_LOCK     PFILTER_LOCK;
-
-#endif    // DBG_SPIN_LOCK
+extern unsigned long FILTER_DEBUG_LEVEL;
 
 #if DBG_PRINT
 
-extern INT                filterDebugLevel;
-
-
 #define DEBUGP(lev, ...)                                                \
         {                                                               \
-            if ((lev) <= filterDebugLevel)                              \
+            if ((lev) <= FILTER_DEBUG_LEVEL)                              \
             {                                                           \
                 DbgPrint("PCAPNDIS6: "); DbgPrint(__VA_ARGS__);           \
             }                                                           \
@@ -108,7 +50,7 @@ extern INT                filterDebugLevel;
 
 #define DEBUGPDUMP(lev, pBuf, Len)                                      \
         {                                                               \
-            if ((lev) <= filterDebugLevel)                              \
+            if ((lev) <= FILTER_DEBUG_LEVEL)                            \
             {                                                           \
                 DbgPrintHexDump((PUCHAR)(pBuf), (ULONG)(Len));          \
             }                                                           \
@@ -128,59 +70,9 @@ extern INT                filterDebugLevel;
 #define DEBUGP_FUNC_LEAVE(Level)                        DEBUGP((Level), "<=== "__FUNCTION__"\n")
 #define DEBUGP_FUNC_LEAVE_WITH_STATUS(Level, Status)    DEBUGP((Level), "<=== "__FUNCTION__", Status = %x\n", (Status))
 
-//
-// Memory Allocation/Freeing Audit:
-//
-
-//
-// The FILTER_ALLOCATION structure stores all info about one allocation
-//
-typedef struct _FILTERD_ALLOCATION {
-
-        ULONG                       Signature;
-        struct _FILTERD_ALLOCATION   *Next;
-        struct _FILTERD_ALLOCATION   *Prev;
-        ULONG                       FileNumber;
-        ULONG                       LineNumber;
-        ULONG                       Size;
-        NDIS_HANDLE                 OwnerHandle;
-        union
-        {
-            ULONGLONG               Alignment;
-            UCHAR                   UserData;
-        };
-
-} FILTERD_ALLOCATION, *PFILTERD_ALLOCATION;
-
-#define FILTERD_MEMORY_SIGNATURE    (ULONG)'TFSM'
-
-extern
-PVOID
-filterAuditAllocMem (
-    NDIS_HANDLE  NdisHandle,
-    ULONG        Size,
-    ULONG        FileNumber,
-    ULONG        LineNumber
-);
-
-extern
-VOID
-filterAuditFreeMem(
-    PVOID        Pointer
-);
-
-extern
-VOID
-filterAuditShutdown(
-    VOID
-);
-
-extern
-VOID
-DbgPrintHexDump(
-    PUCHAR        pBuffer,
-    ULONG        Length
-);
+void DbgPrintHexDump(
+    __in    PUCHAR  Buffer,
+    __in    ULONG   BufferSize);
 
 #else
 
