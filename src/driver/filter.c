@@ -27,6 +27,7 @@
 #include "KmConnections.h"
 #include "KmInterModeComms.h"
 #include "KmMemoryPool.h"
+#include "KmProcessWatcher.h"
 
 #include "..\shared\win_bpf.h"
 
@@ -60,9 +61,14 @@ NTSTATUS __stdcall Filter_CloseAdapter(
     __in    PDRIVER_DATA            Data,
     __in    PPCAP_NDIS_CLIENT_ID    ClientId);
 
+NTSTATUS __stdcall Filter_CloseClientsByPID(
+    __in    PDRIVER_DATA    Data,
+    __in    HANDLE          ProcessId);
+
 NTSTATUS __stdcall Filter_ReadPackets(
     __in    PDRIVER_DATA            Data,
     __in    PPCAP_NDIS_CLIENT_ID    ClientId,
+    __in    HANDLE                  ProcessId,
     __out   PVOID                   Buffer,
     __in    ULONG                   BufferSize,
     __out   PULONG                  BytesReturned);
@@ -84,6 +90,12 @@ void __stdcall Filter_Wfp_EventCallback(
 NTSTATUS __stdcall RegisterNdisProtocol(
     __inout PDRIVER_DATA    Data);
 
+void __stdcall Filter_ProcessWatcher_Callback(
+    __in_opt    HANDLE  ParentProcessId,
+    __in        HANDLE  ProcessId,
+    __in        BOOLEAN NewProcess,
+    __in        PVOID   Context);
+
 DRIVER_INITIALIZE DriverEntry;
 
 _Use_decl_annotations_
@@ -96,7 +108,7 @@ DriverEntry(
 _Use_decl_annotations_
 void
 _Function_class_(DRIVER_UNLOAD)
-DriverUnload(DRIVER_OBJECT *driver_object);
+DriverUnload(DRIVER_OBJECT *DriverObject);
 
 // This directive puts the DriverEntry function into the INIT segment of the
 // driver.  To conserve memory, the code will be discarded when the driver's
@@ -478,44 +490,16 @@ cleanup:
     return Status;
 };
 
-NTSTATUS __stdcall Filter_CloseAdapter(
-    __in    PDRIVER_DATA            Data,
-    __in    PPCAP_NDIS_CLIENT_ID    ClientId)
+NTSTATUS __stdcall Filter_CloseAdapter_Internal(
+    __in    PDRIVER_DATA    Data,
+    __in    PDRIVER_CLIENT  Client)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
-    PDRIVER_CLIENT          Client = NULL;
     PCAP_NDIS_ADAPTER_ID    AdapterId;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
         STATUS_INVALID_PARAMETER_1);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(ClientId),
-        STATUS_INVALID_PARAMETER_2);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        ClientId->Handle != 0,
-        STATUS_INVALID_PARAMETER_3);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        ClientId->Index < DRIVER_MAX_CLIENTS,
-        STATUS_INVALID_PARAMETER_3);
-
-    Status = Km_Lock_Acquire(&Data->Clients.Lock);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-    __try
-    {
-        LEAVE_IF_FALSE_SET_STATUS(
-            Data->Clients.Items[ClientId->Index] == (PDRIVER_CLIENT)((ULONG_PTR)ClientId->Handle),
-            STATUS_INVALID_HANDLE);
-
-        Client = Data->Clients.Items[ClientId->Index];
-        Data->Clients.Items[ClientId->Index] = NULL;
-        Data->Clients.Count--;
-    }
-    __finally
-    {
-        Km_Lock_Release(&Data->Clients.Lock);
-    }
-
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Client),
         STATUS_INVALID_HANDLE);
@@ -551,9 +535,132 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Filter_CloseAdapter(
+    __in    PDRIVER_DATA            Data,
+    __in    PPCAP_NDIS_CLIENT_ID    ClientId)
+{
+    NTSTATUS                Status = STATUS_SUCCESS;
+    PDRIVER_CLIENT          Client = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(ClientId),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        ClientId->Handle != 0,
+        STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        ClientId->Index < DRIVER_MAX_CLIENTS,
+        STATUS_INVALID_PARAMETER_3);
+
+    Status = Km_Lock_Acquire(&Data->Clients.Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        LEAVE_IF_FALSE_SET_STATUS(
+            Data->Clients.Items[ClientId->Index] == (PDRIVER_CLIENT)((ULONG_PTR)ClientId->Handle),
+            STATUS_INVALID_HANDLE);
+
+        Client = Data->Clients.Items[ClientId->Index];
+        Data->Clients.Items[ClientId->Index] = NULL;
+        Data->Clients.Count--;
+    }
+    __finally
+    {
+        Km_Lock_Release(&Data->Clients.Lock);
+    }
+
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Filter_CloseAdapter_Internal(Data, Client);
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Filter_CloseClientsByPID(
+    __in    PDRIVER_DATA    Data,
+    __in    HANDLE          ProcessId)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PDRIVER_CLIENT  *Clients = NULL;
+    ULONG           k;
+    ULONG           i;
+    ULONG           Cnt;
+    ULONG           NumberOfClientsFound = 0;
+    ULONG           ClientsCount = 0; 
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+    Status = Km_Lock_Acquire(&Data->Clients.Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+
+        ClientsCount = Data->Clients.Count;
+
+        LEAVE_IF_FALSE(ClientsCount > 0);
+
+        Status = Km_MP_AllocateCheckSize(
+            Data->Clients.ServicePool,
+            sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
+            (PVOID *)&Clients);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
+        for (k = 0, i = 0, Cnt = 0; (k < DRIVER_MAX_CLIENTS) && (Cnt < ClientsCount); k++)
+        {
+            CONTINUE_IF_FALSE(Assigned(Data->Clients.Items[k]));
+
+            Cnt++;
+
+            CONTINUE_IF_FALSE(Data->Clients.Items[k]->OwnerProcessId == ProcessId);
+
+            Clients[i] = Data->Clients.Items[k];
+            Data->Clients.Items[k] = NULL;
+            
+            NumberOfClientsFound++;
+        }
+
+        Data->Clients.Count -= NumberOfClientsFound;
+    }
+    __finally
+    {
+        Km_Lock_Release(&Data->Clients.Lock);
+    }
+
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        NumberOfClientsFound > 0,
+        STATUS_NOT_FOUND);
+
+    for (k = 0; k < NumberOfClientsFound; k++)
+    {
+        Filter_CloseAdapter_Internal(Data, Clients[k]);
+    }
+
+    Status = Km_Lock_Acquire(&Data->Clients.Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        Km_MP_Release((PVOID)Clients);
+    }
+    __finally
+    {
+        Km_Lock_Release(&Data->Clients.Lock);
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Filter_ReadPackets(
     __in    PDRIVER_DATA            Data,
     __in    PPCAP_NDIS_CLIENT_ID    ClientId,
+    __in    HANDLE                  ProcessId,
     __out   PVOID                   Buffer,
     __in    ULONG                   BufferSize,
     __out   PULONG                  BytesReturned)
@@ -599,6 +706,10 @@ NTSTATUS __stdcall Filter_ReadPackets(
             STATUS_INVALID_HANDLE);
 
         Client = Data->Clients.Items[ClientId->Index];
+
+        LEAVE_IF_FALSE_SET_STATUS(
+            Client->OwnerProcessId == ProcessId,
+            STATUS_ACCESS_DENIED);
 
         for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
             ListEntry != &Client->AllocatedPackets.Head;
@@ -760,6 +871,7 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
             Status = Filter_ReadPackets(
                 Data,
                 (PPCAP_NDIS_CLIENT_ID)InBuffer,
+                PsGetCurrentProcessId(),
                 OutBuffer,
                 OutBufferSize,
                 &BytesRead);
@@ -865,6 +977,29 @@ cleanup:
     return Status;
 };
 
+void __stdcall Filter_ProcessWatcher_Callback(
+    __in_opt    HANDLE  ParentProcessId,
+    __in        HANDLE  ProcessId,
+    __in        BOOLEAN NewProcess,
+    __in        PVOID   Context)
+{
+    PDRIVER_DATA    Data = NULL;
+
+    UNREFERENCED_PARAMETER(ParentProcessId);
+
+    RETURN_IF_FALSE(Assigned(Context));
+
+    //  We're not interested in new processes here
+    //  since we need to handle process terminations only
+    RETURN_IF_TRUE(NewProcess);
+
+    Data = (PDRIVER_DATA)Context;
+
+    Filter_CloseClientsByPID(
+        Data,
+        ProcessId);
+};
+
 _Use_decl_annotations_
 NTSTATUS
 _Function_class_(DRIVER_INITIALIZE)
@@ -898,9 +1033,23 @@ DriverEntry(
         WFP_FLT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = Km_ProcessWatcher_Initialize(&DriverData.Ndis.MemoryManager);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     DriverData.Other.DriverObject = DriverObject;
 
     Status = Km_List_Initialize(&DriverData.AdaptersList);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_Lock_Initialize(&DriverData.Clients.Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_MP_Initialize(
+        &DriverData.Ndis.MemoryManager,
+        sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
+        DRIVER_SVC_CLIENTS_POOL_SIZE,
+        FALSE,
+        &DriverData.Clients.ServicePool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_Connections_Initialize(
@@ -930,6 +1079,11 @@ DriverEntry(
         &DriverData);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = Km_ProcessWatcher_RegisterCallback(
+        Filter_ProcessWatcher_Callback,
+        &DriverData,
+        &DriverData.Other.ProcessWather);
+
     DriverObject->DriverUnload = DriverUnload;
 
 cleanup:
@@ -955,6 +1109,8 @@ cleanup:
             Km_Connections_Finalize(
                 DriverData.Other.Connections);
         }
+
+        Km_ProcessWatcher_Finalize();
 
         Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
@@ -1003,6 +1159,13 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
     }
 
     Adapters_Unbind(&DriverData.AdaptersList);
+
+    Km_ProcessWatcher_Finalize();
+
+    if (DriverData.Clients.ServicePool != NULL)
+    {
+        Km_MP_Finalize(DriverData.Clients.ServicePool);
+    }
 
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 

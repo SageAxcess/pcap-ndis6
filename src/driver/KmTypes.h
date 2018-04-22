@@ -21,8 +21,9 @@
 #include "NdisMemoryManager.h"
 #include "..\shared\SharedTypes.h"
 
-#define PACKETS_POOL_INITIAL_SIZE   0x400
-#define DRIVER_MAX_CLIENTS          0x400
+#define PACKETS_POOL_INITIAL_SIZE       0x400
+#define DRIVER_MAX_CLIENTS              0x400
+#define DRIVER_SVC_CLIENTS_POOL_SIZE    0x1
 
 typedef struct _ADAPTER     ADAPTER, *PADAPTER;
 typedef struct _DEVICE      DEVICE, *PDEVICE;
@@ -208,30 +209,6 @@ typedef struct _ADAPTER_CLIENT
 
 } ADAPTER_CLIENT, *PADAPTER_CLIENT;
 
-typedef struct _CLIENT
-{
-    LIST_ENTRY          Link;
-
-    PKM_MEMORY_MANAGER  MemoryManager;
-
-    PDEVICE             Device;
-
-    PFILE_OBJECT        FileObject;
-
-    EVENT               Event;
-
-    KM_LIST             PacketList;
-
-    KM_LOCK             ReadLock;
-
-    volatile ULONG      PendingSendPackets;
-
-    ULONG               BytesSent;
-
-    BOOLEAN             Releasing;
-
-} CLIENT, *PCLIENT;
-
 typedef struct _DRIVER_CLIENT
 {
     //  Process id of connected process
@@ -258,10 +235,26 @@ typedef struct _DRIVER_CLIENTS
     //  Lock object
     KM_LOCK         Lock;
 
-    //  Number of curretly connected clients
+    //  Handle to a memory pool used for allocating
+    //  arrays of DRIVER_CLIENT objects and other service
+    //  objects which can be re-used
+    //  The entries in this pool should be of 
+    //  sizeof(PVOID) * DRIVER_MAX_CLIENTS size
+    //  (8192 bytes on x64 systems and 4096 bytes on x86 systems)
+    HANDLE          ServicePool;
+
+    //  Number of connected clients
     ULONG           Count;
 
     //  Array of connected clients
+    //  Note:
+    //      Items in this array are not guaranteed to be located one after another.
+    //      The users of this structure must not assume that an item with NULL value
+    //      is the last item in the array.
+    //      The reason for this is that the indexes in this array are being passed
+    //      to usermode code and if a particular client gets closed - the driver
+    //      cannot move all the items on the right leftwards by 1 because this'd
+    //      render all these moved clients to be unusable.
     PDRIVER_CLIENT  Items[DRIVER_MAX_CLIENTS];
 
 } DRIVER_CLIENTS, *PDRIVER_CLIENTS;
@@ -294,6 +287,9 @@ typedef struct _DRIVER_DATA
     {
         //  Driver object received in DriverEntry routine
         PDRIVER_OBJECT  DriverObject;
+
+        //  Handle to Process watcher callback registration.
+        HANDLE          ProcessWather;
 
         //  Handle to KmConnections object instance
         HANDLE          Connections;
