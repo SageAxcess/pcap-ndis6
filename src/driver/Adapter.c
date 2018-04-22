@@ -934,19 +934,19 @@ _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)
 Protocol_CloseAdapterCompleteHandlerEx(
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
-    PADAPTER    adapter = (PADAPTER)ProtocolBindingContext;
+    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
 
-    DEBUGP(DL_TRACE, "===>Protocol_CloseAdapterCompleteHandlerEx...\n");
+    DEBUGP_FUNC_ENTER(DL_TRACE);
 
-    if (adapter->UnbindContext != NULL)
+    if (Assigned(Adapter->UnbindContext))
     {
-        NdisCompleteUnbindAdapterEx(adapter->UnbindContext);
+        NdisCompleteUnbindAdapterEx(Adapter->UnbindContext);
     }
 
-    FreeAdapter(adapter);
+    FreeAdapter(Adapter);
 
-    DEBUGP(DL_TRACE, "<===Protocol_CloseAdapterCompleteHandlerEx\n");
-}
+    DEBUGP_FUNC_LEAVE(DL_TRACE);
+};
 
 void
 _Function_class_(PROTOCOL_OID_REQUEST_COMPLETE)
@@ -1158,44 +1158,42 @@ Protocol_SendNetBufferListsCompleteHandler(
     __in    PNET_BUFFER_LIST    NetBufferList,
     __in    ULONG               SendCompleteFlags)
 {
+    PNET_BUFFER_LIST    CurrentNBL = NetBufferList;
+    PNET_BUFFER_LIST    NextNBL = NULL;
+    PNET_BUFFER         NetBuffer = NULL;
+
     UNREFERENCED_PARAMETER(ProtocolBindingContext);
     UNREFERENCED_PARAMETER(SendCompleteFlags);
 
-    DEBUGP(DL_TRACE, "===>Protocol_SendNetBufferListsCompleteHandler...\n");
+    DEBUGP_FUNC_ENTER(DL_TRACE);
 
-    NET_BUFFER_LIST* first = NetBufferList;
-
-    while (first)
+    while (Assigned(CurrentNBL))
     {
-        NET_BUFFER_LIST *current_nbl = first;
-
-        CLIENT* client;
-        NET_BUFFER* nb = NET_BUFFER_LIST_FIRST_NB(first);
-
-        if (NET_BUFFER_LIST_INFO(first, Ieee8021QNetBufferListInfo) != 0)
+        __try
         {
-            DEBUGP(DL_TRACE, "!!! 802.11Q !!!\n");
-        }
+            NextNBL = NET_BUFFER_LIST_NEXT_NBL(CurrentNBL);
 
-        if (nb != NULL)
+            NetBuffer = NET_BUFFER_LIST_FIRST_NB(CurrentNBL);
+
+            if (NET_BUFFER_LIST_INFO(CurrentNBL, Ieee8021QNetBufferListInfo) != 0)
+            {
+                DEBUGP(DL_TRACE, "!!! 802.11Q !!!\n");
+            }
+
+            if (Assigned(NetBuffer))
+            {
+                ULONG   NBDataSize = NET_BUFFER_DATA_LENGTH(NetBuffer);
+                NdisAdvanceNetBufferDataStart(NetBuffer, NBDataSize, FALSE, NULL);
+            }
+        }
+        __finally
         {
-            UINT size = NET_BUFFER_DATA_LENGTH(nb);
-
-            NdisAdvanceNetBufferDataStart(nb, size, FALSE, NULL);
+            NdisFreeNetBufferList(CurrentNBL);
+            CurrentNBL = NextNBL;
         }
+    };
 
-        client = ((void **)NET_BUFFER_LIST_CONTEXT_DATA_START(first))[0];
-
-        first = NET_BUFFER_LIST_NEXT_NBL(first);
-        NET_BUFFER_LIST_NEXT_NBL(current_nbl) = NULL;
-
-        NdisFreeNetBufferList(current_nbl);
-
-        InterlockedDecrement((volatile long*)&client->PendingSendPackets);
-        InterlockedDecrement((volatile long*)&client->Device->Adapter->PendingSendPackets);
-    }
-
-    DEBUGP(DL_TRACE, "<===Protocol_SendNetBufferListsCompleteHandler\n");
+    DEBUGP_FUNC_LEAVE(DL_TRACE);
 };
 
 NDIS_STATUS
@@ -1216,9 +1214,10 @@ Protocol_NetPnPEventHandler(
     __in    PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification)
 {
     UNREFERENCED_PARAMETER(ProtocolBindingContext);
-    DEBUGP(DL_TRACE, "===>Protocol_NetPnPEventHandler...\n");
 
-    if (NetPnPEventNotification != NULL)
+    DEBUGP_FUNC_ENTER(DL_TRACE);
+
+    if (Assigned(NetPnPEventNotification))
     {
         if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventBindsComplete)
         {
@@ -1231,7 +1230,8 @@ Protocol_NetPnPEventHandler(
         }
     }
 
-    DEBUGP(DL_TRACE, "<===Protocol_NetPnPEventHandler\n");
+    DEBUGP_FUNC_LEAVE(DL_TRACE);
+    
     return NDIS_STATUS_SUCCESS; //TODO: ?
 };
 
