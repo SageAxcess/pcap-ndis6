@@ -1112,6 +1112,11 @@ cleanup:
 
         Km_ProcessWatcher_Finalize();
 
+        if (DriverData.Clients.ServicePool != NULL)
+        {
+            Km_MP_Finalize(DriverData.Clients.ServicePool);
+        }
+
         Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
         if (DriverData.Ndis.ProtocolHandle != NULL)
