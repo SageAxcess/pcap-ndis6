@@ -141,7 +141,7 @@
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
-      <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
+      <DisableSpecificWarnings>%(DisableSpecificWarnings);</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..;.</AdditionalIncludeDirectories>
@@ -170,7 +170,7 @@
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1;_DEBUG=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
-      <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
+      <DisableSpecificWarnings>%(DisableSpecificWarnings);</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..;.</AdditionalIncludeDirectories>
@@ -199,7 +199,7 @@
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDISLWF=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
-      <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
+      <DisableSpecificWarnings>%(DisableSpecificWarnings);</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..;.</AdditionalIncludeDirectories>
@@ -228,7 +228,7 @@
       <PreprocessorDefinitions Condition="!(($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN8)) And (!($(_NT_TARGET_VERSION)&lt;$(_NT_TARGET_VERSION_WIN7))))">%(PreprocessorDefinitions);NDIS630=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);NDIS_WDM=1</PreprocessorDefinitions>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG_PRINT;NDISLWF=1;_DEBUG=1;WIN_NT_DRIVER=1</PreprocessorDefinitions>
-      <DisableSpecificWarnings>%(DisableSpecificWarnings);4201;4214</DisableSpecificWarnings>
+      <DisableSpecificWarnings>%(DisableSpecificWarnings);</DisableSpecificWarnings>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..;.</AdditionalIncludeDirectories>
@@ -257,6 +257,12 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <CompileAs>CompileAsC</CompileAs>
+      <SDLCheck>true</SDLCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <PrecompiledHeaderFile />
+      <PrecompiledHeaderOutputFile />
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -279,6 +285,12 @@
       </ExceptionHandling>
       <EnablePREfast>false</EnablePREfast>
       <CompileAs>CompileAsC</CompileAs>
+      <SDLCheck>true</SDLCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <PrecompiledHeaderFile />
+      <PrecompiledHeaderOutputFile />
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -310,6 +322,12 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <CompileAs>CompileAsC</CompileAs>
+      <SDLCheck>true</SDLCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <PrecompiledHeaderFile />
+      <PrecompiledHeaderOutputFile />
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -330,6 +348,12 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <CompileAs>CompileAsC</CompileAs>
+      <SDLCheck>true</SDLCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <PrecompiledHeaderFile />
+      <PrecompiledHeaderOutputFile />
     </ClCompile>
     <PostBuildEvent>
       <Command>

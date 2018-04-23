@@ -270,7 +270,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
             {
                 if (InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Local.Address.v4.l = BYTES_SWAP_32(
+                    Info->Local.Address.Address.v4.ip.l = BYTES_SWAP_32(
                         InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.uint32);
                 }
             }
@@ -279,7 +279,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
             {
                 if (InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Remote.Address.v4.l = BYTES_SWAP_32(
+                    Info->Remote.Address.Address.v4.ip.l = BYTES_SWAP_32(
                         InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.uint32);
                 }
             }
@@ -296,7 +296,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
                         &Info->Local.Address,
                         InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
-                    IP6_SWAP_BYTE_ORDER(Info->Local.Address.v6.s);
+                    IP6_SWAP_BYTE_ORDER(Info->Local.Address.Address.v6.ip.s);
                 }
             }
 
@@ -308,7 +308,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
                         &Info->Remote.Address,
                         InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
-                    IP6_SWAP_BYTE_ORDER(Info->Remote.Address.v6.s);
+                    IP6_SWAP_BYTE_ORDER(Info->Remote.Address.Address.v6.ip.s);
                 }
             }
 

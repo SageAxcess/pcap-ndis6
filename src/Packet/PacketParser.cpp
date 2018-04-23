@@ -62,8 +62,8 @@ BOOL UTILS::PKT::Parse(
 
                 IpHeaderLength = (Header->VerLen & 15) * 4;
 
-                Desc.SourceIPAddress.v4 = Header->SourceAddress;
-                Desc.DestinationIPAddress.v4 = Header->DestinationAddress;
+                Desc.SourceIPAddress.Address.v4 = Header->SourceAddress;
+                Desc.DestinationIPAddress.Address.v4 = Header->DestinationAddress;
                 Desc.IPProtocol = Header->Protocol;
             }
         }break;
@@ -77,8 +77,8 @@ BOOL UTILS::PKT::Parse(
 
                 IpHeaderLength = sizeof(IP6_HEADER);
 
-                Desc.SourceIPAddress.v6 = Header->SourceAddress;
-                Desc.DestinationIPAddress.v6 = Header->DestinationAddress;
+                Desc.SourceIPAddress.Address.v6 = Header->SourceAddress;
+                Desc.DestinationIPAddress.Address.v6 = Header->DestinationAddress;
                 Desc.IPProtocol = Header->NextHeader;
             }
         }break;
@@ -163,15 +163,15 @@ std::wstring UTILS::PKT::PacketDescToStringW(
     case ETH_TYPE_IP:
     case ETH_TYPE_IP_BE:
         {
-            SrcIPStr = IP4AddressToStringW(&PacketDesc->SourceIPAddress.v4);
-            DstIPStr = IP4AddressToStringW(&PacketDesc->DestinationIPAddress.v4);
+            SrcIPStr = IP4AddressToStringW(&PacketDesc->SourceIPAddress.Address.v4);
+            DstIPStr = IP4AddressToStringW(&PacketDesc->DestinationIPAddress.Address.v4);
         }break;
 
     case ETH_TYPE_IP6:
     case ETH_TYPE_IP6_BE:
         {
-            SrcIPStr = IP6AddressToStringW(&PacketDesc->SourceIPAddress.v6);
-            DstIPStr = IP6AddressToStringW(&PacketDesc->DestinationIPAddress.v6);
+            SrcIPStr = IP6AddressToStringW(&PacketDesc->SourceIPAddress.Address.v6);
+            DstIPStr = IP6AddressToStringW(&PacketDesc->DestinationIPAddress.Address.v6);
         }break;
     };
 
@@ -214,10 +214,10 @@ std::wstring UTILS::PKT::IP4AddressToStringW(
 
     return UTILS::STR::FormatW(
         L"%d.%d.%d.%d",
-        Address->b[0],
-        Address->b[1],
-        Address->b[2],
-        Address->b[3]);
+        Address->ip.b[0],
+        Address->ip.b[1],
+        Address->ip.b[2],
+        Address->ip.b[3]);
 };
 
 std::wstring UTILS::PKT::IP6AddressToStringW(
@@ -229,12 +229,12 @@ std::wstring UTILS::PKT::IP6AddressToStringW(
 
     return UTILS::STR::FormatW(
         L"[%x:%x:%x:%x:%x:%x:%x:%x]",
-        Address->s[0],
-        Address->s[1],
-        Address->s[2],
-        Address->s[3],
-        Address->s[4],
-        Address->s[5],
-        Address->s[6],
-        Address->s[7]);
+        Address->ip.s[0],
+        Address->ip.s[1],
+        Address->ip.s[2],
+        Address->ip.s[3],
+        Address->ip.s[4],
+        Address->ip.s[5],
+        Address->ip.s[6],
+        Address->ip.s[7]);
 };

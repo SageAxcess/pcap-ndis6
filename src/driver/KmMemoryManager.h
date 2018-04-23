@@ -17,7 +17,8 @@
 
 #include "..\shared\CommonDefs.h"
 
-typedef struct _KM_MEMORY_MANAGER KM_MEMORY_MANAGER, *PKM_MEMORY_MANAGER;
+typedef struct _KM_MEMORY_MANAGER KM_MEMORY_MANAGER;
+typedef KM_MEMORY_MANAGER *PKM_MEMORY_MANAGER;
 
 typedef PVOID(__stdcall _KM_MM_ALLOC_MEM_ROUTINE)(
     __in    PKM_MEMORY_MANAGER  Manager,
@@ -50,7 +51,9 @@ typedef struct _KM_MEMORY_MANAGER
 
     PVOID                       Context;
 
-} KM_MEMORY_MANAGER, *PKM_MEMORY_MANAGER;
+} KM_MEMORY_MANAGER;
+
+typedef KM_MEMORY_MANAGER *PKM_MEMORY_MANAGER;
 
 NTSTATUS __stdcall Km_MM_Initialize(
     __in    PKM_MEMORY_MANAGER          Manager,

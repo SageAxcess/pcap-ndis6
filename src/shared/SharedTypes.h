@@ -50,7 +50,7 @@ typedef struct _IP_ADDRESS_V4
         unsigned char   b[4];
         unsigned short  s[2];
         unsigned long   l;
-    };
+    } ip;
 } IP_ADDRESS_V4, *PIP_ADDRESS_V4;
 
 typedef struct _IP_ADDRESS_V6
@@ -61,7 +61,7 @@ typedef struct _IP_ADDRESS_V6
         unsigned short      s[8];
         unsigned long       l[4];
         unsigned long long  q[2];
-    };
+    } ip;
 } IP_ADDRESS_V6, *PIP_ADDRESS_V6;
 
 typedef struct _IP_ADDRESS
@@ -70,7 +70,7 @@ typedef struct _IP_ADDRESS
     {
         IP_ADDRESS_V4   v4;
         IP_ADDRESS_V6   v6;
-    };
+    } Address;
 } IP_ADDRESS, *PIP_ADDRESS;
 
 typedef struct _IP6_HEADER
@@ -152,7 +152,7 @@ typedef struct _TCP_HEADER
 
         } Data2;
 
-    };
+    } Data;
 
 } TCP_HEADER, *PTCP_HEADER;
 

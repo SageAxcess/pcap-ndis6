@@ -451,9 +451,9 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
 
             EventInfo->IpProtocol = Header->Protocol;
 
-            EventInfo->Local.Address.v4.l = Header->SourceAddress.l;
+            EventInfo->Local.Address.Address.v4.ip.l = Header->SourceAddress.ip.l;
 
-            EventInfo->Remote.Address.v4.l = Header->DestinationAddress.l;
+            EventInfo->Remote.Address.Address.v4.ip.l = Header->DestinationAddress.ip.l;
 
             switch (Header->Protocol)
             {
