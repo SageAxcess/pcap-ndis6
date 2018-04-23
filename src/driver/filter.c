@@ -642,18 +642,22 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
         Filter_CloseAdapter_Internal(Data, Clients[k]);
     }
 
-    Status = Km_Lock_Acquire(&Data->Clients.Lock);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-    __try
-    {
-        Km_MP_Release((PVOID)Clients);
-    }
-    __finally
-    {
-        Km_Lock_Release(&Data->Clients.Lock);
-    }
 
 cleanup:
+
+    if (Assigned(Clients))
+    {
+        Km_Lock_Acquire(&Data->Clients.Lock);
+        __try
+        {
+            Km_MP_Release((PVOID)Clients);
+        }
+        __finally
+        {
+            Km_Lock_Release(&Data->Clients.Lock);
+        }
+    }
+
     return Status;
 };
 
