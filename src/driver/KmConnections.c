@@ -352,7 +352,7 @@ NTSTATUS __stdcall Km_Connections_Add(
         if (Status == STATUS_NOT_FOUND)
         {
             Status = Km_Connections_AllocateItem(
-                Data->MemoryManager,
+                Data->MemoryPool,
                 Info,
                 &NewItem);
             LEAVE_IF_FALSE(NT_SUCCESS(Status));
