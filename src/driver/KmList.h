@@ -72,21 +72,17 @@ typedef int(__stdcall _KM_LIST_ITEM_COMPARISON_CALLBACK)(
     __in    PLIST_ENTRY Item);
 typedef _KM_LIST_ITEM_COMPARISON_CALLBACK KM_LIST_ITEM_COMPARISON_CALLBACK, *PKM_LIST_ITEM_COMPARISON_CALLBACK;
 
-/*
-    Km_List_Initialize routine.
-
-    Purpose:
-        Initializes a KM_LIST structure.
-
-    Parameters:
-        List    - Pointer to KM_LIST structure representing the list to initialize.
-
-    Return values:
-        STATUS_SUCCESS              - The routine succeeded and the structure
-                                      pointed to by List parameter was successfully
-                                      initialized.
-        STATUS_INVALID_PARAMETER    - The List parameter was NULL.
-*/
+/// <summary>
+/// Initializes a KM_LIST_ structure.
+/// </summary>
+/// <remarks>
+/// <para>The routine returns STATUS_SUCCESS upon success</para>
+/// <para>or an appropriate other NTSTATUS values otherwise</para>
+/// </remarks>
+/// <param name="List">Pointer to KM_LIST structure representing the list to initialize</param>
+/// <returns>
+/// Returns STATUS_SUCCESS upon success or other NTSTATUS values otherwise.
+/// </returns>
 NTSTATUS __stdcall Km_List_Initialize(
     __in    PKM_LIST    List);
 
@@ -109,6 +105,18 @@ NTSTATUS __stdcall Km_List_Initialize(
         STATUS_INVALID_PARAMETER_1  - The List parameter is NULL.
         STATUS_INVALID_PARAMETER_2  - The Item parameter is NULL.
 */
+/// <summary>
+/// Km_List_AddItemEx routine.
+/// </summary>
+/// <param name='List'>Pointer to KM_LIST structure representing the list</param>
+/// <param name='Item'>Pointer to LIST_ENTRY structure representing the item to add</param>
+/// <param name='CheckParams'>A boolean value that specifies whether the routine should check the parameters it's being supplied by the caller</param>
+/// <param name='LockList'>A boolean value that specifies whether the routine should perform the operation in a thread-safe way</param>
+/// <returns>
+///     <para>STATUS_SUCCESS upon success</para>
+///     <para>STATUS_INVALID_PARAMETER_1 if the List paramter is NULL</para>
+///     <para>STATUS_INVALID_PARAMETER_2 if the Item parameter is NULL</para>
+/// </returns>
 NTSTATUS __stdcall Km_List_AddItemEx(
     __in    PKM_LIST    List,
     __in    PLIST_ENTRY Item,
@@ -139,6 +147,10 @@ NTSTATUS __stdcall Km_List_AddItemEx(
         STATUS_NO_MORE_ENTRIES      - The SourceList is empty.
         STATUS_UNSUCCESSFUL         - Routine failed.
 */
+/// <summary>
+/// Moves the items from a doubly-linked list into a KM_LIST.
+/// </summary>
+/// 
 NTSTATUS __stdcall Km_List_AddListEx(
     __in    PKM_LIST    DestinationList,
     __in    PKM_LIST    SourceList,
