@@ -466,10 +466,10 @@ NTSTATUS __stdcall Filter_OpenAdapter(
             UINT filter = NDIS_PACKET_TYPE_PROMISCUOUS;
             SendOidRequest(Adapter, TRUE, OID_GEN_CURRENT_PACKET_FILTER, &filter, sizeof(filter));
 
-            while (Adapter->PendingOidRequests > 0)
-            {
-                DriverSleep(50);
-            }
+            //  TODO: Add waiting for the OID request completion.
+            //  The completion must not be waited inside the list lock, since
+            //  the interrupt-request level is equal to DISPATCH_LEVEL at that point.
+            //  The wait should be initiated outside of this __try/__finally block (outside the list lock).
         }
     }
     __finally
