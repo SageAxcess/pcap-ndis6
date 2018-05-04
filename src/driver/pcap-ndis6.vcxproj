@@ -295,8 +295,7 @@
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>signtool remove /s $(SolutionDir)build\$(Configuration)\$(PlatformShortName)\pcap-ndis6.sys</Command>
     </PostBuildEvent>
     <Inf>
       <CatalogFileName>pcap-ndis6.cat</CatalogFileName>
