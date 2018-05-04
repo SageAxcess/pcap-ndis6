@@ -43,9 +43,6 @@ BOOL SendOidRequest(
 BOOL FreeAdapter(
     __in    PADAPTER    Adapter);
 
-NTSTATUS ClearAdaptersList(
-    __in    PKM_LIST    List);
-
 NTSTATUS GetAdapterTime(
     __in    PADAPTER    Adapter,
     __out   PKM_TIME    Time);
