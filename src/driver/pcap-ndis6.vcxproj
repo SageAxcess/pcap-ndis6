@@ -112,12 +112,14 @@
     <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
     <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+    <TimeStampServer />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetExt>.sys</TargetExt>
     <IntDir>$(SolutionDir)int\$(ProjectName)\$(ConfigurationName)\$(PlatformShortName)\</IntDir>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
     <EnableInf2cat>false</EnableInf2cat>
+    <TimeStampServer />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.sys</TargetExt>
