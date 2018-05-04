@@ -309,10 +309,6 @@
     <MessageCompile>
       <GenerateKernelModeLoggingMacros>true</GenerateKernelModeLoggingMacros>
     </MessageCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>
-      </FileDigestAlgorithm>
-    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
