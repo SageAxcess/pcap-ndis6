@@ -319,36 +319,6 @@ int __stdcall UnbindAdapter_SearchCallback(
     return (ItemDefinition == Item) ? 0 : 1;
 };
 
-void __stdcall ClearAdaptersList_ItemCallback(
-    __in    PKM_LIST    List,
-    __in    PLIST_ENTRY Item)
-{
-    PADAPTER    Adapter;
-
-    UNREFERENCED_PARAMETER(List);
-
-    RETURN_IF_FALSE(Assigned(Item));
-
-    Adapter = CONTAINING_RECORD(Item, ADAPTER, Link);
-
-    FreeAdapter(Adapter);
-};
-
-NTSTATUS ClearAdaptersList(
-    __in    PKM_LIST    List)
-{
-    NTSTATUS    Status = STATUS_SUCCESS;
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(List),
-        STATUS_INVALID_PARAMETER_1);
-
-    Km_List_Clear(List, ClearAdaptersList_ItemCallback);
-
-cleanup:
-    return Status;
-};
-
 // Returns timestamp in milliseconds since adapter started
 NTSTATUS GetAdapterTime(
     __in    PADAPTER    Adapter,
@@ -849,8 +819,9 @@ Protocol_UnbindAdapterHandlerEx(
     __in    NDIS_HANDLE UnbindContext,
     __in    NDIS_HANDLE ProtocolBindingContext)
 {
-    PADAPTER    Adapter = (PADAPTER)ProtocolBindingContext;
-    NDIS_HANDLE AdapterHandle = NULL;
+    PADAPTER                Adapter = (PADAPTER)ProtocolBindingContext;
+    NDIS_HANDLE             AdapterHandle = NULL;
+    PADAPTER_CLOSE_CONTEXT  CloseContext = NULL;
 
     AdapterHandle = Adapter->AdapterHandle;
 
@@ -872,20 +843,46 @@ Protocol_UnbindAdapterHandlerEx(
     }
 
     while ((Adapter->PendingOidRequests > 0) ||
-            (Adapter->PendingSendPackets > 0))
+        (Adapter->PendingSendPackets > 0))
     {
         DriverSleep(50);
     }
 
-    NDIS_STATUS NdisStatus = NdisCloseAdapterEx(AdapterHandle);
-    if (NdisStatus != NDIS_STATUS_PENDING)
+    CloseContext = Km_MM_AllocMemTyped(
+        &Adapter->DriverData->Ndis.MemoryManager,
+        ADAPTER_CLOSE_CONTEXT);
+    if (Assigned(CloseContext))
     {
-        Adapter->UnbindContext = NULL;
-        Protocol_CloseAdapterCompleteHandlerEx((NDIS_HANDLE)Adapter);
+        KeInitializeEvent(
+            &CloseContext->CompletionEvent,
+            NotificationEvent,
+            FALSE);
+        CloseContext->MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
+        Adapter->CloseContext = CloseContext;
+    }
+
+    NDIS_STATUS NdisStatus = NdisCloseAdapterEx(AdapterHandle);
+
+    if (Assigned(CloseContext))
+    {
+        KeWaitForSingleObject(
+            (PVOID)(&CloseContext->CompletionEvent),
+            Executive,
+            KernelMode,
+            FALSE,
+            NULL);
+        Km_MM_FreeMem(
+            CloseContext->MemoryManager,
+            CloseContext);
+    }
+
+    if (NdisStatus == NDIS_STATUS_PENDING)
+    {
+        NdisStatus = NDIS_STATUS_SUCCESS;
     }
 
     return NdisStatus;
-}
+};
 
 void
 _Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX)
@@ -941,6 +938,14 @@ Protocol_CloseAdapterCompleteHandlerEx(
     if (Assigned(Adapter->UnbindContext))
     {
         NdisCompleteUnbindAdapterEx(Adapter->UnbindContext);
+    }
+
+    if (Assigned(Adapter->CloseContext))
+    {
+        KeSetEvent(
+            &Adapter->CloseContext->CompletionEvent,
+            0,
+            FALSE);
     }
 
     FreeAdapter(Adapter);

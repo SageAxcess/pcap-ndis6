@@ -100,6 +100,18 @@ typedef struct _NETWORK_EVENT_INFO
 
 } NETWORK_EVENT_INFO, *PNETWORK_EVENT_INFO;
 
+typedef struct _ADAPTER_CLOSE_CONTEXT
+{
+    //  Memory manager for this context
+    PKM_MEMORY_MANAGER  MemoryManager;
+
+    //  Completion event
+    //  This event should be set to signalled state
+    //  once the adapter close operation completes.
+    KEVENT              CompletionEvent;
+
+} ADAPTER_CLOSE_CONTEXT, *PADAPTER_CLOSE_CONTEXT;
+
 typedef struct _ADAPTER
 {
     //  List link
@@ -174,6 +186,9 @@ typedef struct _ADAPTER
     //  Current network event info
     //  This field is being used during packet receive.
     NETWORK_EVENT_INFO      CurrentEventInfo;
+
+    //  Pointer to the adapter close context
+    PADAPTER_CLOSE_CONTEXT  CloseContext;
 
 } ADAPTER, *PADAPTER;
 
