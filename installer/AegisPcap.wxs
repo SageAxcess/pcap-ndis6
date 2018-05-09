@@ -61,9 +61,9 @@
 
 		<CustomAction Id="AlreadyUpdated" Error="This program has already been installed." />
 		<CustomAction Id="NoDowngrade" Error="A newer version of this program has already been installed." />
-		<Property Id="RunInstallerCmd" Value="cmd.exe /c [INSTALLDIR]\install_drivers.cmd" />
+		<Property Id="RunInstallerCmd" Value="cmd.exe /c [#common_install_drivers_cmd]" />
 		<CustomAction Id="RunInstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
-		<Property Id="RunUninstallerCmd" Value="cmd.exe /c [INSTALLDIR]\uninstall_drivers.cmd" />
+		<Property Id="RunUninstallerCmd" Value="cmd.exe /c [#common_uninstall_drivers_cmd]" />
 		<CustomAction Id="RunUninstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
 
 		<InstallExecuteSequence>
