@@ -61,14 +61,16 @@
 
 		<CustomAction Id="AlreadyUpdated" Error="This program has already been installed." />
 		<CustomAction Id="NoDowngrade" Error="A newer version of this program has already been installed." />
-		<Property Id="RunInstallerCmd" Value="&quot;[WindowsFolder]system32\cmd.exe&quot; /c &quot;[#common_install_drivers_cmd]&quot;" />
+		<CustomAction Id="RunInstallerCmdSet" Property="RunInstallerCmd" Value="&quot;[WindowsFolder]system32\cmd.exe&quot; /c &quot;[#common_install_drivers_cmd]&quot;" />
 		<CustomAction Id="RunInstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
-		<Property Id="RunUninstallerCmd" Value="&quot;[WindowsFolder]system32\cmd.exe&quot; /c &quot;[#common_uninstall_drivers_cmd]&quot;" />
+		<CustomAction Id="RunUninstallerCmdSet" Property="RunUninstallerCmd" Value="&quot;[WindowsFolder]system32\cmd.exe&quot; /c &quot;[#common_uninstall_drivers_cmd]&quot;" />
 		<CustomAction Id="RunUninstallerCmd" BinaryKey="WixCA" DllEntry="WixQuietExec" Return="ignore" Execute="deferred" Impersonate="no" />
 
 		<InstallExecuteSequence>
-			<Custom Action="RunInstallerCmd" After="InstallFiles">(NOT Installed)</Custom>
-			<Custom Action="RunUninstallerCmd" Before="RemoveFiles">(Installed)</Custom>
+			<Custom Action="RunInstallerCmdSet" After="InstallFiles">(NOT Installed)</Custom>
+			<Custom Action="RunInstallerCmd" After="RunInstallerCmdSet">(NOT Installed)</Custom>
+			<Custom Action="RunUninstallerCmdSet" Before="RemoveFiles">(Installed)</Custom>
+			<Custom Action="RunUninstallerCmd" After="RunUninstallerCmdSet">(Installed)</Custom>
 			<Custom Action="AlreadyUpdated" After="FindRelatedProducts">SELFFOUND</Custom>
 			<Custom Action="NoDowngrade" After="FindRelatedProducts">NEWERFOUND</Custom>
 			<RemoveExistingProducts After="InstallValidate" />
