@@ -1016,6 +1016,8 @@ DriverEntry(
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
+	ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
     RtlZeroMemory(
         &DriverData,
         sizeof(DriverData));
@@ -1033,7 +1035,7 @@ DriverEntry(
     Status = Wfp_MM_Initialize(
         &DriverData.Wfp.MemoryManager,
         HighPoolPriority,
-        NonPagedPool,
+        NonPagedPoolNx,
         WFP_FLT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
