@@ -155,8 +155,12 @@ typedef struct _WFP_FLOW_CONTEXT
 
 #define WFP_SUBLAYER_NAME_W         L"ChangeDynamix Inspection sublayer"
 #define WFP_SUBLAYER_DESC_W         L"ChangeDynamix sublayer for inspection callouts"
-#define WFP_PROVIDER_NAME_W         L"ChangeDynamix WFP provider"
-#define WFP_PROVIDER_DESC_W         L"ChangeDynamix WFP provider object"
+
+//  The string below MUST be exactly the same as the CompanyName string in the .info file for the HLK test
+#define WFP_PROVIDER_NAME_W         L"Change Dynamix, LLC"
+
+//  The string below MUST be exactly the same as the ProductName string in the .info file for the HLK test
+#define WFP_PROVIDER_DESC_W         L"AEGIS WinPcap";
 
 #define WFP_DEVICE_NAME_W           L"\\Device\\4FA9893C-A44A-4474-A9B9-ACDE01F32AFB"
 
