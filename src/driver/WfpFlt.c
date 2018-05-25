@@ -47,7 +47,7 @@ typedef struct _WFP_CALLOUT_DEFINITION
 typedef struct _WFP_CALLOUT_REG_ITEM
 {
     ULONG32		CalloutRegId;
-    GUID		LayerGUID;
+    GUID        CalloutKey;
     UINT16		LayerId;
     UINT64      FilterId;
 } WFP_CALLOUT_REG_ITEM, *PWFP_CALLOUT_REG_ITEM;
@@ -91,6 +91,16 @@ typedef struct _WFP_DATA
             GUID    Guid;
 
         } SubLayer;
+
+        struct Provider
+        {
+            //  Boolean flag that identifies whether the provider was added
+            BOOLEAN Added;
+
+            //  Provider key
+            GUID    Guid;
+
+        } Provider;
 
         //  Handle to BFE state watcher instance
         HANDLE  BFEStateWatcher;
@@ -145,6 +155,8 @@ typedef struct _WFP_FLOW_CONTEXT
 
 #define WFP_SUBLAYER_NAME_W         L"ChangeDynamix Inspection sublayer"
 #define WFP_SUBLAYER_DESC_W         L"ChangeDynamix sublayer for inspection callouts"
+#define WFP_PROVIDER_NAME_W         L"ChangeDynamix WFP provider"
+#define WFP_PROVIDER_DESC_W         L"ChangeDynamix WFP provider object"
 
 #define WFP_DEVICE_NAME_W           L"\\Device\\4FA9893C-A44A-4474-A9B9-ACDE01F32AFB"
 
@@ -767,6 +779,49 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Wfp_AddProvider(
+    __in    PWFP_DATA   Data)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    UUID            ProviderKey = { 0, };
+    FWPM_PROVIDER   Provider;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Data->BFEInfo.EngineHandle != NULL,
+        STATUS_INVALID_PARAMETER_1);
+
+    RtlZeroMemory(&Provider, sizeof(Provider));
+
+    Status = ExUuidCreate(&ProviderKey);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Provider.displayData.name = WFP_PROVIDER_NAME_W;
+    Provider.displayData.description = WFP_PROVIDER_DESC_W;
+
+    RtlCopyMemory(
+        &Provider.providerKey,
+        &ProviderKey,
+        sizeof(GUID));
+
+    Status = FwpmProviderAdd(
+        Data->BFEInfo.EngineHandle,
+        &Provider,
+        NULL);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Data->BFEInfo.Provider.Added = TRUE;
+    RtlCopyMemory(
+        &Data->BFEInfo.Provider.Guid,
+        &ProviderKey,
+        sizeof(GUID));
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Wfp_RegisterCallouts(
     __in            PWFP_DATA               Data,
     __in    const   WFP_CALLOUT_DEFINITION  *CalloutDefinitions,
@@ -778,7 +833,7 @@ NTSTATUS __stdcall Wfp_RegisterCallouts(
     BOOLEAN         TransactionInProgress = FALSE;
     FWPM_SESSION    Session = { 0, };
     ULONG           k;
-
+    
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
         STATUS_INVALID_PARAMETER_1);
@@ -804,14 +859,18 @@ NTSTATUS __stdcall Wfp_RegisterCallouts(
         Data->BFEInfo.EngineHandle,
         0);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-
     TransactionInProgress = TRUE;
+
+
+    Status = Wfp_AddProvider(Data);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     SubLayer.subLayerKey = Data->BFEInfo.SubLayer.Guid;
     SubLayer.displayData.name = WFP_SUBLAYER_NAME_W;
     SubLayer.displayData.description = WFP_SUBLAYER_DESC_W;
     SubLayer.flags = 0;
     SubLayer.weight = 0;
+    SubLayer.providerKey = &Data->BFEInfo.Provider.Guid;
 
     Status = FwpmSubLayerAdd(
         Data->BFEInfo.EngineHandle,
@@ -835,7 +894,7 @@ NTSTATUS __stdcall Wfp_RegisterCallouts(
         GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
         RtlCopyMemory(
-            &Data->CalloutRegInfo.Items[k].LayerGUID,
+            &Data->CalloutRegInfo.Items[k].CalloutKey,
             &CalloutKey,
             sizeof(GUID));
 
@@ -862,6 +921,14 @@ cleanup:
                 Data->BFEInfo.EngineHandle,
                 &Data->BFEInfo.SubLayer.Guid);
             Data->BFEInfo.SubLayer.Added = FALSE;
+        }
+
+        if (Data->BFEInfo.Provider.Added)
+        {
+            FwpmProviderDeleteByKey(
+                Data->BFEInfo.EngineHandle,
+                &Data->BFEInfo.Provider.Guid);
+            Data->BFEInfo.Provider.Added = FALSE;
         }
 
         if (EngineOpened)
@@ -953,6 +1020,7 @@ NTSTATUS Wfp_RegisterCalloutsSub(
     mCallout.displayData = DisplayData;
     mCallout.applicableLayer = *(CalloutDefinition->CalloutLayer);
     mCallout.flags |= FWPM_CALLOUT_FLAG_USES_PROVIDER_CONTEXT;
+    mCallout.providerKey = &Data->BFEInfo.Provider.Guid;
 
     Status = FwpmCalloutAdd(
         Data->BFEInfo.EngineHandle,
@@ -1017,6 +1085,8 @@ NTSTATUS Wfp_AddDefaultFilteringRule(
     Filter.weight.type = FWP_EMPTY;
 
     Filter.rawContext = (UINT_PTR)Data;
+
+    Filter.providerKey = &Data->BFEInfo.Provider.Guid;
 
     Status = FwpmFilterAdd(
         Data->BFEInfo.EngineHandle,
@@ -1231,6 +1301,10 @@ NTSTATUS Wfp_UnregisterCallouts(
             GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
             FwpsCalloutUnregisterById(Data->CalloutRegInfo.Items[k].CalloutRegId);
+
+            FwpmCalloutDeleteByKey(
+                Data->BFEInfo.EngineHandle,
+                &Data->CalloutRegInfo.Items[k].CalloutKey);
         }
 
         Data->CalloutRegInfo.Count = 0;
@@ -1244,6 +1318,16 @@ NTSTATUS Wfp_UnregisterCallouts(
         GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
         Data->BFEInfo.SubLayer.Added = FALSE;
+    }
+
+    if (Data->BFEInfo.Provider.Added)
+    {
+        Status = FwpmProviderDeleteByKey(
+            Data->BFEInfo.EngineHandle,
+            &Data->BFEInfo.Provider.Guid);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+        Data->BFEInfo.Provider.Added = FALSE;
     }
 
     if (Data->BFEInfo.EngineHandle != NULL)
