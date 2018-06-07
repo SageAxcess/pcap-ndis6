@@ -283,7 +283,7 @@ NTSTATUS __stdcall Filter_CreateClient(
         &Data->Ndis.MemoryManager,
         (ULONG)sizeof(PACKET) + Adapter->MtuSize - 1,
         PACKETS_POOL_INITIAL_SIZE,
-        FALSE,
+        TRUE,
         &NewClient->PacketsPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 

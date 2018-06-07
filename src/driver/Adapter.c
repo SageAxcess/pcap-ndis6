@@ -567,6 +567,21 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                         sizeof(PACKET) + Packet->DataSize - 1,
                                         (PVOID *)&NewPacket);
                                     Cnt++;
+
+                                    if (Status == STATUS_NO_MORE_ENTRIES)
+                                    {
+                                        PLIST_ENTRY TmpEntry = NULL;
+
+                                        Status = Km_List_RemoveListHeadEx(
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &TmpEntry,
+                                            FALSE,
+                                            FALSE);
+                                        CONTINUE_IF_FALSE(NT_SUCCESS(Status));
+
+                                        NewPacket = CONTAINING_RECORD(TmpEntry, PACKET, Link);
+                                    }
+
                                     CONTINUE_IF_FALSE(NT_SUCCESS(Status));
 
                                     RtlCopyMemory(
@@ -788,7 +803,7 @@ Protocol_BindAdapterHandlerEx(
 
     OpenParameters.Header.Type = NDIS_OBJECT_TYPE_OPEN_PARAMETERS;
     OpenParameters.Header.Revision = NDIS_OPEN_PARAMETERS_REVISION_1;
-    OpenParameters.Header.Size = NDIS_SIZEOF_OPEN_PARAMETERS_REVSION_1;
+    OpenParameters.Header.Size = NDIS_SIZEOF_OPEN_PARAMETERS_REVISION_1;
 
     OpenParameters.AdapterName = BindParameters->AdapterName;
     OpenParameters.MediumArray = &MediumArray;

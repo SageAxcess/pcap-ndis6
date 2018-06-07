@@ -122,28 +122,32 @@ typedef struct _WFP_DATA
 
 } WFP_DATA, *PWFP_DATA;
 
+typedef struct _WFP_FLOW_INFO
+{
+    //  Layer id
+    UINT16  LayerId;
+
+    //  Callout id
+    ULONG   CalloutId;
+
+    //  Flow id (flow handle)
+    UINT64  FlowId;
+
+} WFP_FLOW_INFO, *PWFP_FLOW_INFO;
+
 typedef struct _WFP_FLOW_CONTEXT
 {
     //  List link
     LIST_ENTRY          Link;
 
-    //  Layer id
-    UINT16              LayerId;
-
-    //  Callout id
-    ULONG               CalloutId;
-
-    //  Flow id (flow handle)
-    UINT64              FlowId;
+    //  Flow info
+    WFP_FLOW_INFO       FlowInfo;
 
     //  Network event info
     PNETWORK_EVENT_INFO Info;
 
     //  Wfp data
     PWFP_DATA           WfpData;
-
-    //  Removal flag
-    BOOLEAN             RemoveInProgress;
 
 } WFP_FLOW_CONTEXT, *PWFP_FLOW_CONTEXT;
 
@@ -679,20 +683,9 @@ void __stdcall Wfp_Generic_FlowDeleteNotifyCallback(
 
     Context = (PWFP_FLOW_CONTEXT)((UINT_PTR)FlowContext);
 
-    Km_List_Lock(&Context->WfpData->FlowContexts);
-    __try
-    {
-        LEAVE_IF_TRUE(Context->RemoveInProgress);
-        Km_List_RemoveItemEx(
-            &Context->WfpData->FlowContexts,
-            &Context->Link,
-            FALSE,
-            FALSE);
-    }
-    __finally
-    {
-        Km_List_Unlock(&Context->WfpData->FlowContexts);
-    }
+    Km_List_RemoveItem(
+        &Context->WfpData->FlowContexts,
+        &Context->Link);
 
     if (Assigned(Context->Info))
     {
@@ -865,7 +858,6 @@ NTSTATUS __stdcall Wfp_RegisterCallouts(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     TransactionInProgress = TRUE;
 
-
     Status = Wfp_AddProvider(Data);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -929,9 +921,6 @@ cleanup:
 
         if (Data->BFEInfo.Provider.Added)
         {
-            FwpmProviderDeleteByKey(
-                Data->BFEInfo.EngineHandle,
-                &Data->BFEInfo.Provider.Guid);
             Data->BFEInfo.Provider.Added = FALSE;
         }
 
@@ -1140,9 +1129,9 @@ NTSTATUS Wfp_AllocateAndAssociateFlowContext(
             NewContext,
             sizeof(WFP_FLOW_CONTEXT));
 
-        NewContext->CalloutId = CalloutId;
-        NewContext->FlowId = FlowHandle;
-        NewContext->LayerId = LayerId;
+        NewContext->FlowInfo.CalloutId = CalloutId;
+        NewContext->FlowInfo.FlowId = FlowHandle;
+        NewContext->FlowInfo.LayerId = LayerId;
         NewContext->Info = Info;
         NewContext->WfpData = Data;
 
@@ -1229,15 +1218,14 @@ cleanup:
 void Wfp_CleanupFlowContexts(
     __in    PWFP_DATA   Data)
 {
-    LIST_ENTRY              TmpList;
-    PWFP_FLOW_CONTEXT       Context;
-    PLIST_ENTRY             ListEntry;
-    NTSTATUS                Status = STATUS_SUCCESS;
-    ULARGE_INTEGER          Count;
+    PWFP_FLOW_CONTEXT   Context;
+    PLIST_ENTRY         ListEntry;
+    NTSTATUS            Status = STATUS_SUCCESS;
+    ULARGE_INTEGER      Count;
+    PWFP_FLOW_INFO      InfoArray = NULL;
+    ULONG               k;
 
     RETURN_IF_FALSE(Assigned(Data));
-
-    InitializeListHead(&TmpList);
 
     Count.QuadPart = MAXULONGLONG;
 
@@ -1245,43 +1233,55 @@ void Wfp_CleanupFlowContexts(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        for (ListEntry = Data->FlowContexts.Head.Flink;
+        Status = Km_List_GetCountEx(&Data->FlowContexts, &Count, FALSE, FALSE);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
+        LEAVE_IF_FALSE(Count.QuadPart > 0);
+
+        InfoArray = Km_MM_AllocArray(
+            Data->MemoryManager,
+            WFP_FLOW_INFO,
+            Count.QuadPart);
+        LEAVE_IF_FALSE(Assigned(InfoArray));
+
+        for (ListEntry = Data->FlowContexts.Head.Flink, k = 0;
             ListEntry != &Data->FlowContexts.Head;
-            ListEntry = ListEntry->Flink)
+            ListEntry = ListEntry->Flink, k++)
         {
             Context = CONTAINING_RECORD(ListEntry, WFP_FLOW_CONTEXT, Link);
-            Context->RemoveInProgress = TRUE;
-        }
 
-        Status = Km_List_ExtractEntriesEx(
-            &Data->FlowContexts,
-            &TmpList,
-            &Count,
-            FALSE,
-            FALSE);
+            RtlCopyMemory(
+                &(InfoArray[k]),
+                &Context->FlowInfo,
+                sizeof(WFP_FLOW_INFO));
+        }
     }
     __finally
     {
         Km_List_Unlock(&Data->FlowContexts);
     }
 
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    GOTO_CLEANUP_IF_FALSE(
+        (NT_SUCCESS(Status)) &&
+        (Assigned(InfoArray)));
 
-    while (!IsListEmpty(&TmpList))
+    for (k = 0; k < Count.QuadPart; k++)
     {
-        Context = CONTAINING_RECORD(
-            RemoveHeadList(&TmpList),
-            WFP_FLOW_CONTEXT,
-            Link);
-
-        Status = FwpsFlowRemoveContext(
-            Context->FlowId,
-            Context->LayerId,
-            Context->CalloutId);
-        ASSERT(NT_SUCCESS(Status));
+        FwpsFlowRemoveContext(
+            InfoArray[k].FlowId,
+            InfoArray[k].LayerId,
+            InfoArray[k].CalloutId);
     }
 
 cleanup:
+
+    if (Assigned(InfoArray))
+    {
+        Km_MM_FreeMem(
+            Data->MemoryManager, 
+            InfoArray);
+    }
+
     return;
 };
 
