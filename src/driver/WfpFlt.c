@@ -306,7 +306,6 @@ const ULONG Wfp_Callouts_Count = ARRAYSIZE(Wfp_Callout_Definitions);
     ----------------------------------------------------------------------
 */
 
-
 void __stdcall Wfp_BFEStateChangeCallback(
     __inout PVOID               Context,
     __in    FWPM_SERVICE_STATE  NewState)
