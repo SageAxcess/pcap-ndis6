@@ -72,8 +72,6 @@ LPPCAP_NDIS NdisDriverOpen()
         NULL);
     ErrorCode = GetLastError();
 
-    printf("%s: Error code: %x\n", __FUNCTION__, ErrorCode);
-
     RETURN_VALUE_IF_FALSE(
         FileHandle != INVALID_HANDLE_VALUE,
         nullptr);
