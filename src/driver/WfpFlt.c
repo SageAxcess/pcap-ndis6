@@ -1241,7 +1241,7 @@ void Wfp_CleanupFlowContexts(
         InfoArray = Km_MM_AllocArray(
             Data->MemoryManager,
             WFP_FLOW_INFO,
-            Count.QuadPart);
+            (SIZE_T)Count.QuadPart);
         LEAVE_IF_FALSE(Assigned(InfoArray));
 
         for (ListEntry = Data->FlowContexts.Head.Flink, k = 0;
