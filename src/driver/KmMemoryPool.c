@@ -288,11 +288,12 @@ NTSTATUS __stdcall Km_MP_Allocate(
         }
         else
         {
-            if (!Pool->FixedSize)
-            {
-                Status = Km_MP_CreateBlock(Pool, &BlockHeader);
-                LEAVE_IF_FALSE(NT_SUCCESS(Status));
-            }
+            LEAVE_IF_TRUE_SET_STATUS(
+                Pool->FixedSize,
+                STATUS_NO_MORE_ENTRIES);
+
+            Status = Km_MP_CreateBlock(Pool, &BlockHeader);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
         }
 
         if (Assigned(BlockHeader))
@@ -355,11 +356,12 @@ NTSTATUS __stdcall Km_MP_AllocateCheckSize(
         }
         else
         {
-            if (!Pool->FixedSize)
-            {
-                Status = Km_MP_CreateBlock(Pool, &BlockHeader);
-                LEAVE_IF_FALSE(NT_SUCCESS(Status));
-            }
+            LEAVE_IF_TRUE_SET_STATUS(
+                Pool->FixedSize,
+                STATUS_NO_MORE_ENTRIES);
+
+            Status = Km_MP_CreateBlock(Pool, &BlockHeader);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
         }
 
         if (Assigned(BlockHeader))

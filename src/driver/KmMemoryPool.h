@@ -84,6 +84,9 @@ NTSTATUS __stdcall Km_MP_Finalize(
         STATUS_INVALID_PARAMETER_2      - The Block parameter is NULL.
         STATUS_INSUFFICIENT_RESOURCES   - Low resources situation. 
                                           The pool failed to allocated a new block.
+        STATUS_NO_MORE_ENTRIES          - The pool does not have any more available entries.
+                                          This can happen if the pool is not growable and
+                                          there is no more entries available.
         STATUS_UNSUCCESSFUL             - Pool allocation failed.
 */
 NTSTATUS __stdcall Km_MP_Allocate(
@@ -111,7 +114,9 @@ NTSTATUS __stdcall Km_MP_Allocate(
                                           The pool failed to allocated a new block.
         STATUS_BUFFER_TOO_SMALL         - The size requested is more than the size
                                           of the elements in the pool.
-
+        STATUS_NO_MORE_ENTRIES          - The pool does not have any more available entries.
+                                          This can happen if the pool is not growable and
+                                          there is no more entries available.
         STATUS_UNSUCCESSFUL             - Pool allocation failed.
 */
 NTSTATUS __stdcall Km_MP_AllocateCheckSize(
