@@ -21,7 +21,7 @@
 #include "NdisMemoryManager.h"
 #include "..\shared\SharedTypes.h"
 
-#define PACKETS_POOL_INITIAL_SIZE       0x400
+#define PACKETS_POOL_INITIAL_SIZE       0x2000
 #define DRIVER_MAX_CLIENTS              0x400
 #define DRIVER_SVC_CLIENTS_POOL_SIZE    0x1
 
