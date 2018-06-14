@@ -41,7 +41,6 @@
     <ClInclude Include="KmMemoryPool.h" />
     <ClInclude Include="KmInterModeComms.h" />
     <ClInclude Include="KmEvent.h" />
-    <ClInclude Include="KmDpc.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

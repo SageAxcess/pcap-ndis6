@@ -447,7 +447,6 @@
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmConnections.h" />
-    <ClInclude Include="KmDpc.h" />
     <ClInclude Include="KmEvent.h" />
     <ClInclude Include="KmInterModeComms.h" />
     <ClInclude Include="KmList.h" />
