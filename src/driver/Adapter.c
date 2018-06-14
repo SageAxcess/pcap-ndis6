@@ -709,44 +709,101 @@ cleanup:
 };
 
 NTSTATUS Adapters_Unbind(
-    __in    PKM_LIST    AdaptersList)
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PKM_LIST            AdaptersList)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
-    LIST_ENTRY  TmpList;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PKEVENT         CompletionEvent = NULL;
+    PADAPTER        *AdaptersArray = NULL;
+    PLIST_ENTRY     TmpEntry = NULL;
+    ULONG           k = 0;
+    ULARGE_INTEGER  Count = { 0 };
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(AdaptersList),
+        Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(AdaptersList),
+        STATUS_INVALID_PARAMETER_2);
 
-    InitializeListHead(&TmpList);
-
-    Status = Km_List_Lock(AdaptersList);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    CompletionEvent = Km_MM_AllocMemTyped(
+        MemoryManager,
+        KEVENT);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(CompletionEvent),
+        STATUS_INSUFFICIENT_RESOURCES);
     __try
     {
-        ULARGE_INTEGER  Count;
-        Count.QuadPart = MAXULONGLONG;
-
-        Km_List_ExtractEntriesEx(
-            AdaptersList,
-            &TmpList,
-            &Count,
-            FALSE,
+        KeInitializeEvent(
+            CompletionEvent,
+            NotificationEvent,
             FALSE);
+
+        Status = Km_List_Lock(AdaptersList);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+        __try
+        {
+            Km_List_GetCountEx(AdaptersList, &Count, FALSE, FALSE);
+
+            if (Count.QuadPart > 0)
+            {
+                AdaptersArray = Km_MM_AllocArray(
+                    MemoryManager,
+                    PADAPTER,
+                    (SIZE_T)Count.QuadPart);
+                LEAVE_IF_FALSE_SET_STATUS(
+                    Assigned(AdaptersArray),
+                    STATUS_INSUFFICIENT_RESOURCES);
+
+                RtlZeroMemory(
+                    AdaptersArray, 
+                    (SIZE_T)(sizeof(PADAPTER) * Count.QuadPart));
+
+                for (TmpEntry = AdaptersList->Head.Flink, k = 0;
+                    TmpEntry != &AdaptersList->Head;
+                    TmpEntry = TmpEntry->Flink, k++)
+                {
+                    AdaptersArray[k] = CONTAINING_RECORD(TmpEntry, ADAPTER, Link);
+                }
+            }
+
+            Km_List_ClearEx(AdaptersList, NULL, FALSE, FALSE);
+        }
+        __finally
+        {
+            Km_List_Unlock(AdaptersList);
+        }
+
+        for (k = 0; k < Count.QuadPart; k++)
+        {
+            Km_Lock_Acquire(&AdaptersArray[k]->Lock);
+            __try
+            {
+                AdaptersArray[k]->AdapterUnbindCompletionEvent = CompletionEvent;
+            }
+            __finally
+            {
+                Km_Lock_Release(&AdaptersArray[k]->Lock);
+            }
+
+            NdisUnbindAdapter(AdaptersArray[k]->AdapterHandle);
+
+            KeWaitForSingleObject(
+                CompletionEvent,
+                Executive,
+                KernelMode,
+                FALSE,
+                NULL);
+
+            KeClearEvent(CompletionEvent);
+        }
     }
     __finally
     {
-        Km_List_Unlock(AdaptersList);
+        Km_MM_FreeMem(
+            MemoryManager,
+            CompletionEvent);
     }
-
-    while (!IsListEmpty(&TmpList))
-    {
-        PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
-        PADAPTER    Adapter = CONTAINING_RECORD(Entry, ADAPTER, Link);
-
-        NdisUnbindAdapter(Adapter->AdapterHandle);
-    }
-
 cleanup:
     return Status;
 };
@@ -837,6 +894,7 @@ Protocol_UnbindAdapterHandlerEx(
     PADAPTER                Adapter = (PADAPTER)ProtocolBindingContext;
     NDIS_HANDLE             AdapterHandle = NULL;
     PADAPTER_CLOSE_CONTEXT  CloseContext = NULL;
+    PKEVENT                 UnbindCompletionEvent = NULL;
 
     AdapterHandle = Adapter->AdapterHandle;
 
@@ -855,6 +913,16 @@ Protocol_UnbindAdapterHandlerEx(
                 &Adapter->DriverData->AdaptersList,
                 &Adapter->Link);
         }
+    }
+
+    Km_Lock_Acquire(&Adapter->Lock);
+    __try
+    {
+        UnbindCompletionEvent = Adapter->AdapterUnbindCompletionEvent;
+    }
+    __finally
+    {
+        Km_Lock_Release(&Adapter->Lock);
     }
 
     while ((Adapter->PendingOidRequests > 0) ||
@@ -894,6 +962,11 @@ Protocol_UnbindAdapterHandlerEx(
     if (NdisStatus == NDIS_STATUS_PENDING)
     {
         NdisStatus = NDIS_STATUS_SUCCESS;
+    }
+
+    if (Assigned(UnbindCompletionEvent))
+    {
+        KeSetEvent(UnbindCompletionEvent, 0, FALSE);
     }
 
     return NdisStatus;

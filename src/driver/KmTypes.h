@@ -190,6 +190,11 @@ typedef struct _ADAPTER
     //  Pointer to the adapter close context
     PADAPTER_CLOSE_CONTEXT  CloseContext;
 
+    //  Pointer to a notification event 
+    //  that should be set to signalled state in unbind handler right
+    //  before freeing the memory allocated for ADAPTER structure.
+    PKEVENT                 AdapterUnbindCompletionEvent;
+
 } ADAPTER, *PADAPTER;
 
 typedef struct _PACKET

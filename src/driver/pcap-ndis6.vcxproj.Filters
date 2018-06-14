@@ -18,6 +18,7 @@
     <ClCompile Include="KmProcessWatcher.c" />
     <ClCompile Include="KmMemoryPool.c" />
     <ClCompile Include="KmInterModeComms.c" />
+    <ClCompile Include="KmEvent.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adapter.h" />
@@ -39,6 +40,8 @@
     <ClInclude Include="KmProcessWatcher.h" />
     <ClInclude Include="KmMemoryPool.h" />
     <ClInclude Include="KmInterModeComms.h" />
+    <ClInclude Include="KmEvent.h" />
+    <ClInclude Include="KmDpc.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

@@ -87,6 +87,12 @@ NTSTATUS __stdcall KmThreads_StopThread(
 #define KmThreads_WaitForThread(Thread) \
     KeWaitForSingleObject((Thread)->ThreadObject, Executive, KernelMode, FALSE, NULL)
 
+NTSTATUS __stdcall KmThreads_RunThreaded(
+    __in        PKM_MEMORY_MANAGER  MemoryManager,
+    __in        PKM_THREAD_FUNCTION ThreadRoutine,
+    __in        PKM_THREAD_FUNCTION ThreadCompletionRoutine,
+    __in_opt    PVOID               Context);
+
 #pragma pack(pop)
 
 #endif

@@ -420,6 +420,7 @@
     </ClCompile>
     <ClCompile Include="KernelUtil.c" />
     <ClCompile Include="KmConnections.c" />
+    <ClCompile Include="KmEvent.c" />
     <ClCompile Include="KmInterModeComms.c" />
     <ClCompile Include="KmList.c" />
     <ClCompile Include="KmLock.c" />
@@ -446,6 +447,8 @@
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmConnections.h" />
+    <ClInclude Include="KmDpc.h" />
+    <ClInclude Include="KmEvent.h" />
     <ClInclude Include="KmInterModeComms.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />

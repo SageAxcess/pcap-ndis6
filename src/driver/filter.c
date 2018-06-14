@@ -600,7 +600,6 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-
         ClientsCount = Data->Clients.Count;
 
         LEAVE_IF_FALSE(ClientsCount > 0);
@@ -617,7 +616,9 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
 
             Cnt++;
 
-            CONTINUE_IF_FALSE(Data->Clients.Items[k]->OwnerProcessId == ProcessId);
+            CONTINUE_IF_FALSE(
+                (Data->Clients.Items[k]->OwnerProcessId == ProcessId) ||
+                (ProcessId == (HANDLE)MAXULONG_PTR));
 
             Clients[i] = Data->Clients.Items[k];
             Data->Clients.Items[k] = NULL;
@@ -1169,7 +1170,13 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
             DriverData.Other.Connections);
     }
 
-    Adapters_Unbind(&DriverData.AdaptersList);
+    Filter_CloseClientsByPID(
+        &DriverData,
+        (HANDLE)MAXULONG_PTR);
+
+    Adapters_Unbind(
+        &DriverData.Ndis.MemoryManager,
+        &DriverData.AdaptersList);
 
     Km_ProcessWatcher_Finalize();
 

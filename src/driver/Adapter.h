@@ -68,7 +68,8 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     __out   PPACKET     *Packet);
 
 NTSTATUS Adapters_Unbind(
-    __in    PKM_LIST    AdaptersList);
+    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PKM_LIST            AdaptersList);
 
 //////////////////////////////////////////////////////////////////////
 // Adapter callbacks
