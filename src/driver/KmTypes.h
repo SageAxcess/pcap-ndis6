@@ -26,28 +26,7 @@
 #define DRIVER_SVC_CLIENTS_POOL_SIZE    0x1
 
 typedef struct _ADAPTER     ADAPTER, *PADAPTER;
-typedef struct _DEVICE      DEVICE, *PDEVICE;
 typedef struct _DRIVER_DATA DRIVER_DATA, *PDRIVER_DATA;
-
-typedef struct _DEVICE
-{
-    PDRIVER_DATA    DriverData;
-
-    PUNICODE_STRING Name;
-
-    PUNICODE_STRING SymlinkName;
-
-    PDEVICE_OBJECT  Device;
-
-    PADAPTER        Adapter;
-
-    KM_LOCK         OpenCloseLock;
-
-    KM_LIST         ClientList;
-
-    ULONG           Releasing;
-
-} DEVICE, *PDEVICE;
 
 typedef struct _KM_TIME
 {
@@ -331,9 +310,6 @@ typedef struct _DRIVER_DATA
 
     //  Connected clients
     DRIVER_CLIENTS      Clients;
-
-    //  Device used for adapters list retrieval 
-    PDEVICE             ListAdaptersDevice;
 
     //  List of adapters the protocol driver is attached to
     KM_LIST             AdaptersList;
