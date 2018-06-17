@@ -75,16 +75,78 @@ NTSTATUS Adapters_Unbind(
 // Adapter callbacks
 //////////////////////////////////////////////////////////////////////
 
-NDIS_STATUS _Function_class_(SET_OPTIONS) Protocol_SetOptionsHandler(NDIS_HANDLE NdisDriverHandle, NDIS_HANDLE DriverContext);
-NDIS_STATUS _Function_class_(PROTOCOL_NET_PNP_EVENT) Protocol_NetPnPEventHandler(NDIS_HANDLE ProtocolBindingContext, PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification);
-void _Function_class_(PROTOCOL_UNINSTALL) Protocol_UninstallHandler(VOID);
-void _Function_class_(PROTOCOL_STATUS_EX) Protocol_StatusHandlerEx(NDIS_HANDLE ProtocolBindingContext, PNDIS_STATUS_INDICATION StatusIndication);
-void _Function_class_(PROTOCOL_DIRECT_OID_REQUEST_COMPLETE) Protocol_DirectOidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNDIS_OID_REQUEST OidRequest, NDIS_STATUS Status);
+NDIS_STATUS
+_Function_class_(SET_OPTIONS)
+Protocol_SetOptionsHandler(
+    __in    NDIS_HANDLE NdisDriverHandle,
+    __in    NDIS_HANDLE DriverContext);
 
-NDIS_STATUS _Function_class_(PROTOCOL_BIND_ADAPTER_EX) Protocol_BindAdapterHandlerEx(NDIS_HANDLE ProtocolDriverContext, NDIS_HANDLE BindContext, PNDIS_BIND_PARAMETERS BindParameters);
-NDIS_STATUS _Function_class_(PROTOCOL_UNBIND_ADAPTER_EX) Protocol_UnbindAdapterHandlerEx(NDIS_HANDLE UnbindContext, NDIS_HANDLE ProtocolBindingContext);
-void _Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX) Protocol_OpenAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext, NDIS_STATUS Status);
-void _Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX) Protocol_CloseAdapterCompleteHandlerEx(NDIS_HANDLE ProtocolBindingContext);
-void _Function_class_(PROTOCOL_OID_REQUEST_COMPLETE) Protocol_OidRequestCompleteHandler(NDIS_HANDLE ProtocolBindingContext, NDIS_OID_REQUEST *OidRequest, NDIS_STATUS Status);
-void _Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS) Protocol_ReceiveNetBufferListsHandler(NDIS_HANDLE ProtocolBindingContext, PNET_BUFFER_LIST NetBufferLists, NDIS_PORT_NUMBER PortNumber, ULONG NumberOfNetBufferLists, ULONG ReceiveFlags);
-void _Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE) Protocol_SendNetBufferListsCompleteHandler(NDIS_HANDLE ProtocolBindingContext, PNET_BUFFER_LIST NetBufferList, ULONG SendCompleteFlags);
+NDIS_STATUS
+_Function_class_(PROTOCOL_NET_PNP_EVENT)
+Protocol_NetPnPEventHandler(
+    __in    NDIS_HANDLE                 ProtocolBindingContext,
+    __in    PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification);
+
+void
+_Function_class_(PROTOCOL_UNINSTALL)
+Protocol_UninstallHandler(void);
+
+void
+_Function_class_(PROTOCOL_STATUS_EX)
+Protocol_StatusHandlerEx(
+    __in    NDIS_HANDLE             ProtocolBindingContext,
+    __in    PNDIS_STATUS_INDICATION StatusIndication);
+
+void
+_Function_class_(PROTOCOL_DIRECT_OID_REQUEST_COMPLETE)
+Protocol_DirectOidRequestCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    PNDIS_OID_REQUEST   OidRequest,
+    __in    NDIS_STATUS         Status);
+
+NDIS_STATUS
+_Function_class_(PROTOCOL_BIND_ADAPTER_EX)
+Protocol_BindAdapterHandlerEx(
+    __in    NDIS_HANDLE             ProtocolDriverContext,
+    __in    NDIS_HANDLE             BindContext,
+    __in    PNDIS_BIND_PARAMETERS   BindParameters);
+
+NDIS_STATUS
+_Function_class_(PROTOCOL_UNBIND_ADAPTER_EX)
+Protocol_UnbindAdapterHandlerEx(
+    __in    NDIS_HANDLE UnbindContext,
+    __in    NDIS_HANDLE ProtocolBindingContext);
+
+void
+_Function_class_(PROTOCOL_OPEN_ADAPTER_COMPLETE_EX)
+Protocol_OpenAdapterCompleteHandlerEx(
+    __in    NDIS_HANDLE ProtocolBindingContext,
+    __in    NDIS_STATUS Status);
+
+void
+_Function_class_(PROTOCOL_CLOSE_ADAPTER_COMPLETE_EX)
+Protocol_CloseAdapterCompleteHandlerEx(
+    __in    NDIS_HANDLE ProtocolBindingContext);
+
+void
+_Function_class_(PROTOCOL_OID_REQUEST_COMPLETE)
+Protocol_OidRequestCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    NDIS_OID_REQUEST    *OidRequest,
+    __in    NDIS_STATUS         Status);
+
+void
+_Function_class_(PROTOCOL_RECEIVE_NET_BUFFER_LISTS)
+Protocol_ReceiveNetBufferListsHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    PNET_BUFFER_LIST    NetBufferLists,
+    __in    NDIS_PORT_NUMBER    PortNumber,
+    __in    ULONG               NumberOfNetBufferLists,
+    __in    ULONG               ReceiveFlags);
+
+void
+_Function_class_(PROTOCOL_SEND_NET_BUFFER_LISTS_COMPLETE)
+Protocol_SendNetBufferListsCompleteHandler(
+    __in    NDIS_HANDLE         ProtocolBindingContext,
+    __in    PNET_BUFFER_LIST    NetBufferList,
+    __in    ULONG               SendCompleteFlags);

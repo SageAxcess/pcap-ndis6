@@ -324,7 +324,7 @@ NTSTATUS GetAdapterTime(
     __in    PADAPTER    Adapter,
     __out   PKM_TIME    Time)
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
+    NTSTATUS        Status = STATUS_SUCCESS;
     LARGE_INTEGER   BootTime;
     LARGE_INTEGER   Frequency;
     long            TimeIncrement;
