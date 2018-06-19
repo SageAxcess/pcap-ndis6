@@ -27,6 +27,7 @@
 #include "KmMemoryManager.h"
 #include "KmConnections.h"
 #include "KmMemoryPool.h"
+#include "Packet.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -89,7 +90,7 @@ NTSTATUS __stdcall Adapter_Allocate(
 
     Status = Km_MP_Initialize(
         MemoryManager,
-        CalcRequiredPacketSize(BindParameters->MtuSize),
+        (ULONG)Packet_CalcRequiredMemorySize(BindParameters->MtuSize),
         PACKETS_POOL_INITIAL_SIZE,
         FALSE,
         &NewAdapter->Packets.Pool);
@@ -605,7 +606,7 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                             FALSE);
                                         if (!NT_SUCCESS(Status))
                                         {
-                                            Km_MP_Release(NewPacket);
+                                            Packet_Release(NewPacket);
                                             __leave;
                                         }
 
@@ -629,7 +630,7 @@ void __stdcall Adapter_WorkerThreadRoutine(
                     }
                     __finally
                     {
-                        Km_MP_Release((PVOID)Packet);
+                        Packet_Dereference(Packet);
                     }
                 }
             }break;
@@ -639,16 +640,16 @@ void __stdcall Adapter_WorkerThreadRoutine(
     Count.QuadPart = MAXULONGLONG;
 
     Km_List_ExtractEntriesEx(
-        &Adapter->Packets.Allocated, 
-        &TmpList, 
-        &Count, 
-        FALSE, 
+        &Adapter->Packets.Allocated,
+        &TmpList,
+        &Count,
+        FALSE,
         TRUE);
 
     while (!IsListEmpty(&TmpList))
     {
         PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
-        Km_MP_Release(CONTAINING_RECORD(Entry, PACKET, Link));
+        Packet_Dereference(CONTAINING_RECORD(Entry, PACKET, Link));
     }
 };
 
@@ -680,10 +681,10 @@ NTSTATUS Adapter_AllocateAndFillPacket(
         Assigned(Packet),
         STATUS_INVALID_PARAMETER_6);
 
-    Status = Km_MP_AllocateCheckSize(
+    Status = Packet_AllocateFromPool(
         Adapter->Packets.Pool,
-        SizeRequired,
-        (PVOID *)&NewPacket);
+        PacketDataSize,
+        &NewPacket);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     RtlZeroMemory(

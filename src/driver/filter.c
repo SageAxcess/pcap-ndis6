@@ -28,6 +28,7 @@
 #include "KmInterModeComms.h"
 #include "KmMemoryPool.h"
 #include "KmProcessWatcher.h"
+#include "Packet.h"
 
 #include "..\shared\win_bpf.h"
 
@@ -387,9 +388,7 @@ NTSTATUS __stdcall Filter_DestroyClient(
         while (!IsListEmpty(&TmpList))
         {
             PLIST_ENTRY Entry = RemoveHeadList(&TmpList);
-            PPACKET     Packet = CONTAINING_RECORD(Entry, PACKET, Link);
-
-            Km_MP_Release(Packet);
+            Packet_Release(CONTAINING_RECORD(Entry, PACKET, Link));
         }
     }
     __finally
@@ -747,7 +746,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
                 FALSE,
                 FALSE);
 
-            Km_MP_Release((PVOID)Packet);
+            Packet_Release(Packet);
         }
 
         if (Client->AllocatedPackets.Count.QuadPart == 0)

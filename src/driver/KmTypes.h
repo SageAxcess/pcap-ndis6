@@ -178,35 +178,32 @@ typedef struct _ADAPTER
 
 typedef struct _PACKET
 {
+    //  List link
     LIST_ENTRY          Link;
 
+    //  Object header
+
+
+    //  Number of current references established to the packet
+    //  The structure is being freed when the number of references
+    //  goes to zero.
+    ULONG               ReferencesCount;
+
+    //  Packet timestamp.
+    //  The time is relative to the system time.
     KM_TIME             Timestamp;
 
+    //  Id of the process of the connection the
+    //  packet belongs to.
     ULONGLONG           ProcessId;
 
+    //  Size of the packet data
     ULONG               DataSize;
 
+    //  Packet data
     UCHAR               Data[1];
 
 } PACKET, *PPACKET;
-
-#define CalcRequiredPacketSize(MTUSize) \
-    (sizeof(PACKET) + MTUSize - sizeof(UCHAR))
-
-typedef struct _EVENT
-{
-    char    Name[256];
-    PKEVENT Event;
-    HANDLE  EventHandle;
-} EVENT, *PEVENT;
-
-typedef struct _ADAPTER_CLIENT
-{
-    PDRIVER_DATA    Data;
-    
-    PADAPTER        Adapter;
-
-} ADAPTER_CLIENT, *PADAPTER_CLIENT;
 
 typedef struct _DRIVER_CLIENT
 {
@@ -228,6 +225,16 @@ typedef struct _DRIVER_CLIENT
     PCAP_NDIS_ADAPTER_ID    AdapterId;
 
 } DRIVER_CLIENT, *PDRIVER_CLIENT;
+
+typedef struct _DRIVER_CLIENT_PACKET
+{
+    //  List link
+    LIST_ENTRY  Link;
+
+    //  Pointer to the referenced PACKET structure
+    PPACKET     Packet;
+
+} DRIVER_CLIENT_PACKET, *PDRIVER_CLIENT_PACKET;
 
 typedef struct _DRIVER_CLIENTS
 {
