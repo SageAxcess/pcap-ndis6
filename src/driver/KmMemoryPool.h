@@ -44,6 +44,7 @@ NTSTATUS __stdcall Km_MP_Initialize(
     __in    ULONG               BlockSize,
     __in    ULONG               InitialBlockCount,
     __in    BOOLEAN             FixedSize,
+    __in    BOOLEAN             Referencable, 
     __out   PHANDLE             InstanceHandle);
 
 /*

@@ -55,6 +55,7 @@ void __stdcall Adapter_WorkerThreadRoutine(
 //////////////////////////////////////////////////////////////////////
 
 NTSTATUS __stdcall Adapter_Allocate(
+    __in    PDRIVER_DATA            Data,
     __in    PKM_MEMORY_MANAGER      MemoryManager,
     __in    PNDIS_BIND_PARAMETERS   BindParameters,
     __in    NDIS_HANDLE             BindContext,
@@ -66,14 +67,17 @@ NTSTATUS __stdcall Adapter_Allocate(
     UNICODE_STRING  TmpStr = RTL_CONSTANT_STRING(DEVICE_STR_W);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(MemoryManager),
+        Assigned(Data),
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(BindParameters),
+        Assigned(MemoryManager),
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(BindParameters),
+        STATUS_INVALID_PARAMETER_3);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
-        STATUS_INVALID_PARAMETER_4);
+        STATUS_INVALID_PARAMETER_5);
 
     NewAdapter = Km_MM_AllocMemTypedWithSize(
         MemoryManager,
@@ -82,6 +86,8 @@ NTSTATUS __stdcall Adapter_Allocate(
     RETURN_VALUE_IF_FALSE(
         Assigned(NewAdapter),
         NDIS_STATUS_FAILURE);
+
+    NewAdapter->Packets
 
     RtlZeroMemory(NewAdapter, sizeof(ADAPTER));
 
@@ -561,11 +567,14 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                     &Adapter->DriverData->Clients.Items[k]->AdapterId,
                                     &Adapter->AdapterId))
                                 {
+                                    //PPACKET_REFERENCE   PacketReference = NULL;
+
                                     ULARGE_INTEGER  ClientPacketsCount;
+
                                     PPACKET NewPacket = NULL;
                                     Status = Km_MP_AllocateCheckSize(
-                                        Adapter->DriverData->Clients.Items[k]->PacketsPool,
-                                        sizeof(PACKET) + Packet->DataSize - 1,
+                                        Adapter->DriverData->Clients.Items[k]->PacketReferencesPool,
+                                        sizeof(PACKET_REFERENCE),
                                         (PVOID *)&NewPacket);
                                     Cnt++;
 
@@ -574,7 +583,7 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                         PLIST_ENTRY TmpEntry = NULL;
 
                                         Status = Km_List_RemoveListHeadEx(
-                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPacketReferences,
                                             &TmpEntry,
                                             FALSE,
                                             FALSE);
@@ -590,17 +599,17 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                         Packet,
                                         sizeof(PACKET) + Packet->DataSize - 1);
 
-                                    Km_List_Lock(&Adapter->DriverData->Clients.Items[k]->AllocatedPackets);
+                                    Km_List_Lock(&Adapter->DriverData->Clients.Items[k]->AllocatedPacketReferences);
                                     __try
                                     {
                                         Km_List_GetCountEx(
-                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPacketReferences,
                                             &ClientPacketsCount,
                                             FALSE,
                                             FALSE);
 
                                         Status = Km_List_AddItemEx(
-                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
+                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPacketReferences,
                                             &NewPacket->Link,
                                             FALSE,
                                             FALSE);
@@ -618,7 +627,7 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                     }
                                     __finally
                                     {
-                                        Km_List_Unlock(&Adapter->DriverData->Clients.Items[k]->AllocatedPackets);
+                                        Km_List_Unlock(&Adapter->DriverData->Clients.Items[k]->AllocatedPacketReferences);
                                     }
                                 }
                             }
@@ -905,13 +914,13 @@ Protocol_UnbindAdapterHandlerEx(
     if (Assigned(Adapter->DriverData))
     {
         if (NT_SUCCESS(Km_List_FindItem(
-            &Adapter->DriverData->AdaptersList,
+            &Adapter->DriverData->Adapters.Adapters,
             Adapter,
             UnbindAdapter_SearchCallback,
             NULL)))
         {
             Km_List_RemoveItem(
-                &Adapter->DriverData->AdaptersList,
+                &Adapter->DriverData->Adapters.Adapters,
                 &Adapter->Link);
         }
     }

@@ -35,10 +35,20 @@ typedef struct _KM_MEMORY_POOL
     //  Structure lock
     KM_LOCK             Lock;
 
+    //  Boolean flag that identifies whether
+    //  the pool object should be freed if its 
+    //  reference count (RefCnt field) goes to zero.
+    BOOLEAN             Referencable;
+
     //  Indicates whether the pool should
     //  fail any new allocations if the AvailableBlocks
     //  list is empty.
     BOOLEAN             FixedSize;
+
+    //  Number of pool object references.
+    //  If this value goes to zero and 
+    //  Referencable field is TRUE the pool object gets freed automatically.
+    ULARGE_INTEGER      RefCnt;
 
     //  The size of the data block requested
     //  upon initialization of the pool.
@@ -128,6 +138,7 @@ NTSTATUS __stdcall Km_MP_Initialize(
     __in    ULONG               BlockSize,
     __in    ULONG               InitialBlockCount,
     __in    BOOLEAN             FixedSize,
+    __in    BOOLEAN             Referencable,
     __out   PHANDLE             InstanceHandle)
 {
     NTSTATUS        Status = STATUS_SUCCESS;

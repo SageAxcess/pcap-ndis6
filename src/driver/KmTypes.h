@@ -151,9 +151,14 @@ typedef struct _ADAPTER
 
     struct Packets
     {
-        HANDLE  Pool;
+        HANDLE  WorkPool;
         KM_LIST Allocated;
         KEVENT  NewPacketEvent;
+
+        struct ClientPacketPool
+        {
+            
+        } ClientPacketPool;
     } Packets;
 
     //  Pointer to driver data
@@ -205,6 +210,16 @@ typedef struct _PACKET
 
 } PACKET, *PPACKET;
 
+typedef struct _PACKET_REFERENCE
+{
+    //  List link
+    LIST_ENTRY  Link;
+
+    //  Referenced packet
+    PPACKET     Packet;
+
+} PACKET_REFERENCE, *PPACKET_REFERENCE;
+
 typedef struct _DRIVER_CLIENT
 {
     //  Process id of connected process
@@ -215,11 +230,11 @@ typedef struct _DRIVER_CLIENT
     //  during connecting a usermode process to the driver.
     PVOID                   NewPacketEvent;
 
-    //  Handle to packets pool
-    HANDLE                  PacketsPool;
+    //  Handle to packets references pool
+    HANDLE                  PacketReferencesPool;
 
-    //  Allocated packets list
-    KM_LIST                 AllocatedPackets;
+    //  Allocated packets references list
+    KM_LIST                 AllocatedPacketReferences;
 
     //  ID of associated (opened) adapter
     PCAP_NDIS_ADAPTER_ID    AdapterId;
@@ -249,6 +264,16 @@ typedef struct _DRIVER_CLIENTS
     //  (8192 bytes on x64 systems and 4096 bytes on x86 systems)
     HANDLE          ServicePool;
 
+    //  Memory pool instance handle.
+    //  Contains pre-allocated storage entries for packets (PACKET structure).
+    //  The number of pre-allocated entries is defined as PACKETS_POOL_INITIAL_SIZE.
+    //  The actual number of entries in the pool depends on the number of packets
+    //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE.
+    HANDLE          PacketsPool;
+
+    //  List of received (intercepted) packets
+    KM_LIST         ReceivedPackets;
+
     //  Number of connected clients
     ULONG           Count;
 
@@ -277,6 +302,7 @@ typedef struct _DRIVER_DATA
 
         //  NDIS Protocol Handle
         NDIS_HANDLE         ProtocolHandle;
+
     } Ndis;
 
     struct Wfp
@@ -300,16 +326,6 @@ typedef struct _DRIVER_DATA
         //  Handle to KmConnections object instance
         HANDLE          Connections;
 
-        //  Memory pool instance handle.
-        //  Contains pre-allocated storage entries for packets (PACKET structure).
-        //  The number of pre-allocated entries is defined as PACKETS_POOL_INITIAL_SIZE.
-        //  The actual number of entries in the pool depends on the number of packets
-        //  received and can possibly be more than PACKETS_POOL_INITIAL_SIZE.
-        HANDLE          PacketsPool;
-
-        //  List of received (intercepted) packets
-        KM_LIST         ReceivedPackets;
-
         //  Inter-mode comms instance handle
         HANDLE          IMCInstance;
 
@@ -319,7 +335,11 @@ typedef struct _DRIVER_DATA
     DRIVER_CLIENTS      Clients;
 
     //  List of adapters the protocol driver is attached to
-    KM_LIST             AdaptersList;
+    struct Adapters
+    {
+        KM_LIST Adapters;
+        KM_LIST AdapterPacketPools;
+    } Adapters;
 
 } DRIVER_DATA, *PDRIVER_DATA;
 

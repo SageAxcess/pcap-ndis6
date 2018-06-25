@@ -282,13 +282,13 @@ NTSTATUS __stdcall Filter_CreateClient(
 
     Status = Km_MP_Initialize(
         &Data->Ndis.MemoryManager,
-        (ULONG)sizeof(PACKET) + Adapter->MtuSize - 1,
+        (ULONG)sizeof(PACKET_REFERENCE),
         PACKETS_POOL_INITIAL_SIZE,
         TRUE,
-        &NewClient->PacketsPool);
+        &NewClient->PacketReferencesPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Status = Km_List_Initialize(&NewClient->AllocatedPackets);
+    Status = Km_List_Initialize(&NewClient->AllocatedPacketReferences);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     RtlCopyMemory(
@@ -336,7 +336,7 @@ cleanup:
     {
         if (Assigned(NewClient))
         {
-            Km_MP_Finalize(NewClient->PacketsPool);
+            Km_MP_Finalize(NewClient->PacketReferencesPool);
 
             Km_MM_FreeMem(
                 &Data->Ndis.MemoryManager,
@@ -370,7 +370,7 @@ NTSTATUS __stdcall Filter_DestroyClient(
     
     InitializeListHead(&TmpList);
 
-    Status = Km_List_Lock(&Client->AllocatedPackets);
+    Status = Km_List_Lock(&Client->AllocatedPacketReferences);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
@@ -379,7 +379,7 @@ NTSTATUS __stdcall Filter_DestroyClient(
         Count.QuadPart = MAXULONGLONG;
 
         Km_List_ExtractEntriesEx(
-            &Client->AllocatedPackets,
+            &Client->AllocatedPacketReferences,
             &TmpList,
             &Count,
             FALSE,
@@ -393,10 +393,10 @@ NTSTATUS __stdcall Filter_DestroyClient(
     }
     __finally
     {
-        Km_List_Unlock(&Client->AllocatedPackets);
+        Km_List_Unlock(&Client->AllocatedPacketReferences);
     }
 
-    Km_MP_Finalize(Client->PacketsPool);
+    Km_MP_Finalize(Client->PacketReferencesPool);
 
     if (Assigned(Client->NewPacketEvent))
     {
@@ -715,8 +715,8 @@ NTSTATUS __stdcall Filter_ReadPackets(
             Client->OwnerProcessId == ProcessId,
             STATUS_ACCESS_DENIED);
 
-        for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
-            ListEntry != &Client->AllocatedPackets.Head;
+        for (ListEntry = Client->AllocatedPacketReferences.Head.Flink, NextEntry = ListEntry->Flink;
+            ListEntry != &Client->AllocatedPacketReferences.Head;
             ListEntry = NextEntry, NextEntry = NextEntry->Flink)
         {
             PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
@@ -741,7 +741,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
             BytesLeft -= TotalPacketSize;
 
             Km_List_RemoveItemEx(
-                &Client->AllocatedPackets,
+                &Client->AllocatedPacketReferences,
                 ListEntry,
                 FALSE,
                 FALSE);
@@ -749,7 +749,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
             Packet_Release(Packet);
         }
 
-        if (Client->AllocatedPackets.Count.QuadPart == 0)
+        if (Client->AllocatedPacketReferences.Count.QuadPart == 0)
         {
             if (Assigned(Client->NewPacketEvent))
             {
