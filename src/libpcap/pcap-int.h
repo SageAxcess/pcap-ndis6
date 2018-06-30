@@ -354,6 +354,7 @@ struct pcap_sf_patched_pkthdr {
  */
 struct oneshot_userdata {
 	struct pcap_pkthdr *hdr;
+	struct pcap_pkthdr2 *hdr2;
 	const u_char **pkt;
 	pcap_t *pd;
 };

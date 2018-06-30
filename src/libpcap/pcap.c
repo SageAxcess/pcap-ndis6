@@ -227,7 +227,11 @@ pcap_oneshot(u_char *user, const struct pcap_pkthdr *h, const u_char *pkt)
 {
 	struct oneshot_userdata *sp = (struct oneshot_userdata *)user;
 
-	*sp->hdr = *h;
+	if(sp->hdr2)
+		*sp->hdr2 = *(struct pcap_pkthdr2*)h;
+	else
+		*sp->hdr = *h;
+
 	*sp->pkt = pkt;
 }
 
@@ -251,12 +255,15 @@ pcap_next2(pcap_t *p, struct pcap_pkthdr2 *h)
 	struct oneshot_userdata s;
 	const u_char *pkt;
 	
-	s.hdr = (struct pcap_pkthdr*)h;
+	s.hdr2 = h;
 	s.pkt = &pkt;
 	s.pd = p;
 	
 	if (pcap_dispatch(p, 1, p->oneshot_callback, (u_char *)&s) <= 0)
 		return (0);
+
+	//printf("[wpcap.dll] Header: datalen=%d, caplen=%d, hdrlen=%d, pid=%d\n", h->len, h->caplen, h->hdrlen, h->pid);
+
 	return (pkt);
 }
 
