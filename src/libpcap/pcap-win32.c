@@ -563,6 +563,16 @@ pcap_read_win32_npf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		hdrlen = bhp->bh_hdrlen;
 		datap = bp + hdrlen;
 
+		/*if(hdrlen>sizeof(struct bpf_hdr))
+		{
+			struct bpf_hdr2* hdr2 = (struct bpf_hdr2*)bp;
+
+			printf("[wpcap.dll] Header: datalen=%d, caplen=%d, hdrlen=%d, pid=%d\n", hdr2->bh_datalen, hdr2->bh_caplen, hdr2->bh_hdrlen, hdr2->bh_pid);
+		} else
+		{
+			printf("[wpcap.dll] small header");
+		}*/
+
 		/*
 		 * Short-circuit evaluation: if using BPF filter
 		 * in kernel, no need to do it now - we already know

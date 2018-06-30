@@ -297,6 +297,8 @@ BOOL NdisDriverNextPacket(
         ULONG       RequiredSize = bpf->bh_hdrlen + bpf->bh_datalen;
         PUCHAR      CurrentPtr;
 
+		//printf("[packet.dll] Header: datalen=%d, caplen=%d, hdrlen=%d, pid=%d\n", bpf->bh_datalen, bpf->bh_caplen, bpf->bh_hdrlen, bpf->ProcessId);
+
         RETURN_VALUE_IF_FALSE(
             Size >= RequiredSize,
             FALSE);

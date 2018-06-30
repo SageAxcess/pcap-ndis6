@@ -169,7 +169,8 @@ struct pcap_pkthdr2 {
 	struct timeval ts;	/* time stamp */
 	bpf_u_int32 caplen;	/* length of portion present */
 	bpf_u_int32 len;	/* length this packet (off wire) */
-	uint64_t pid;		/* process id */
+	u_short hdrlen;	/* length this packet (off wire) */
+	unsigned long pid;		/* process id */
 };
 
 /*

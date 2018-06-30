@@ -165,7 +165,7 @@ struct bpf_hdr2
 								///< a padding could be added between the end of this structure and the packet
 								///< data for performance reasons. This filed can be used to retrieve the actual data 
 								///< of the packet.
-	ULONGLONG	bh_pid;		/* process id */
+	unsigned long bh_pid;		/* process id */
 };
 
 /*!
