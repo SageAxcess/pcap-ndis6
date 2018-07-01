@@ -57,7 +57,7 @@ HKR, Ndi,FilterType,0x00010001,2
 
 ; Do not change these values
 HKR, Ndi\Interfaces,UpperRange,,"noupper"
-HKR, Ndi\Interfaces,LowerRange,,"ndis5,ndis4"
+HKR, Ndi\Interfaces,LowerRange,,"nolower"
 ;HKR, Ndi\Interfaces, FilterMediaTypes,,"ethernet, fddi, wan, ppip, wlan, bluetooth, ndis5, vwifi, flpp4, flpp6, vchannel, nolower"
 ;HKR, Ndi,FilterRunType,0x00010001, 2 ; Optional filter
 
