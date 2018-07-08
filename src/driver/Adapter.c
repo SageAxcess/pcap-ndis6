@@ -87,8 +87,6 @@ NTSTATUS __stdcall Adapter_Allocate(
         Assigned(NewAdapter),
         NDIS_STATUS_FAILURE);
 
-    NewAdapter->Packets
-
     RtlZeroMemory(NewAdapter, sizeof(ADAPTER));
 
     Status = Km_List_Initialize(&NewAdapter->Packets.Allocated);
@@ -99,7 +97,8 @@ NTSTATUS __stdcall Adapter_Allocate(
         (ULONG)Packet_CalcRequiredMemorySize(BindParameters->MtuSize),
         PACKETS_POOL_INITIAL_SIZE,
         FALSE,
-        &NewAdapter->Packets.Pool);
+        FALSE,
+        &NewAdapter->Packets.WorkPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     KeInitializeEvent(&NewAdapter->Packets.NewPacketEvent, NotificationEvent, FALSE);
@@ -170,9 +169,9 @@ cleanup:
                 KmThreads_DestroyThread(NewAdapter->WorkerThread);
             }
 
-            if (NewAdapter->Packets.Pool != NULL)
+            if (NewAdapter->Packets.WorkPool != NULL)
             {
-                Km_MP_Finalize(NewAdapter->Packets.Pool);
+                Km_MP_Finalize(NewAdapter->Packets.WorkPool);
             }
 
             Km_MM_FreeMem(MemoryManager, NewAdapter);
@@ -302,9 +301,9 @@ BOOL FreeAdapter(
         KmThreads_DestroyThread(Adapter->WorkerThread);
     }
 
-    if (Adapter->Packets.Pool != NULL)
+    if (Adapter->Packets.WorkPool != NULL)
     {
-        Km_MP_Finalize(Adapter->Packets.Pool);
+        Km_MP_Finalize(Adapter->Packets.WorkPool);
     }
 
     MemoryManager = &Adapter->DriverData->Ndis.MemoryManager;
@@ -691,7 +690,7 @@ NTSTATUS Adapter_AllocateAndFillPacket(
         STATUS_INVALID_PARAMETER_6);
 
     Status = Packet_AllocateFromPool(
-        Adapter->Packets.Pool,
+        Adapter->Packets.WorkPool,
         PacketDataSize,
         &NewPacket);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -856,6 +855,7 @@ Protocol_BindAdapterHandlerEx(
     Data = (PDRIVER_DATA)ProtocolDriverContext;
 
     Status2 = Adapter_Allocate(
+        Data,
         &Data->Ndis.MemoryManager,
         BindParameters,
         BindContext,
@@ -1002,7 +1002,7 @@ Protocol_OpenAdapterCompleteHandlerEx(
         if (Assigned(Adapter->DriverData))
         {
             Km_List_AddItem(
-                &Adapter->DriverData->AdaptersList,
+                &Adapter->DriverData->Adapters.Adapters,
                 &Adapter->Link);
         }
 

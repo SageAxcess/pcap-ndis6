@@ -157,7 +157,7 @@ typedef struct _ADAPTER
 
         struct ClientPacketPool
         {
-            
+            PHANDLE PoolHandle;
         } ClientPacketPool;
     } Packets;
 

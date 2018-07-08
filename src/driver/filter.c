@@ -146,7 +146,7 @@ NTSTATUS __stdcall Filter_GetAdapters(
         BufferSize >= (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST),
         STATUS_BUFFER_TOO_SMALL);
 
-    Status = Km_List_Lock(&Data->AdaptersList);
+    Status = Km_List_Lock(&Data->Adapters.Adapters);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
@@ -157,7 +157,7 @@ NTSTATUS __stdcall Filter_GetAdapters(
         PPCAP_NDIS_ADAPTER_INFO_LIST    List;
 
         Status = Km_List_GetCountEx(
-            &Data->AdaptersList,
+            &Data->Adapters.Adapters,
             &Count,
             FALSE,
             FALSE);
@@ -178,8 +178,8 @@ NTSTATUS __stdcall Filter_GetAdapters(
 
         BytesCopied += sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) - sizeof(PCAP_NDIS_ADAPTER_INFO);
 
-        for (ListEntry = Data->AdaptersList.Head.Flink, k = 0;
-            ListEntry != &Data->AdaptersList.Head;
+        for (ListEntry = Data->Adapters.Adapters.Head.Flink, k = 0;
+            ListEntry != &Data->Adapters.Adapters.Head;
             ListEntry = ListEntry->Flink, k++)
         {
             PADAPTER    Adapter = CONTAINING_RECORD(ListEntry, ADAPTER, Link);
@@ -237,7 +237,7 @@ NTSTATUS __stdcall Filter_GetAdapters(
     }
     __finally
     {
-        Km_List_Unlock(&Data->AdaptersList);
+        Km_List_Unlock(&Data->Adapters.Adapters);
     }
 
 cleanup:
@@ -285,6 +285,7 @@ NTSTATUS __stdcall Filter_CreateClient(
         (ULONG)sizeof(PACKET_REFERENCE),
         PACKETS_POOL_INITIAL_SIZE,
         TRUE,
+        FALSE,
         &NewClient->PacketReferencesPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -320,8 +321,8 @@ NTSTATUS __stdcall Filter_CreateClient(
                 Data->Clients.Count++;
                 NewClientId.Index = k;
                 __leave;
-            }
         }
+            }
 
         Status = STATUS_UNSUCCESSFUL;
     }
@@ -437,14 +438,14 @@ NTSTATUS __stdcall Filter_OpenAdapter(
         &NewDataEventObject);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Status = Km_List_Lock(&Data->AdaptersList);
+    Status = Km_List_Lock(&Data->Adapters.Adapters);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
         PADAPTER    Adapter = NULL;
 
         Status = FindAdapterById(
-            &Data->AdaptersList,
+            &Data->Adapters.Adapters,
             &RequestData->AdapterId,
             &Adapter,
             FALSE);
@@ -473,7 +474,7 @@ NTSTATUS __stdcall Filter_OpenAdapter(
     }
     __finally
     {
-        Km_List_Unlock(&Data->AdaptersList);
+        Km_List_Unlock(&Data->Adapters.Adapters);
     }
 
 cleanup:
@@ -510,14 +511,14 @@ NTSTATUS __stdcall Filter_CloseAdapter_Internal(
 
     Filter_DestroyClient(Data, Client);
 
-    Status = Km_List_Lock(&Data->AdaptersList);
+    Status = Km_List_Lock(&Data->Adapters.Adapters);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
         PADAPTER    Adapter = NULL;
 
         Status = FindAdapterById(
-            &Data->AdaptersList,
+            &Data->Adapters.Adapters,
             &AdapterId,
             &Adapter,
             FALSE);
@@ -527,7 +528,7 @@ NTSTATUS __stdcall Filter_CloseAdapter_Internal(
     }
     __finally
     {
-        Km_List_Unlock(&Data->AdaptersList);
+        Km_List_Unlock(&Data->Adapters.Adapters);
     }
 
 cleanup:
@@ -804,7 +805,7 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
                 OutBufferSize >= sizeof(DWORD),
                 STATUS_BUFFER_TOO_SMALL);
 
-            Status = Km_List_GetCount(&Data->AdaptersList, &NumberOfAdapters);
+            Status = Km_List_GetCount(&Data->Adapters.Adapters, &NumberOfAdapters);
             if (NT_SUCCESS(Status))
             {
                 *((PDWORD)OutBuffer) = (DWORD)NumberOfAdapters.QuadPart;
@@ -1044,7 +1045,7 @@ DriverEntry(
 
     DriverData.Other.DriverObject = DriverObject;
 
-    Status = Km_List_Initialize(&DriverData.AdaptersList);
+    Status = Km_List_Initialize(&DriverData.Adapters.Adapters);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_Lock_Initialize(&DriverData.Clients.Lock);
@@ -1054,6 +1055,7 @@ DriverEntry(
         &DriverData.Ndis.MemoryManager,
         sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
         DRIVER_SVC_CLIENTS_POOL_SIZE,
+        FALSE,
         FALSE,
         &DriverData.Clients.ServicePool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -1175,7 +1177,7 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
 
     Adapters_Unbind(
         &DriverData.Ndis.MemoryManager,
-        &DriverData.AdaptersList);
+        &DriverData.Adapters.Adapters);
 
     Km_ProcessWatcher_Finalize();
 

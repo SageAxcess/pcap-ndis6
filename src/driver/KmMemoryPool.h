@@ -139,6 +139,40 @@ NTSTATUS __stdcall Km_MP_AllocateCheckSize(
         STATUS_INVALID_PARAMETER_1  - The Block parameter is NULL or 
                                       the memory block header contains invalid data.
         Other status codes          - An error occured.
-u*/
+*/
 NTSTATUS __stdcall Km_MP_Release(
     __in    PVOID   Block);
+
+/*
+    Km_MP_Reference routine.
+
+    Purpose:
+        References a memory pool.
+
+    Parameters:
+        Instance    - Handle to a memory pool instance.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The Instance parameter is NULL.
+        Other status codes          - An error occured.
+*/
+NTSTATUS __stdcall Km_MP_Reference(
+    __in    HANDLE  Instance);
+
+/*
+    Km_MP_Dereference routine.
+
+    Purpose:
+        Dereferences a memory pool.
+
+    Parameters:
+        Instance    - Handle to a memory pool instance.
+
+    Return values:
+        STATUS_SUCCESS              - The routine succeeded.
+        STATUS_INVALID_PARAMETER_1  - The Instance parameter is NULL.
+        Other status codes          - An error occured.
+*/
+NTSTATUS __stdcall Km_MP_Dereference(
+    __in    HANDLE  Instance);

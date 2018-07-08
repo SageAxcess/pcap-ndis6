@@ -48,7 +48,7 @@ typedef struct _KM_MEMORY_POOL
     //  Number of pool object references.
     //  If this value goes to zero and 
     //  Referencable field is TRUE the pool object gets freed automatically.
-    ULARGE_INTEGER      RefCnt;
+    LARGE_INTEGER       RefCnt;
 
     //  The size of the data block requested
     //  upon initialization of the pool.
@@ -133,6 +133,45 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Km_MP_AllocateInternal(
+    __in    PKM_MEMORY_POOL                 Pool,
+    __out   PKM_MEMORY_POOL_BLOCK_HEADER    *BlockHeader)
+{
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PKM_MEMORY_POOL_BLOCK_HEADER    NewBlockHeader = NULL;
+
+    if (!IsListEmpty(&Pool->AvailableBlocks.List))
+    {
+        PLIST_ENTRY Entry = RemoveHeadList(&Pool->AvailableBlocks.List);
+        Pool->AvailableBlocks.Count.QuadPart--;
+
+        NewBlockHeader = CONTAINING_RECORD(Entry, KM_MEMORY_POOL_BLOCK_HEADER, Link);
+    }
+    else
+    {
+        GOTO_CLEANUP_IF_TRUE_SET_STATUS(
+            Pool->FixedSize,
+            STATUS_NO_MORE_ENTRIES);
+
+        Status = Km_MP_CreateBlock(Pool, &NewBlockHeader);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+
+    if (Assigned(NewBlockHeader))
+    {
+        InsertTailList(
+            &Pool->AllocatedBlocks.List,
+            &NewBlockHeader->Link);
+        Pool->AllocatedBlocks.Count.QuadPart++;
+        Pool->RefCnt.QuadPart++;
+
+        *BlockHeader = NewBlockHeader;
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Km_MP_Initialize(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __in    ULONG               BlockSize,
@@ -177,6 +216,10 @@ NTSTATUS __stdcall Km_MP_Initialize(
     NewPool->FixedSize = FixedSize;
 
     NewPool->BlockSize = BlockSize;
+
+    NewPool->RefCnt.QuadPart = 1;
+
+    NewPool->Referencable = Referencable;
 
     if (InitialBlockCount > 0)
     {
@@ -291,29 +334,9 @@ NTSTATUS __stdcall Km_MP_Allocate(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        if (!IsListEmpty(&Pool->AvailableBlocks.List))
-        {
-            PLIST_ENTRY Entry = RemoveHeadList(&Pool->AvailableBlocks.List);
-            Pool->AvailableBlocks.Count.QuadPart--;
-            BlockHeader = CONTAINING_RECORD(Entry, KM_MEMORY_POOL_BLOCK_HEADER, Link);
-        }
-        else
-        {
-            LEAVE_IF_TRUE_SET_STATUS(
-                Pool->FixedSize,
-                STATUS_NO_MORE_ENTRIES);
-
-            Status = Km_MP_CreateBlock(Pool, &BlockHeader);
-            LEAVE_IF_FALSE(NT_SUCCESS(Status));
-        }
-
-        if (Assigned(BlockHeader))
-        {
-            InsertTailList(
-                &Pool->AllocatedBlocks.List,
-                &BlockHeader->Link);
-            Pool->AllocatedBlocks.Count.QuadPart++;
-        }
+        Status = Km_MP_AllocateInternal(
+            Pool,
+            &BlockHeader);
     }
     __finally
     {
@@ -321,7 +344,8 @@ NTSTATUS __stdcall Km_MP_Allocate(
     }
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(BlockHeader),
+        (Assigned(BlockHeader)) &&
+        (NT_SUCCESS(Status)),
         STATUS_UNSUCCESSFUL);
 
     *Block = (PVOID)((PUCHAR)BlockHeader + sizeof(KM_MEMORY_POOL_BLOCK_HEADER));
@@ -355,33 +379,15 @@ NTSTATUS __stdcall Km_MP_AllocateCheckSize(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        LEAVE_IF_FALSE_SET_STATUS(
+
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
             Size <= Pool->BlockSize,
             STATUS_BUFFER_TOO_SMALL);
 
-        if (!IsListEmpty(&Pool->AvailableBlocks.List))
-        {
-            PLIST_ENTRY Entry = RemoveHeadList(&Pool->AvailableBlocks.List);
-            Pool->AvailableBlocks.Count.QuadPart--;
-            BlockHeader = CONTAINING_RECORD(Entry, KM_MEMORY_POOL_BLOCK_HEADER, Link);
-        }
-        else
-        {
-            LEAVE_IF_TRUE_SET_STATUS(
-                Pool->FixedSize,
-                STATUS_NO_MORE_ENTRIES);
+        Status = Km_MP_AllocateInternal(
+            Pool,
+            &BlockHeader);
 
-            Status = Km_MP_CreateBlock(Pool, &BlockHeader);
-            LEAVE_IF_FALSE(NT_SUCCESS(Status));
-        }
-
-        if (Assigned(BlockHeader))
-        {
-            InsertTailList(
-                &Pool->AllocatedBlocks.List,
-                &BlockHeader->Link);
-            Pool->AllocatedBlocks.Count.QuadPart++;
-        }
     }
     __finally
     {
@@ -389,7 +395,8 @@ NTSTATUS __stdcall Km_MP_AllocateCheckSize(
     }
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(BlockHeader),
+        (Assigned(BlockHeader)) &&
+        (NT_SUCCESS(Status)),
         Status == STATUS_SUCCESS ? STATUS_UNSUCCESSFUL : Status);
 
     *Block = (PVOID)((PUCHAR)BlockHeader + sizeof(KM_MEMORY_POOL_BLOCK_HEADER));
@@ -403,6 +410,9 @@ NTSTATUS __stdcall Km_MP_Release(
 {
     NTSTATUS                        Status = STATUS_SUCCESS;
     PKM_MEMORY_POOL_BLOCK_HEADER    BlockHeader = NULL;
+    LARGE_INTEGER                   CurrentRefCnt = { 0 };
+    BOOLEAN                         ReferencablePool = FALSE;
+    PKM_MEMORY_POOL                 Pool = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Block),
@@ -425,10 +435,91 @@ NTSTATUS __stdcall Km_MP_Release(
             &BlockHeader->Pool->AvailableBlocks.List,
             &BlockHeader->Link);
         BlockHeader->Pool->AvailableBlocks.Count.QuadPart++;
+
+        BlockHeader->Pool->RefCnt.QuadPart--;
+
+        ReferencablePool = BlockHeader->Pool->Referencable;
+        CurrentRefCnt.QuadPart = BlockHeader->Pool->RefCnt.QuadPart;
+        Pool = BlockHeader->Pool;
     }
     __finally
     {
         Km_Lock_Release(&BlockHeader->Pool->Lock);
+    }
+
+    if ((CurrentRefCnt.QuadPart == 0) && 
+        (ReferencablePool))
+    {
+        Km_MP_Finalize((HANDLE)Pool);
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Km_MP_Reference(
+    __in    HANDLE  Instance)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PKM_MEMORY_POOL Pool = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Instance != NULL,
+        STATUS_INVALID_PARAMETER_1);
+
+    Pool = (PKM_MEMORY_POOL)Instance;
+
+    Status = Km_Lock_Acquire(&Pool->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        LEAVE_IF_FALSE_SET_STATUS(
+            Pool->RefCnt.QuadPart > 0,
+            STATUS_UNSUCCESSFUL);
+
+        Pool->RefCnt.QuadPart++;
+    }
+    __finally
+    {
+        Km_Lock_Release(&Pool->Lock);
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Km_MP_Dereference(
+    __in    HANDLE  Instance)
+{
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PKM_MEMORY_POOL Pool = NULL;
+    LARGE_INTEGER   RefCnt = { 0 };
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Instance != NULL,
+        STATUS_INVALID_PARAMETER_1);
+
+    Pool = (PKM_MEMORY_POOL)Instance;
+
+    Status = Km_Lock_Acquire(&Pool->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        LEAVE_IF_FALSE_SET_STATUS(
+            Pool->RefCnt.QuadPart > 0,
+            STATUS_UNSUCCESSFUL);
+
+        Pool->RefCnt.QuadPart--;
+        RefCnt.QuadPart = Pool->RefCnt.QuadPart;
+    }
+    __finally
+    {
+        Km_Lock_Release(&Pool->Lock);
+    }
+
+    if (RefCnt.QuadPart == 0)
+    {
+        Km_MP_Finalize(Instance);
     }
 
 cleanup:

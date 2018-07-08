@@ -245,6 +245,7 @@ NTSTATUS __stdcall Km_Connections_Initialize(
         (ULONG)sizeof(KM_CONNECTIONS_ITEM),
         KM_CONNECTIONS_INITIAL_POOL_SIZE,
         FALSE,
+        FALSE,
         &NewData->MemoryPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
