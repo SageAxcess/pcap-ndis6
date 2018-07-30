@@ -555,19 +555,7 @@ NLM_EVENTS::CNetEventsManager::~CNetEventsManager()
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_ADD_REMOVE NLM_EVENTS::CNetEventsManager::GetOnNetworkAdd() const
 {
-    LPON_NET_ENTITY_ADD_REMOVE  Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkAdd;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkAdded).OnNetworkAdd;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkAdd(

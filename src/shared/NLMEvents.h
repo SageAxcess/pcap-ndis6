@@ -294,6 +294,13 @@ namespace NLM_EVENTS
             __in    const   GUID    &Id,
             __in    const   DWORD   Flags);
 
+        virtual EVENT_CALLBACK GetClientCallbackByType(
+            __in    const   EVENT_TYPE  EventType) const;
+
+        virtual void SetClientCallbackByType(
+            __in    const   EVENT_TYPE      EventType,
+            __in    const   EVENT_CALLBACK  &Callback);
+
     public:
         CNetEventsManager(
             __in_opt    LPVOID  Owner = nullptr);
