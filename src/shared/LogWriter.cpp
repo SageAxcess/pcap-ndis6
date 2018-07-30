@@ -42,8 +42,9 @@ void CLogWriter::InternalLogOSDetails()
     InternalLogMessage(Message.c_str());
 };
 
-CLogWriter::CLogWriter():
-    CCSObject()
+CLogWriter::CLogWriter(
+    __in_opt    LPVOID  Owner):
+    CCSObject(Owner)
 {
 };
 

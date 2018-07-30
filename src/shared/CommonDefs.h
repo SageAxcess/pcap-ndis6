@@ -22,6 +22,37 @@
 #define ClearBitFlag	                CLEAR_BIT_FLAG
 #define IsBitFlagSet	                IS_BIT_FLAG_SET
 
+#define CAST_THIS_AS(Type)  reinterpret_cast<Type *>(this)
+
+#define CLASS_PROPERTY_EX(PropType, PropName, GetFunc, SetFunc) \
+    __declspec(property (get = GetFunc, put = SetFunc)) PropType PropName
+
+#define CLASS_PROPERTY(PropType, PropName) \
+    CLASS_PROPERTY_EX(PropType, PropName, Get##PropName, Set##PropName)
+
+#define CLASS_READ_ONLY_PROPERTY_EX(PropType, PropName, GetFunc) \
+    __declspec(property (get = GetFunc)) PropType PropName
+
+#define CLASS_READ_ONLY_PROPERTY(PropType, PropName) \
+    CLASS_READ_ONLY_PROPERTY_EX(PropType, PropName, Get##PropName)
+
+#define CLASS_WRITE_ONLY_PROPERTY_EX(PropType, PropName, SetFunc) \
+    __declspec(property (put = SetFunc)) PropType PropName
+
+#define CLASS_WRITE_ONLY_PROPERTY(PropType, PropName) \
+    CLASS_WRITE_ONLY_PROPERTY_EX(PropType, PropName, Set##PropName)
+
+#define THROW_EXCEPTION_IF_TRUE(Condition, Exception) \
+{ \
+    if (Condition) \
+    { \
+        throw (Exception); \
+    } \
+}
+
+#define THROW_EXCEPTION_IF_FALSE(Condition, Exception) \
+    THROW_EXCEPTION_IF_TRUE(!(Condition), (Exception))
+
 #define RETURN_VALUE_IF_TRUE(Condition, Value) \
 { \
     if (Condition) \

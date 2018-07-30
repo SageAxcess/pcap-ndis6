@@ -13,7 +13,9 @@
 
 #include "CSObject.h"
 
-CCSObject::CCSObject()
+CCSObject::CCSObject(
+    __in_opt    LPVOID  Owner):
+    CBaseObject(Owner)
 {
     InitializeCriticalSection(&FCriticalSection);
 };

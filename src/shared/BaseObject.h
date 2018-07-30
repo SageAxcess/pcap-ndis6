@@ -3,30 +3,35 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2018 ChangeDynamix, LLC
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
 // 
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
+
 #pragma once
 
-#include "BaseObject.h"
-#include <windows.h>
+#include "CommonDefs.h"
+#include <Windows.h>
 
-class CCSObject:
-    virtual public CBaseObject
+class CBaseObject
 {
 private:
-    CRITICAL_SECTION    FCriticalSection;
+    LPVOID  FOwner = nullptr;
 
 public:
-    explicit CCSObject(
+    CBaseObject(
         __in_opt    LPVOID  Owner = nullptr);
-    virtual ~CCSObject();
+    virtual ~CBaseObject();
 
-    virtual void Enter();
-    virtual BOOL TryEnter();
-    virtual void Leave();
+    template <typename T> 
+    T *GetOwnerAs() const;
+
+    virtual LPVOID GetOwner() const;
+    virtual void SetOwner(
+        __in    LPVOID  Value);
+
+    CLASS_PROPERTY(LPVOID, Owner);
 };

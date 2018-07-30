@@ -30,7 +30,8 @@ protected:
     virtual void InternalLogOSDetails();
 
 public:
-    CLogWriter();
+    explicit CLogWriter(
+        __in_opt    LPVOID  Owner = nullptr);
     virtual ~CLogWriter();
 
     virtual void LogMessage(

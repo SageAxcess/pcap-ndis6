@@ -52,13 +52,13 @@ BOOL CFileLogWriter::InternalCreateLogFile(
 };
 
 CFileLogWriter::CFileLogWriter(
-    __in    const   std::wstring    &FileName):
-    CLogWriter()
+    __in        const   std::wstring    &FileName,
+    __in_opt            LPVOID          Owner):
+    CLogWriter(Owner)
 {
-    if (!InternalCreateLogFile(FileName))
-    {
-        throw L"Failed to create log file";
-    }
+    THROW_EXCEPTION_IF_FALSE(
+        InternalCreateLogFile(FileName),
+        FILE_LOG_WRITER_EXCEPTION_FAILED_TO_CREATE_LOG_FILE);
 };
 
 CFileLogWriter::~CFileLogWriter()

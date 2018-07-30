@@ -14,6 +14,8 @@
 
 #include "LogWriter.h"
 
+#define FILE_LOG_WRITER_EXCEPTION_FAILED_TO_CREATE_LOG_FILE L"File log writer exception: failed to create log file"
+
 class CFileLogWriter :
     virtual public CLogWriter
 {
@@ -29,7 +31,8 @@ protected:
 
 public:
     explicit CFileLogWriter(
-        __in    const   std::wstring    &FileName);
+        __in        const   std::wstring    &FileName,
+        __in_opt            LPVOID          Owner = nullptr);
 
     virtual ~CFileLogWriter();
 };
