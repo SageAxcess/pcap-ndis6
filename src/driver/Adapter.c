@@ -867,6 +867,8 @@ Protocol_BindAdapterHandlerEx(
         NT_SUCCESS(Status2),
         NDIS_STATUS_RESOURCES);
 
+    MediumArray = BindParameters->MediaType;
+
     Adapter->DriverData = Data;
 
     RtlZeroMemory(&OpenParameters, sizeof(OpenParameters));
