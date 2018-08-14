@@ -842,9 +842,11 @@ Protocol_BindAdapterHandlerEx(
         (Assigned(BindParameters)),
         NDIS_STATUS_FAILURE);
 
+    /*
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         BindParameters->MacAddressLength == 6,
         NDIS_STATUS_FAILURE);
+    */
 
     /*
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
