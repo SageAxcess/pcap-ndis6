@@ -663,6 +663,7 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     NTSTATUS    Status = STATUS_SUCCESS;
     PPACKET     NewPacket = NULL;
     SIZE_T      SizeRequired = sizeof(PACKET) + PacketDataSize - 1;
+    PETH_HEADER EthHeader = (PETH_HEADER)PacketData;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
@@ -679,6 +680,12 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Packet),
         STATUS_INVALID_PARAMETER_6);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (EthHeader->EthType == ETH_TYPE_IP) ||
+        (EthHeader->EthType == ETH_TYPE_IP6) ||
+        (EthHeader->EthType == ETH_TYPE_IP_BE) ||
+        (EthHeader->EthType == ETH_TYPE_IP6_BE),
+        STATUS_NOT_SUPPORTED);
 
     Status = Km_MP_AllocateCheckSize(
         Adapter->Packets.Pool,
@@ -836,12 +843,18 @@ Protocol_BindAdapterHandlerEx(
         NDIS_STATUS_FAILURE);
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BindParameters->MacAddressLength == 6,
+        NDIS_STATUS_FAILURE);
+
+    /*
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (BindParameters->MediaType == NdisMedium802_3) &&
         (BindParameters->MacAddressLength == 6) &&
         (BindParameters->AccessType == NET_IF_ACCESS_BROADCAST) &&
         (BindParameters->DirectionType == NET_IF_DIRECTION_SENDRECEIVE) &&
         (BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED),
         NDIS_STATUS_FAILURE);
+        */
 
     Data = (PDRIVER_DATA)ProtocolDriverContext;
 
