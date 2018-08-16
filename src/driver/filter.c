@@ -956,6 +956,9 @@ NTSTATUS __stdcall RegisterNdisProtocol(
     Chars.MinorNdisVersion = 20;
     Chars.Name = ProtocolName;
 
+    Chars.MajorDriverVersion = 1;
+    Chars.MinorDriverVersion = 0;
+
     Chars.SetOptionsHandler = Protocol_SetOptionsHandler;
     Chars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
     Chars.UnbindAdapterHandlerEx = Protocol_UnbindAdapterHandlerEx;

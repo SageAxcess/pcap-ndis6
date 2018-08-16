@@ -833,14 +833,42 @@ Protocol_BindAdapterHandlerEx(
     PADAPTER                Adapter = NULL;
     PDRIVER_DATA            Data = NULL;
 
-    GOTO_CLEANUP_IF_TRUE_SET_STATUS(
-        DriverData.DriverUnload,
-        NDIS_STATUS_FAILURE);
+    DbgPrint(
+        "%s: ProtocolDriverContext = %p, BindContext = %p, BindParameters = %p\n",
+        __FUNCTION__,
+        ProtocolDriverContext,
+        BindContext,
+        BindParameters);
 
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        (ProtocolDriverContext != NULL) &&
-        (Assigned(BindParameters)),
-        NDIS_STATUS_FAILURE);
+    if (DriverData.DriverUnload)
+    {
+        DbgPrint(
+            "%s: DriverUnload flag is TRUE\n",
+            __FUNCTION__);
+        Status = NDIS_STATUS_FAILURE;
+        goto cleanup;
+    }
+
+    if ((ProtocolDriverContext == NULL) ||
+        (!Assigned(BindParameters)))
+    {
+        DbgPrint(
+            "%: ProtocolDriverContext = %p, BindParameters = %p\n",
+            __FUNCTION__,
+            ProtocolDriverContext,
+            BindParameters);
+        Status = NDIS_STATUS_FAILURE;
+        goto cleanup;
+    }
+
+    DbgPrint(
+        "%s: BindParameters --> MediaType = %d, MacAddrLen = %d, AccessType = %d, DirType = %d, ConnType = %d\n",
+        __FUNCTION__,
+        BindParameters->MediaType,
+        BindParameters->MacAddressLength,
+        BindParameters->AccessType,
+        BindParameters->DirectionType,
+        BindParameters->ConnectionType);
 
     /*
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -865,6 +893,10 @@ Protocol_BindAdapterHandlerEx(
         BindParameters,
         BindContext,
         &Adapter);
+    DbgPrint(
+        "%s: Adapter_Allocate --> %x\n",
+        __FUNCTION__,
+        Status2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         NT_SUCCESS(Status2),
         NDIS_STATUS_RESOURCES);
@@ -890,6 +922,10 @@ Protocol_BindAdapterHandlerEx(
         &OpenParameters,
         BindContext,
         &Adapter->AdapterHandle);
+    DbgPrint(
+        "%s: NdisOpenAdapterEx --> %x\n",
+        __FUNCTION__,
+        Status);
 
     GOTO_CLEANUP_IF_TRUE(Status == NDIS_STATUS_PENDING);
 
