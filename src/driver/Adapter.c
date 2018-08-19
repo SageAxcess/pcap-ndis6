@@ -1363,22 +1363,36 @@ Protocol_NetPnPEventHandler(
 
     DEBUGP_FUNC_ENTER(DL_TRACE);
 
-    if (Assigned(NetPnPEventNotification))
-    {
-        if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventBindsComplete)
-        {
-            DEBUGP(DL_TRACE, "   finished binding adapters!\n");
-        }
+    GOTO_CLEANUP_IF_FALSE(Assigned(NetPnPEventNotification));
 
-        if (NetPnPEventNotification->NetPnPEvent.NetEvent == NetEventSetPower)
+    DEBUGP(
+        DL_TRACE,
+        "    NetEvent: %s",
+        NetEventString(NetPnPEventNotification->NetPnPEvent.NetEvent));
+
+    switch (NetPnPEventNotification->NetPnPEvent.NetEvent)
+    {
+    case NetEventBindsComplete:
         {
-            DEBUGP(DL_TRACE, "   power up adapter\n");
-        }
-    }
+            DEBUGP(DL_TRACE, "    finished binding adapters!\n");
+        }break;
+
+    case NetEventSetPower:
+        {
+            DEBUGP(DL_TRACE, "    power up adapter\n");
+        }break;
+
+    case NetEventBindFailed:
+        {
+            DEBUGP(DL_TRACE, "    binding failed\n");
+        }break;
+    };
+
+cleanup:
 
     DEBUGP_FUNC_LEAVE(DL_TRACE);
-    
-    return NDIS_STATUS_SUCCESS; //TODO: ?
+
+    return NDIS_STATUS_SUCCESS;
 };
 
 void

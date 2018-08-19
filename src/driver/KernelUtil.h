@@ -106,3 +106,32 @@ NTSTATUS __stdcall IOUtils_ValidateAndGetIOBuffers(
     __out	PULONG	InLength,
     __out	PVOID	*OutBuffer,
     __out	PULONG	OutLength);
+
+
+
+#define NetEventString(Value) \
+    ((Value) == NetEventSetPower ? "NetEventSetPower" : \
+     (Value) == NetEventQueryPower ? "NetEventQueryPower" : \
+     (Value) == NetEventQueryRemoveDevice ? "NetEventQueryRemoveDevice" : \
+     (Value) == NetEventCancelRemoveDevice ? "NetEventCancelRemoveDevice" : \
+     (Value) == NetEventReconfigure ? "NetEventCancelRemoveDevice" : \
+     (Value) == NetEventBindList ? "NetEventBindList" : \
+     (Value) == NetEventBindsComplete ? "NetEventBindsComplete" : \
+     (Value) == NetEventPnPCapabilities ? "NetEventPnPCapabilities" : \
+     (Value) == NetEventPause ? "NetEventPause" : \
+     (Value) == NetEventRestart ? "NetEventRestart" : \
+     (Value) == NetEventPortActivation ? "NetEventPortActivation" : \
+     (Value) == NetEventPortDeactivation ? "NetEventPortDeactivation" : \
+     (Value) == NetEventIMReEnableDevice ? "NetEventIMReEnableDevice" : \
+     (Value) == NetEventNDKEnable ? "NetEventNDKEnable" : \
+     (Value) == NetEventNDKDisable ? "NetEventNDKDisable" : \
+     (Value) == NetEventFilterPreDetach ? "NetEventFilterPreDetach" : \
+     (Value) == NetEventBindFailed ? "NetEventBindFailed" : \
+     (Value) == NetEventSwitchActivate ? "NetEventSwitchActivate" : \
+     (Value) == NetEventAllowBindsAbove ? "NetEventAllowBindsAbove" : \
+     (Value) == NetEventInhibitBindsAbove  ? "NetEventInhibitBindsAbove" : \
+     (Value) == NetEventAllowStart ? "NetEventAllowStart" : \
+     (Value) == NetEventRequirePause ? "NetEventRequirePause" : \
+     (Value) == NetEventUploadGftFlowEntries ? "NetEventUploadGftFlowEntries" : \
+     (Value) == NetEventMaximum ? "NetEventMaximum" : \
+     "Unknown")
