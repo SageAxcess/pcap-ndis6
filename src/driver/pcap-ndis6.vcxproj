@@ -364,7 +364,6 @@
     </Inf>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Adapter.c" />
     <ClCompile Include="BfeStateWatcher.c" />
     <ClCompile Include="filter.c">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -444,7 +443,6 @@
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="..\shared\SharedTypes.h" />
     <ClInclude Include="BfeStateWatcher.h" />
-    <ClInclude Include="Adapter.h" />
     <ClInclude Include="flt_dbg.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="KmConnections.h" />
@@ -468,16 +466,6 @@
       <PackageRelativeDirectory>
       </PackageRelativeDirectory>
     </FilesToPackage>
-    <Inf Exclude="@(Inf)" Include="*.inf">
-      <CatalogFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pcap-ndis6.cat</CatalogFileName>
-      <CatalogFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pcap-ndis6.cat</CatalogFileName>
-      <TimeStamp Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">*</TimeStamp>
-      <DateStamp Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">*</DateStamp>
-      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableVerbose>
-      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EnableVerbose>
-      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableVerbose>
-      <EnableVerbose Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableVerbose>
-    </Inf>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

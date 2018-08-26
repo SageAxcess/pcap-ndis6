@@ -19,7 +19,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "KernelUtil.h"
-#include "Adapter.h"
 #include "KmTypes.h"
 #include "NdisMemoryManager.h"
 #include "WfpMemoryManager.h"
@@ -38,8 +37,8 @@
 NTSTATUS __stdcall Filter_GetAdapters(
     __in    PDRIVER_DATA    Data,
     __in    PVOID           Buffer,
-    __in    DWORD           BufferSize,
-    __out   PDWORD          BytesRead);
+    __in    ULONG           BufferSize,
+    __out   PULONG          BytesRead);
 
 NTSTATUS __stdcall Filter_CreateClient(
     __in    PDRIVER_DATA            Data,
@@ -88,9 +87,6 @@ void __stdcall Filter_Wfp_EventCallback(
     __in    PNETWORK_EVENT_INFO     EventInfo,
     __in    PVOID                   Context);
 
-NTSTATUS __stdcall RegisterNdisProtocol(
-    __inout PDRIVER_DATA    Data);
-
 void __stdcall Filter_ProcessWatcher_Callback(
     __in_opt    HANDLE  ParentProcessId,
     __in        HANDLE  ProcessId,
@@ -130,11 +126,11 @@ DRIVER_DATA DriverData;
 NTSTATUS __stdcall Filter_GetAdapters(
     __in    PDRIVER_DATA    Data,
     __in    PVOID           Buffer,
-    __in    DWORD           BufferSize,
-    __out   PDWORD          BytesRead)
+    __in    ULONG           BufferSize,
+    __out   PULONG          BytesRead)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
-    DWORD       BytesCopied = 0;
+    ULONG       BytesCopied = 0;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
@@ -143,14 +139,14 @@ NTSTATUS __stdcall Filter_GetAdapters(
         Assigned(Buffer),
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        BufferSize >= (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST),
+        BufferSize >= (ULONG)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST),
         STATUS_BUFFER_TOO_SMALL);
 
     Status = Km_List_Lock(&Data->Adapters.Adapters);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        DWORD                           BytesRequired = 0;
+        ULONG                           BytesRequired = 0;
         ULARGE_INTEGER                  Count = { 0, };
         unsigned int                    k;
         PLIST_ENTRY                     ListEntry;
@@ -164,8 +160,8 @@ NTSTATUS __stdcall Filter_GetAdapters(
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
         BytesRequired =
-            (DWORD)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) +
-            (DWORD)((Count.QuadPart - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO));
+            (ULONG)sizeof(PCAP_NDIS_ADAPTER_INFO_LIST) +
+            (ULONG)((Count.QuadPart - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO));
 
         LEAVE_IF_FALSE_SET_STATUS(
             BytesRequired <= BufferSize,
@@ -272,7 +268,7 @@ NTSTATUS __stdcall Filter_CreateClient(
         STATUS_INVALID_PARAMETER_5);
 
     NewClient = Km_MM_AllocMemTyped(
-        &Data->Ndis.MemoryManager,
+        &Data->Wfp.MemoryManager,
         DRIVER_CLIENT);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewClient),
@@ -281,7 +277,7 @@ NTSTATUS __stdcall Filter_CreateClient(
     RtlZeroMemory(NewClient, sizeof(DRIVER_CLIENT));
 
     Status = Km_MP_Initialize(
-        &Data->Ndis.MemoryManager,
+        &Data->Wfp.MemoryManager,
         (ULONG)sizeof(PACKET_REFERENCE),
         PACKETS_POOL_INITIAL_SIZE,
         TRUE,
@@ -340,7 +336,7 @@ cleanup:
             Km_MP_Finalize(NewClient->PacketReferencesPool);
 
             Km_MM_FreeMem(
-                &Data->Ndis.MemoryManager,
+                &Data->Wfp.MemoryManager,
                 NewClient);
         }
     }
@@ -404,7 +400,7 @@ NTSTATUS __stdcall Filter_DestroyClient(
         ObDereferenceObject(Client->NewPacketEvent);
     }
 
-    Km_MM_FreeMem(&Data->Ndis.MemoryManager, Client);
+    Km_MM_FreeMem(&Data->Wfp.MemoryManager, Client);
 
 cleanup:
     return Status;
@@ -780,7 +776,7 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
 {
     NTSTATUS        Status = STATUS_SUCCESS;
     ULONG_PTR       BytesRet = 0;
-    DWORD           BytesRead = 0;
+    ULONG           BytesRead = 0;
     PDRIVER_DATA    Data = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
@@ -802,14 +798,14 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
                 Assigned(OutBuffer),
                 STATUS_INVALID_PARAMETER);
             GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-                OutBufferSize >= sizeof(DWORD),
+                OutBufferSize >= sizeof(ULONG),
                 STATUS_BUFFER_TOO_SMALL);
 
             Status = Km_List_GetCount(&Data->Adapters.Adapters, &NumberOfAdapters);
             if (NT_SUCCESS(Status))
             {
-                *((PDWORD)OutBuffer) = (DWORD)NumberOfAdapters.QuadPart;
-                BytesRet = (ULONG_PTR)sizeof(DWORD);
+                *((PULONG)OutBuffer) = (ULONG)NumberOfAdapters.QuadPart;
+                BytesRet = (ULONG_PTR)sizeof(ULONG);
             }
 
         }break;
@@ -933,55 +929,6 @@ void __stdcall Filter_Wfp_EventCallback(
     };
 };
 
-NTSTATUS __stdcall RegisterNdisProtocol(
-    __inout PDRIVER_DATA    Data)
-{
-    NTSTATUS                                Status = STATUS_SUCCESS;
-    NDIS_STATUS                             NdisStatus = NDIS_STATUS_SUCCESS;
-    NDIS_PROTOCOL_DRIVER_CHARACTERISTICS    Chars;
-    NDIS_STRING                             ProtocolName = RTL_CONSTANT_STRING(FILTER_PROTOCOL_NAME);
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Data),
-        STATUS_INVALID_PARAMETER_1);
-
-    RtlZeroMemory(&Chars, sizeof(Chars));
-
-    Chars.Header.Type = NDIS_OBJECT_TYPE_PROTOCOL_DRIVER_CHARACTERISTICS;
-
-    Chars.Header.Revision = NDIS_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-    Chars.Header.Size = NDIS_SIZEOF_PROTOCOL_DRIVER_CHARACTERISTICS_REVISION_2;
-
-    Chars.MajorNdisVersion = 6;
-    Chars.MinorNdisVersion = 20;
-    Chars.Name = ProtocolName;
-
-    Chars.SetOptionsHandler = Protocol_SetOptionsHandler;
-    Chars.BindAdapterHandlerEx = Protocol_BindAdapterHandlerEx;
-    Chars.UnbindAdapterHandlerEx = Protocol_UnbindAdapterHandlerEx;
-    Chars.OpenAdapterCompleteHandlerEx = Protocol_OpenAdapterCompleteHandlerEx;
-    Chars.CloseAdapterCompleteHandlerEx = Protocol_CloseAdapterCompleteHandlerEx;
-    Chars.NetPnPEventHandler = Protocol_NetPnPEventHandler;
-    Chars.UninstallHandler = Protocol_UninstallHandler;
-    Chars.OidRequestCompleteHandler = Protocol_OidRequestCompleteHandler;
-    Chars.StatusHandlerEx = Protocol_StatusHandlerEx;
-    Chars.ReceiveNetBufferListsHandler = Protocol_ReceiveNetBufferListsHandler;
-    Chars.SendNetBufferListsCompleteHandler = Protocol_SendNetBufferListsCompleteHandler;
-    Chars.DirectOidRequestCompleteHandler = Protocol_DirectOidRequestCompleteHandler;
-    
-    NdisStatus = NdisRegisterProtocolDriver(
-        (NDIS_HANDLE)Data,
-        &Chars,
-        &Data->Ndis.ProtocolHandle);
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        NdisStatus == NDIS_STATUS_SUCCESS,
-        STATUS_UNSUCCESSFUL);
-
-cleanup:
-    return Status;
-};
-
 void __stdcall Filter_ProcessWatcher_Callback(
     __in_opt    HANDLE  ParentProcessId,
     __in        HANDLE  ProcessId,
@@ -1023,16 +970,6 @@ DriverEntry(
         &DriverData,
         sizeof(DriverData));
 
-    Status = RegisterNdisProtocol(&DriverData);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-
-    Status = Ndis_MM_Initialize(
-        &DriverData.Ndis.MemoryManager,
-        DriverData.Ndis.ProtocolHandle,
-        HighPoolPriority,
-        NDIS_FLT_MEMORY_TAG);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
-
     Status = Wfp_MM_Initialize(
         &DriverData.Wfp.MemoryManager,
         HighPoolPriority,
@@ -1040,7 +977,7 @@ DriverEntry(
         WFP_FLT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Status = Km_ProcessWatcher_Initialize(&DriverData.Ndis.MemoryManager);
+    Status = Km_ProcessWatcher_Initialize(&DriverData.Wfp.MemoryManager);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     DriverData.Other.DriverObject = DriverObject;
@@ -1052,7 +989,7 @@ DriverEntry(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_MP_Initialize(
-        &DriverData.Ndis.MemoryManager,
+        &DriverData.Wfp.MemoryManager,
         sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
         DRIVER_SVC_CLIENTS_POOL_SIZE,
         FALSE,
@@ -1061,7 +998,7 @@ DriverEntry(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     Status = Km_Connections_Initialize(
-        &DriverData.Ndis.MemoryManager,
+        &DriverData.Wfp.MemoryManager,
         &DriverData.Other.Connections);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -1078,7 +1015,7 @@ DriverEntry(
         sizeof(DriverObject->MajorFunction));
 
     Status = Km_IMC_Initialize(
-        &DriverData.Ndis.MemoryManager,
+        &DriverData.Wfp.MemoryManager,
         DriverObject,
         Filter_IMC_IOCTL_Callback,
         &FilterDeviceName,
@@ -1125,14 +1062,6 @@ cleanup:
             Km_MP_Finalize(DriverData.Clients.ServicePool);
         }
 
-        Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
-
-        if (DriverData.Ndis.ProtocolHandle != NULL)
-        {
-            NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
-            DriverData.Ndis.ProtocolHandle = NULL;
-        }
-
         RtlZeroMemory(
             &DriverData,
             sizeof(DriverData));
@@ -1175,23 +1104,11 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
         &DriverData,
         (HANDLE)MAXULONG_PTR);
 
-    Adapters_Unbind(
-        &DriverData.Ndis.MemoryManager,
-        &DriverData.Adapters.Adapters);
-
     Km_ProcessWatcher_Finalize();
 
     if (DriverData.Clients.ServicePool != NULL)
     {
         Km_MP_Finalize(DriverData.Clients.ServicePool);
-    }
-
-    Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
-
-    if (DriverData.Ndis.ProtocolHandle != NULL)
-    {
-        NdisDeregisterProtocolDriver(DriverData.Ndis.ProtocolHandle);
-        DriverData.Ndis.ProtocolHandle = NULL;
     }
 
     RtlZeroMemory(

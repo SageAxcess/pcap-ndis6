@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Adapter.c" />
     <ClCompile Include="filter.c" />
     <ClCompile Include="flt_dbg.c" />
     <ClCompile Include="KernelUtil.c" />
@@ -22,7 +21,6 @@
     <ClCompile Include="Packet.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Adapter.h" />
     <ClInclude Include="KernelUtil.h" />
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="KmList.h" />
@@ -46,8 +44,5 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Inf Include="*.inf" />
   </ItemGroup>
 </Project>

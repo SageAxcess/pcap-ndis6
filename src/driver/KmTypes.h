@@ -295,16 +295,6 @@ typedef struct _DRIVER_DATA
     //  Boolean flag that's set when the driver unload begins
     LONG    DriverUnload;
 
-    struct Ndis
-    {
-        //  Memory manager for NDIS module
-        KM_MEMORY_MANAGER   MemoryManager;
-
-        //  NDIS Protocol Handle
-        NDIS_HANDLE         ProtocolHandle;
-
-    } Ndis;
-
     struct Wfp
     {
         //  Memory manager for WFP module
