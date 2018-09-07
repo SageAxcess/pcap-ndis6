@@ -27,6 +27,8 @@ namespace NLM_EVENTS
         ctNone,
         ctNetworkAdded,
         ctNetworkRemoved,
+        ctNetworkConnectionAdded,
+        ctNetworkConnectionRemoved,
         ctNetworkConnectivityChanged,
         ctNetworkPropertyChanged,
         ctNetworkConnectionConnectivityChanged,
@@ -194,14 +196,6 @@ namespace NLM_EVENTS
             __out   void    **ppvObject);
     };
 
-    typedef enum class _NLM_ENTITY_TYPE
-    {
-        netNone,
-        netNetwork,
-        netNetworkConnection,
-        netNetowrkListManager
-    } NLM_ENTITY_TYPE, *PNLM_ENTITY_TYPE, *LPNLM_ENTITY_TYPE;
-
     class CNetEventsManager :
         virtual public CCSObject,
         virtual public CThread
@@ -262,37 +256,6 @@ namespace NLM_EVENTS
             __in    const   GUID                &Id,
             __in    const   NLM_CONNECTIVITY    Connectivity,
             __in    const   DWORD               Flags) const;
-
-        virtual void DoOnConnectivityChange(
-            __in    const   NLM_CONNECTIVITY    NewConnectivity);
-
-        virtual void DoOnNetworkAdd(
-            __in    const   GUID    &Id);
-
-        virtual void DoOnNetworkRemove(
-            __in    const   GUID    &Id);
-
-        virtual void DoOnNetworkConnectionAdd(
-            __in    const   GUID    &Id);
-
-        virtual void DoOnNetworkConnectionRemove(
-            __in    const   GUID    &Id);
-
-        virtual void DoOnNetworkConnectivityChange(
-            __in    const   GUID                &Id,
-            __in    const   NLM_CONNECTIVITY    NewConnectivity);
-
-        virtual void DoOnNetworkConnectionConnectivityChange(
-            __in    const   GUID                &Id,
-            __in    const   NLM_CONNECTIVITY    NewConnectivity);
-
-        virtual void DoOnNetworkPropertyChange(
-            __in    const   GUID    &Id,
-            __in    const   DWORD   Flags);
-
-        virtual void DoOnNetworkConnectionPropertyChange(
-            __in    const   GUID    &Id,
-            __in    const   DWORD   Flags);
 
         virtual EVENT_CALLBACK GetClientCallbackByType(
             __in    const   EVENT_TYPE  EventType) const;

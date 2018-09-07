@@ -20,7 +20,6 @@
 
 #include "KernelUtil.h"
 #include "KmTypes.h"
-#include "NdisMemoryManager.h"
 #include "WfpMemoryManager.h"
 #include "WfpFlt.h"
 #include "KmConnections.h"
@@ -164,7 +163,7 @@ NTSTATUS __stdcall Filter_GetAdapters(
             (ULONG)((Count.QuadPart - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO));
 
         LEAVE_IF_FALSE_SET_STATUS(
-            BytesRequired <= BufferSize,
+            BytesRequired <= BufferSize, 
             STATUS_BUFFER_TOO_SMALL);
 
         RtlZeroMemory(Buffer, BufferSize);
@@ -812,15 +811,7 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
 
     case IOCTL_GET_ADAPTERS:
         {
-            Status = Filter_GetAdapters(
-                Data,
-                OutBuffer,
-                OutBufferSize,
-                &BytesRead);
-            if (NT_SUCCESS(Status))
-            {
-                BytesRet = BytesRead;
-            }
+            Status = STATUS_NOT_SUPPORTED;
         }break;
 
     case IOCTL_OPEN_ADAPTER:

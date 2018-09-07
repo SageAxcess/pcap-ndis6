@@ -6,7 +6,6 @@
     <ClCompile Include="KernelUtil.c" />
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmList.c" />
-    <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="KmThreads.c" />
     <ClCompile Include="KmMemoryManager.c" />
     <ClCompile Include="WfpMemoryManager.c" />
@@ -25,7 +24,6 @@
     <ClInclude Include="..\shared\CommonDefs.h" />
     <ClInclude Include="KmList.h" />
     <ClInclude Include="KmLock.h" />
-    <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="WfpFlt.h" />
     <ClInclude Include="KmThreads.h" />

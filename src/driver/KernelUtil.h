@@ -21,7 +21,6 @@
 
 #include <ndis.h>
 #include "KmTypes.h"
-#include "NdisMemoryManager.h"
 
 ///////////////////////////////////////////////////
 // String helper functions

@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2018 ChangeDynamix, LLC
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -508,17 +508,17 @@ void NLM_EVENTS::CNetEventsManager::InvokeClientCallback(
     std::unordered_map<int, int> a;
 
     (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
+    try
     {
         if (FCallbacks.find(EventType) != FCallbacks.end())
         {
             Callback = FCallbacks.at(EventType);
         }
     }
-    __finally
+    catch (...)
     {
-        (const_cast<CNetEventsManager *>(this))->Leave();
     }
+    (const_cast<CNetEventsManager *>(this))->Leave();
 
     RETURN_IF_FALSE(Assigned(Callback.Untyped));
 
@@ -526,7 +526,7 @@ void NLM_EVENTS::CNetEventsManager::InvokeClientCallback(
     {
     case EVENT_TYPE::ctNetworkAdded:
         {
-            Callback.OnNetworkAdd(*this,  Id);
+            Callback.OnNetworkAdd(*this, Id);
         }break;
 
     case EVENT_TYPE::ctNetworkRemoved:
@@ -534,8 +534,92 @@ void NLM_EVENTS::CNetEventsManager::InvokeClientCallback(
             Callback.OnNetworkRemove(*this, Id);
         }break;
 
-        case EVENT_TYPE::ctNetworkConnectionConnectivityChanged
+    case EVENT_TYPE::ctNetworkConnectionAdded:
+        {
+            Callback.OnNetworkConnectionAdd(*this, Id);
+        }break;
+
+    case EVENT_TYPE::ctNetworkConnectionRemoved:
+        {
+            Callback.OnNetworkConnectionRemove(*this, Id);
+        }break;
+
+    case EVENT_TYPE::ctNetworkConnectivityChanged:
+        {
+            Callback.OnNetworkConnectivityChange(
+                *this,
+                Id,
+                Connectivity);
+        }break;
+
+    case EVENT_TYPE::ctNetworkPropertyChanged:
+        {
+            Callback.OnNetworkPropertyChange(
+                *this,
+                Id,
+                Flags);
+        }break;
+
+    case EVENT_TYPE::ctNetworkConnectionConnectivityChanged:
+        {
+            Callback.OnNetworkConnectionConnectivityChange(
+                *this,
+                Id,
+                Connectivity);
+        }break;
+
+    case EVENT_TYPE::ctNetworkConnectionPropertyChanged:
+        {
+            Callback.OnNetworkConnectionPropertyChange(
+                *this,
+                Id,
+                Flags);
+        }break;
+
+    case EVENT_TYPE::ctConnectivityChanged:
+        {
+            Callback.OnConnectivityChange(*this, Connectivity);
+        }break;
     };
+};
+
+NLM_EVENTS::CNetEventsManager::EVENT_CALLBACK NLM_EVENTS::CNetEventsManager::GetClientCallbackByType(
+    __in    const   EVENT_TYPE  EventType) const
+{
+    EVENT_CALLBACK  Result = { nullptr };
+
+    (const_cast<CNetEventsManager *>(this))->Enter();
+    try
+    {
+        if (FCallbacks.find(EventType) != FCallbacks.end())
+        {
+            Result = FCallbacks.at(EventType);
+        }
+    }
+    catch (...)
+    {
+    }
+    (const_cast<CNetEventsManager *>(this))->Leave();
+
+    return Result;
+};
+
+void NLM_EVENTS::CNetEventsManager::SetClientCallbackByType(
+    __in    const   EVENT_TYPE      EventType,
+    __in    const   EVENT_CALLBACK  &Callback)
+{
+    Enter();
+    try
+    {
+        if (!((FCallbacks.find(EventType) == FCallbacks.end()) && (!Assigned(Callback.Untyped))))
+        {
+            FCallbacks[EventType] = Callback;
+        }
+    }
+    catch (...)
+    {
+    }
+    Leave();
 };
 
 NLM_EVENTS::CNetEventsManager::CNetEventsManager(
@@ -561,261 +645,124 @@ NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_ADD_REMOVE NLM_EVENTS::CNetEvents
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkAdd(
     __in    const   LPON_NET_ENTITY_ADD_REMOVE  Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkAdd = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkAdd = Value;
+    SetClientCallbackByType(EVENT_TYPE::ctNetworkAdded, Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_ADD_REMOVE NLM_EVENTS::CNetEventsManager::GetOnNetworkRemove() const
 {
-    LPON_NET_ENTITY_ADD_REMOVE  Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkRemove;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkRemoved).OnNetworkRemove;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkRemove(
     __in    const   LPON_NET_ENTITY_ADD_REMOVE  Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkRemove = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkRemove = Value;
+    SetClientCallbackByType(EVENT_TYPE::ctNetworkRemoved, Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_ADD_REMOVE NLM_EVENTS::CNetEventsManager::GetOnNetworkConnectionAdd() const
 {
-    LPON_NET_ENTITY_ADD_REMOVE  Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkConnectionAdd;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionAdded).OnNetworkConnectionAdd;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkConnectionAdd(
     __in    const   LPON_NET_ENTITY_ADD_REMOVE  Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkConnectionAdd = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkConnectionAdd = Value;
+    SetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionAdded, Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_ADD_REMOVE NLM_EVENTS::CNetEventsManager::GetOnNetworkConnectionRemove() const
 {
-    LPON_NET_ENTITY_ADD_REMOVE  Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkConnectionRemove;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionRemoved).OnNetworkConnectionRemove;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkConnectionRemove(
     __in    const   LPON_NET_ENTITY_ADD_REMOVE  Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkConnectionRemove = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkConnectionRemove = Value;
+
+    SetClientCallbackByType(
+        EVENT_TYPE::ctNetworkConnectionRemoved,
+        Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_CONNECTIVITY_CHANGE NLM_EVENTS::CNetEventsManager::GetOnNetworkConnectivityChange() const
 {
-    LPON_NET_ENTITY_CONNECTIVITY_CHANGE Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkConnectivityChange;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionConnectivityChanged).OnNetworkConnectivityChange;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkConnectivityChange(
     __in    const   LPON_NET_ENTITY_CONNECTIVITY_CHANGE Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkConnectivityChange = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkConnectivityChange = Value;
+    SetClientCallbackByType(
+        EVENT_TYPE::ctNetworkConnectivityChanged,
+        Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_CONNECTIVITY_CHANGE NLM_EVENTS::CNetEventsManager::GetOnNetworkConnectionConnectivityChange() const
 {
-    LPON_NET_ENTITY_CONNECTIVITY_CHANGE Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkConnectionConnectivityChange;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionConnectivityChanged).OnNetworkConnectionConnectivityChange;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkConnectionConnectivityChange(
     __in    const   LPON_NET_ENTITY_CONNECTIVITY_CHANGE Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkConnectionConnectivityChange = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkConnectionConnectivityChange = Value;
+    SetClientCallbackByType(
+        EVENT_TYPE::ctNetworkConnectionConnectivityChanged,
+        Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_PROPERTY_CHANGE NLM_EVENTS::CNetEventsManager::GetOnNetworkPropertyChange() const
 {
-    LPON_NET_ENTITY_PROPERTY_CHANGE Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkPropertyChange;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkPropertyChanged).OnNetworkPropertyChange;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkPropertyChange(
     __in    const   LPON_NET_ENTITY_PROPERTY_CHANGE Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkPropertyChange = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkPropertyChange = Value;
+    SetClientCallbackByType(
+        EVENT_TYPE::ctNetworkPropertyChanged,
+        Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_NET_ENTITY_PROPERTY_CHANGE NLM_EVENTS::CNetEventsManager::GetOnNetworkConnectionPropertyChange() const
 {
-    LPON_NET_ENTITY_PROPERTY_CHANGE Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnNetworkConnectionPropertyChange;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctNetworkConnectionPropertyChanged).OnNetworkConnectionPropertyChange;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnNetworkConnectionPropertyChange(
     __in    const   LPON_NET_ENTITY_PROPERTY_CHANGE Value)
 {
-    Enter();
-    __try
-    {
-        FOnNetworkConnectionPropertyChange = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnNetworkConnectionPropertyChange = Value;
+    SetClientCallbackByType(
+        EVENT_TYPE::ctNetworkConnectionPropertyChanged,
+        Callback);
 };
 
 NLM_EVENTS::CNetEventsManager::LPON_CONNECTIVITY_CHANGE NLM_EVENTS::CNetEventsManager::GetOnConnectivityChange() const
 {
-    LPON_CONNECTIVITY_CHANGE    Result = nullptr;
-
-    (const_cast<CNetEventsManager *>(this))->Enter();
-    __try
-    {
-        Result = FOnConnectivityChange;
-    }
-    __finally
-    {
-        (const_cast<CNetEventsManager *>(this))->Leave();
-    }
-
-    return Result;
+    return GetClientCallbackByType(EVENT_TYPE::ctConnectivityChanged).OnConnectivityChange;
 };
 
 void NLM_EVENTS::CNetEventsManager::SetOnConnectivityChange(
     __in    const   LPON_CONNECTIVITY_CHANGE    Value)
 {
-    Enter();
-    __try
-    {
-        FOnConnectivityChange = Value;
-    }
-    __finally
-    {
-        Leave();
-    }
+    EVENT_CALLBACK  Callback;
+    Callback.OnConnectivityChange = Value;
+    SetClientCallbackByType(
+        EVENT_TYPE::ctConnectivityChanged,
+        Callback);
 };

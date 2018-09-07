@@ -14,11 +14,9 @@
 #ifndef KM_TYPES_H
 #define KM_TYPES_H
 
-#include <ndis.h>
 #include "KmLock.h"
 #include "KmList.h"
 #include "KmThreads.h"
-#include "NdisMemoryManager.h"
 #include "..\shared\SharedTypes.h"
 
 #define PACKETS_POOL_INITIAL_SIZE       0x2000
@@ -91,13 +89,15 @@ typedef struct _ADAPTER_CLOSE_CONTEXT
 
 } ADAPTER_CLOSE_CONTEXT, *PADAPTER_CLOSE_CONTEXT;
 
+#define MAX_PHYSICAL_ADDRESS_LENGTH 0x20
+
 typedef struct _ADAPTER
 {
     //  List link
     LIST_ENTRY              Link;
 
     //  Size of the data stored in DisplayName field
-    ULONG                   DisplayNameSize;
+    unsigned long           DisplayNameSize;
     
     //  Adapter display name
     char                    DisplayName[256];
@@ -106,16 +106,13 @@ typedef struct _ADAPTER
     PCAP_NDIS_ADAPTER_ID    AdapterId;
 
     //  Size of the data stored in MacAddress field
-    ULONG                   MacAddressSize;
+    unsigned long           MacAddressSize;
 
     //  Physical adapter address
-    UCHAR                   MacAddress[NDIS_MAX_PHYS_ADDRESS_LENGTH];
+    unsigned char           MacAddress[MAX_PHYSICAL_ADDRESS_LENGTH];
 
     //  MTU size
-    ULONG                   MtuSize;
-
-    //  NDIS adapter handle
-    NDIS_HANDLE             AdapterHandle;
+    unsigned long           MtuSize;
 
     //  Adapter lock
     KM_LOCK                 Lock;
@@ -128,26 +125,14 @@ typedef struct _ADAPTER
     //  Bind operation timestamp
     KM_TIME                 BindTimestamp;
 
-    // To complete Bind request if necessary
-    NDIS_HANDLE             BindContext;
-
-    // To complete Unbind request if necessary
-    NDIS_HANDLE             UnbindContext;
-
     //  Readiness flag
-    ULONG                   Ready;
+    unsigned long           Ready;
 
     //  A flag that tells whether the promiscuous mode is enabled or not
-    ULONG                   PacketsInterceptionEnabled;
-
-    //  Number of pending OID requests
-    volatile ULONG          PendingOidRequests;
-
-    //  Number of pending packet injectio requests
-    volatile ULONG          PendingSendPackets;
+    unsigned long           PacketsInterceptionEnabled;
 
     //  Number of current connected clients
-    LONG                    OpenCount;
+    long                    OpenCount;
 
     struct Packets
     {
@@ -159,6 +144,7 @@ typedef struct _ADAPTER
         {
             PHANDLE PoolHandle;
         } ClientPacketPool;
+
     } Packets;
 
     //  Pointer to driver data
@@ -192,7 +178,7 @@ typedef struct _PACKET
     //  Number of current references established to the packet
     //  The structure is being freed when the number of references
     //  goes to zero.
-    ULONG               ReferencesCount;
+    unsigned long       ReferencesCount;
 
     //  Packet timestamp.
     //  The time is relative to the system time.
@@ -200,13 +186,13 @@ typedef struct _PACKET
 
     //  Id of the process of the connection the
     //  packet belongs to.
-    ULONGLONG           ProcessId;
+    unsigned long long  ProcessId;
 
     //  Size of the packet data
-    ULONG               DataSize;
+    unsigned long       DataSize;
 
     //  Packet data
-    UCHAR               Data[1];
+    unsigned char       Data[1];
 
 } PACKET, *PPACKET;
 
@@ -328,7 +314,9 @@ typedef struct _DRIVER_DATA
     struct Adapters
     {
         KM_LIST Adapters;
+
         KM_LIST AdapterPacketPools;
+
     } Adapters;
 
 } DRIVER_DATA, *PDRIVER_DATA;
