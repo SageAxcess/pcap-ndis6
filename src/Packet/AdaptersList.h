@@ -22,25 +22,9 @@
 #include <netlistmgr.h>
 #include <string>
 
-class CAdaptersListTaskThread:
+class CAdaptersRefreshThread:
     virtual public CTaskThread
 {
-private:
-    INetworkListManager *FManager = nullptr;
-
-protected:
-    virtual void InternalProcessTask(
-        __in    const   LPTASK  Task);
-
-    virtual BOOL InternalInitialize();
-
-    virtual void InternalFinalize();
-
-public:
-    CAdaptersListTaskThread(
-        __in_opt    LPVOID  Owner = nullptr);
-    virtual ~CAdaptersListTaskThread();
-
 };
 
 class CAdaptersList :
@@ -48,7 +32,13 @@ class CAdaptersList :
     virtual protected CThread
 {
 private:
-    CAdaptersListTaskThread *FTaskThread = nullptr;
+    typedef struct _REFRESH_PARAMS
+    {
+
+    } REFRESH_PARAMS, *PREFRESH_PARAMS, *LPREFRESH_PARAMS;
+
+private:
+    HANDLE  FRefreshRequestEvent = NULL;
 
 protected:
     virtual void InternalRefresh();
@@ -56,7 +46,8 @@ protected:
     virtual void ThreadRoutine();
 
 public:
-    CAdaptersList();
+    CAdaptersList(
+        __in_opt    LPVOID  Owner = nullptr);
     virtual ~CAdaptersList();
 
     virtual void Refresh();

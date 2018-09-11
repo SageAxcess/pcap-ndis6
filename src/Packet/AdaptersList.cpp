@@ -13,43 +13,31 @@
 
 #include "AdaptersList.h"
 
-class CAdaptersListTaskThread :
-    virtual public CTaskThread
+void CAdaptersList::InternalRefresh()
 {
-private:
-    INetworkListManager *FManager = nullptr;
-
-protected:
-    virtual void InternalProcessTask(
-        __in    const   LPTASK  Task);
-
-    virtual BOOL InternalInitialize();
-
-    virtual void InternalFinalize();
-
-public:
-    CAdaptersListTaskThread(
-        __in_opt    LPVOID  Owner = nullptr);
-    virtual ~CAdaptersListTaskThread();
-
 };
 
-class CAdaptersList :
-    virtual public CCSObject,
-    virtual protected CThread
+void CAdaptersList::ThreadRoutine()
 {
-private:
-    CAdaptersListTaskThread *FTaskThread = nullptr;
+    HANDLE  WaitArray[] = 
+    {
+        InternalGetStopEvent(),
+        FRefreshRequestEvent
+    };
+};
 
-protected:
-    virtual void InternalRefresh();
+CAdaptersList::CAdaptersList(
+    __in_opt    LPVOID  Owner):
+    CCSObject(Owner),
+    CThread(Owner)
+{
+    
+};
 
-    virtual void ThreadRoutine();
+void CAdaptersList::Refresh()
+{
+};
 
-public:
-    CAdaptersList();
-    virtual ~CAdaptersList();
-
-    virtual void Refresh();
-
-    virtual DWORD GetCount() const;
+DWORD CAdaptersList::GetCount() const
+{
+};

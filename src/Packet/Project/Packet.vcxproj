@@ -200,6 +200,7 @@
     <ClCompile Include="..\..\shared\BaseObject.cpp" />
     <ClCompile Include="..\..\shared\CSObject.cpp" />
     <ClCompile Include="..\..\shared\FileLogWriter.cpp" />
+    <ClCompile Include="..\..\shared\LinkedList.cpp" />
     <ClCompile Include="..\..\shared\LogWriter.cpp" />
     <ClCompile Include="..\..\shared\MiscUtils.cpp" />
     <ClCompile Include="..\..\shared\NLMEvents.cpp" />
@@ -209,6 +210,7 @@
     <ClCompile Include="..\..\shared\TaskThread.cpp" />
     <ClCompile Include="..\..\shared\ThreadObject.cpp" />
     <ClCompile Include="..\..\shared\UmMemoryManager.cpp" />
+    <ClCompile Include="..\..\shared\UmMemoryPool.cpp" />
     <ClCompile Include="..\..\shared\win_bpf_filter.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsC</CompileAs>
@@ -229,6 +231,7 @@
     <ClInclude Include="..\..\shared\CommonDefs.h" />
     <ClInclude Include="..\..\shared\CSObject.h" />
     <ClInclude Include="..\..\shared\FileLogWriter.h" />
+    <ClInclude Include="..\..\shared\LinkedList.h" />
     <ClInclude Include="..\..\shared\LogWriter.h" />
     <ClInclude Include="..\..\shared\MiscUtils.h" />
     <ClInclude Include="..\..\shared\NLMEvents.h" />
@@ -239,6 +242,7 @@
     <ClInclude Include="..\..\shared\TaskThread.h" />
     <ClInclude Include="..\..\shared\ThreadObject.h" />
     <ClInclude Include="..\..\shared\UmMemoryManager.h" />
+    <ClInclude Include="..\..\shared\UmMemoryPool.h" />
     <ClInclude Include="..\..\shared\win_bpf.h" />
     <ClInclude Include="..\AdaptersList.h" />
     <ClInclude Include="..\debug.h" />
