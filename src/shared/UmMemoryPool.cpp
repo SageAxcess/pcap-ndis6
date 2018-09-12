@@ -15,7 +15,7 @@
 #include "UmMemoryManager.h"
 
 template <typename T>
-CMemoryPool<T>::LPITEM CMemoryPool<T>::InternalCreateEntry()
+typename CMemoryPool<T>::LPITEM CMemoryPool<T>::InternalCreateEntry()
 {
     LPITEM  Result = UMM_AllocTypedWithSize<LPITEM>(FEntrySize);
     
