@@ -195,6 +195,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\shared\ArrayBasedList.cpp" />
     <ClCompile Include="..\..\shared\AttachableObject.cpp" />
     <ClCompile Include="..\..\shared\BaseComObject.cpp" />
     <ClCompile Include="..\..\shared\BaseObject.cpp" />
@@ -225,6 +226,8 @@
     <ClCompile Include="..\Util.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\shared\AdaptersManager.h" />
+    <ClInclude Include="..\..\shared\ArrayBasedList.h" />
     <ClInclude Include="..\..\shared\AttachableObject.h" />
     <ClInclude Include="..\..\shared\BaseComObject.h" />
     <ClInclude Include="..\..\shared\BaseObject.h" />

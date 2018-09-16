@@ -11,33 +11,14 @@
 // Author: Andrey Fedorinin
 //////////////////////////////////////////////////////////////////////
 
-#include "AdaptersList.h"
+#pragma once
 
-void CAdaptersList::InternalRefresh()
-{
-};
+#include "CommonDefs.h"
+#include "BaseObject.h"
+#include "CSObject.h"
+#include "ArrayBasedList.h"
 
-void CAdaptersList::ThreadRoutine()
-{
-    HANDLE  WaitArray[] = 
-    {
-        InternalGetStopEvent(),
-        FRefreshRequestEvent
-    };
-};
-
-CAdaptersList::CAdaptersList(
-    __in_opt    LPVOID  Owner):
-    CCSObject(Owner),
-    CThread(Owner, FALSE)
-{
-    
-};
-
-void CAdaptersList::Refresh()
-{
-};
-
-DWORD CAdaptersList::GetCount() const
+class CAdaptersManager:
+    virtual public CCSObject
 {
 };

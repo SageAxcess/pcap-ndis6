@@ -18,6 +18,7 @@
 #include "..\shared\ThreadObject.h"
 #include "..\shared\CSObject.h"
 #include "..\shared\TaskThread.h"
+#include "..\shared\UmMemoryPool.h"
 
 #include <netlistmgr.h>
 #include <string>
@@ -31,12 +32,6 @@ class CAdaptersList :
     virtual public CCSObject,
     virtual protected CThread
 {
-private:
-    typedef struct _REFRESH_PARAMS
-    {
-
-    } REFRESH_PARAMS, *PREFRESH_PARAMS, *LPREFRESH_PARAMS;
-
 private:
     HANDLE  FRefreshRequestEvent = NULL;
 
