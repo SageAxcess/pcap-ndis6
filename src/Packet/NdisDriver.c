@@ -327,24 +327,21 @@ BOOL NdisDriverNextPacket(
 };
 
 BOOL NdisDriverQueryDiagInfo(
-    __in    LPPCAP_NDIS_ADAPTER Adapter,
-    __out   PULONGLONG          AllocationsCount,
-    __out   PULONGLONG          AllocationSize)
+    __in    PPCAP_NDIS  Ndis,
+    __out   PULONGLONG  AllocationsCount,
+    __out   PULONGLONG  AllocationSize)
 {
     DRIVER_DIAG_INFORMATION DiagInfo;
 
     RETURN_VALUE_IF_FALSE(
-        Assigned(Adapter),
-        FALSE);
-    RETURN_VALUE_IF_FALSE(
-        Assigned(Adapter->Ndis),
+        Assigned(Ndis),
         FALSE);
 
     RtlZeroMemory(&DiagInfo, sizeof(DiagInfo));
 
     RETURN_VALUE_IF_FALSE(
         NdisDriver_ControlDevice(
-            Adapter->Ndis->Handle,
+            Ndis->Handle,
             static_cast<DWORD>(IOCTL_GET_DIAG_INFO),
             nullptr,
             0,
