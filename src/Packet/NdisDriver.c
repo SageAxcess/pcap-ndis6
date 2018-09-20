@@ -326,6 +326,51 @@ BOOL NdisDriverNextPacket(
     return TRUE;
 };
 
+BOOL NdisDriverQueryDiagInfo(
+    __in    LPPCAP_NDIS_ADAPTER Adapter,
+    __out   PULONGLONG          AllocationsCount,
+    __out   PULONGLONG          AllocationSize)
+{
+    DRIVER_DIAG_INFORMATION DiagInfo;
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Adapter),
+        FALSE);
+    RETURN_VALUE_IF_FALSE(
+        Assigned(Adapter->Ndis),
+        FALSE);
+
+    RtlZeroMemory(&DiagInfo, sizeof(DiagInfo));
+
+    RETURN_VALUE_IF_FALSE(
+        NdisDriver_ControlDevice(
+            Adapter->Ndis->Handle,
+            static_cast<DWORD>(IOCTL_GET_DIAG_INFO),
+            nullptr,
+            0,
+            reinterpret_cast<LPVOID>(&DiagInfo),
+            static_cast<DWORD>(sizeof(DiagInfo))),
+        FALSE);
+
+    if (Assigned(AllocationsCount))
+    {
+        *AllocationsCount = 
+            0 + 
+            IsBitFlagSet(DiagInfo.Flags, DRIVER_DIAG_INFORMATION_FLAG_NDIS_MM_STATS) ? DiagInfo.NdisMMStats.AllocationsCount : 0 +
+            IsBitFlagSet(DiagInfo.Flags, DRIVER_DIAG_INFORMATION_FLAG_WFP_MM_STATS) ? DiagInfo.WfpMMStats.AllocationsCount : 0;
+    }
+
+    if (Assigned(AllocationSize))
+    {
+        *AllocationSize =
+            0 +
+            IsBitFlagSet(DiagInfo.Flags, DRIVER_DIAG_INFORMATION_FLAG_NDIS_MM_STATS) ? DiagInfo.NdisMMStats.TotalBytesAllocated : 0 +
+            IsBitFlagSet(DiagInfo.Flags, DRIVER_DIAG_INFORMATION_FLAG_WFP_MM_STATS) ? DiagInfo.WfpMMStats.TotalBytesAllocated : 0;
+    }
+
+    return TRUE;
+};
+
 // Get adapter list
 LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
 {

@@ -73,6 +73,10 @@ NTSTATUS __stdcall Filter_ReadPackets(
     __in    ULONG                   BufferSize,
     __out   PULONG                  BytesReturned);
 
+NTSTATUS __stdcall Filter_GetDiagInfo(
+    __in    PDRIVER_DATA                Data,
+    __out   PDRIVER_DIAG_INFORMATION    DiagInfo);
+
 NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
     __in    PVOID       Context,
     __in    ULONG       ControlCode,
@@ -284,6 +288,7 @@ NTSTATUS __stdcall Filter_CreateClient(
         (ULONG)sizeof(PACKET) + Adapter->MtuSize - 1,
         PACKETS_POOL_INITIAL_SIZE,
         TRUE,
+        CLIENT_PACKET_POOL_MEMORY_TAG,
         &NewClient->PacketsPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -769,6 +774,43 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Filter_GetDiagInfo(
+    __in    PDRIVER_DATA                Data,
+    __out   PDRIVER_DIAG_INFORMATION    DiagInfo)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    KM_MM_STATS Stats;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(DiagInfo),
+        STATUS_INVALID_PARAMETER_2);
+
+    RtlZeroMemory(&Stats, sizeof(Stats));
+    RtlZeroMemory(DiagInfo, sizeof(DRIVER_DIAG_INFORMATION));
+
+    if (NT_SUCCESS(Km_MM_QueryStats(&Data->Ndis.MemoryManager, &Stats)))
+    {
+        DiagInfo->NdisMMStats.AllocationsCount = Stats.CurrentAllocations.NumberOfAllocations;
+        DiagInfo->NdisMMStats.TotalBytesAllocated = Stats.CurrentAllocations.TotalBytesAllocated;
+        DiagInfo->NdisMMStats.UserBytesAllocated = Stats.CurrentAllocations.UserBytesAllocated;
+        DiagInfo->Flags |= DRIVER_DIAG_INFORMATION_FLAG_NDIS_MM_STATS;
+    }
+
+    if (NT_SUCCESS(Km_MM_QueryStats(&Data->Wfp.MemoryManager, &Stats)))
+    {
+        DiagInfo->WfpMMStats.AllocationsCount = Stats.CurrentAllocations.NumberOfAllocations;
+        DiagInfo->WfpMMStats.TotalBytesAllocated = Stats.CurrentAllocations.TotalBytesAllocated;
+        DiagInfo->WfpMMStats.UserBytesAllocated = Stats.CurrentAllocations.UserBytesAllocated;
+        DiagInfo->Flags |= DRIVER_DIAG_INFORMATION_FLAG_WFP_MM_STATS;
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
     __in    PVOID       Context,
     __in    ULONG       ControlCode,
@@ -882,6 +924,23 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
                 &BytesRead);
             if (NT_SUCCESS(Status))
             {
+                BytesRet = BytesRead;
+            }
+        }break;
+
+    case IOCTL_GET_DIAG_INFO:
+        {
+            GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+                (Assigned(OutBuffer)) &&
+                (OutBufferSize >= (ULONG)sizeof(DRIVER_DIAG_INFORMATION)),
+                STATUS_INVALID_PARAMETER);
+
+            Status = Filter_GetDiagInfo(
+                Data,
+                (PDRIVER_DIAG_INFORMATION)OutBuffer);
+            if (NT_SUCCESS(Status))
+            {
+                BytesRead = sizeof(DRIVER_DIAG_INFORMATION);
                 BytesRet = BytesRead;
             }
         }break;
@@ -1059,6 +1118,7 @@ DriverEntry(
         sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
         DRIVER_SVC_CLIENTS_POOL_SIZE,
         FALSE,
+        DRIVER_CLIENTS_POOL_MEMORY_TAG,
         &DriverData.Clients.ServicePool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 

@@ -29,8 +29,15 @@ typedef struct _NDIS_MM
     //  Lock object
     KM_LOCK             Lock;
 
-    //  List containing allocated memory blocks
-    LIST_ENTRY          AllocatedBlocks;
+    
+    struct
+    {
+        KM_MM_ALLOCATION_STATS  Stats;
+
+        //  List containing allocated memory blocks
+        LIST_ENTRY  AllocatedBlocks;
+
+    } Allocations;
 
     //  Priority for allocations
     EX_POOL_PRIORITY    PoolPriority;
@@ -46,6 +53,8 @@ typedef struct _NDIS_MM_MEM_BLOCK_HEADER
     SIZE_T      Size;
 
     SIZE_T      MaxSize;
+
+    ULONG       Tag;
 
 } NDIS_MM_MEM_BLOCK_HEADER, *PNDIS_MM_MEM_BLOCK_HEADER;
 
@@ -87,10 +96,12 @@ NTSTATUS __stdcall Ndis_MM_Initialize(
     Status = Km_Lock_Initialize(&NdisMM->Lock);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    InitializeListHead(&NdisMM->AllocatedBlocks);
+    InitializeListHead(&NdisMM->Allocations.AllocatedBlocks);
 
     NdisMM->NdisObjectHandle = NdisHandle;
     NdisMM->PoolPriority = PoolPriority;
+
+    NdisMM->Allocations.Stats.TotalBytesAllocated = (ULONG_PTR)sizeof(NDIS_MM);
 
     Status = Km_MM_Initialize(
         Manager,
@@ -98,6 +109,7 @@ NTSTATUS __stdcall Ndis_MM_Initialize(
         Ndis_MM_FreeMem,
         Ndis_MM_Init,
         Ndis_MM_Cleanup,
+        Ndis_MM_QueryStats,
         MemoryTag,
         NULL,
         (PVOID)NdisMM);
@@ -137,7 +149,7 @@ NTSTATUS __stdcall Ndis_MM_Cleanup(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        if (!IsListEmpty(&NdisMM->AllocatedBlocks))
+        if (!IsListEmpty(&NdisMM->Allocations.AllocatedBlocks))
         {
             Status = STATUS_UNSUCCESSFUL;
         }
@@ -160,12 +172,14 @@ cleanup:
 };
 
 PVOID __stdcall Ndis_MM_AllocMem(
-    __in    PKM_MEMORY_MANAGER  Manager,
-    __in    SIZE_T              Size)
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag)
 {
     PVOID       Result = NULL;
     PNDIS_MM    NdisMM = NULL;
     UINT        SizeRequired;
+    ULONG       MemTag;
 
     RETURN_VALUE_IF_FALSE(
         (Assigned(Manager)) &&
@@ -184,10 +198,14 @@ PVOID __stdcall Ndis_MM_AllocMem(
         NULL);
     __try
     {
-        PVOID   NewBlock = NdisAllocateMemoryWithTagPriority(
+        PVOID   NewBlock;
+
+        MemTag = Tag == 0 ? Manager->MemoryTag : Tag;
+
+        NewBlock = NdisAllocateMemoryWithTagPriority(
             NdisMM->NdisObjectHandle,
             SizeRequired,
-            Manager->MemoryTag,
+            MemTag,
             NdisMM->PoolPriority);
 
         if (Assigned(NewBlock))
@@ -196,10 +214,15 @@ PVOID __stdcall Ndis_MM_AllocMem(
 
             Header->Size = Header->MaxSize = Size;
             Header->MemoryManager = NdisMM;
+            Header->Tag = MemTag;
 
             InsertHeadList(
-                &NdisMM->AllocatedBlocks,
+                &NdisMM->Allocations.AllocatedBlocks,
                 &Header->Link);
+
+            NdisMM->Allocations.Stats.NumberOfAllocations++;
+            NdisMM->Allocations.Stats.UserBytesAllocated += Size;
+            NdisMM->Allocations.Stats.TotalBytesAllocated += SizeRequired;
 
             Result = (PVOID)((PUCHAR)NewBlock + sizeof(NDIS_MM_MEM_BLOCK_HEADER));
         }
@@ -238,16 +261,63 @@ NTSTATUS __stdcall Ndis_MM_FreeMem(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
+        unsigned long long  BlockSize = Header->MaxSize + sizeof(NDIS_MM_MEM_BLOCK_HEADER);
+        unsigned long long  UserSize = Header->Size;
+
         RemoveEntryList(&Header->Link);
         NdisFreeMemoryWithTagPriority(
             NdisMM->NdisObjectHandle,
             Header,
-            Manager->MemoryTag);
+            Header->Tag);
+
+        NdisMM->Allocations.Stats.NumberOfAllocations--;
+        NdisMM->Allocations.Stats.TotalBytesAllocated -= BlockSize;
+        NdisMM->Allocations.Stats.UserBytesAllocated -= UserSize;
+
     }
     __finally
     {
         Km_Lock_Release(&NdisMM->Lock);
     }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Ndis_MM_QueryStats(
+    __in    PKM_MEMORY_MANAGER  Manager,
+    __out   PKM_MM_STATS        Stats)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PNDIS_MM    NdisMM = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Manager),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Manager->Context),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Stats),
+        STATUS_INVALID_PARAMETER_2);
+
+    NdisMM = (PNDIS_MM)Manager->Context;
+
+    Status = Km_Lock_Acquire(&NdisMM->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        RtlCopyMemory(
+            &Stats->CurrentAllocations,
+            &NdisMM->Allocations.Stats,
+            sizeof(KM_MM_ALLOCATION_STATS));
+    }
+    __finally
+    {
+        Km_Lock_Release(&NdisMM->Lock);
+    }
+
+    Stats->Flags = KM_MM_STATS_FLAG_CURRENT_ALLOCATION_STATS_PRESENT;
 
 cleanup:
     return Status;

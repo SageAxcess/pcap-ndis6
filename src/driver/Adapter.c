@@ -91,7 +91,8 @@ NTSTATUS __stdcall Adapter_Allocate(
         MemoryManager,
         CalcRequiredPacketSize(BindParameters->MtuSize),
         PACKETS_POOL_INITIAL_SIZE,
-        FALSE,
+        TRUE,
+        ADAPTER_PACKET_POOL_MEMORY_TAG,
         &NewAdapter->Packets.Pool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 

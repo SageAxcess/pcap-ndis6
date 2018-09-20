@@ -21,7 +21,7 @@
 #include "NdisMemoryManager.h"
 #include "..\shared\SharedTypes.h"
 
-#define PACKETS_POOL_INITIAL_SIZE       0x2000
+#define PACKETS_POOL_INITIAL_SIZE       0x800
 #define DRIVER_MAX_CLIENTS              0x400
 #define DRIVER_SVC_CLIENTS_POOL_SIZE    0x1
 
@@ -340,8 +340,12 @@ typedef struct _DRIVER_DATA
 
 } DRIVER_DATA, *PDRIVER_DATA;
 
-#define WFP_FLT_MEMORY_TAG          'fwDC'
-#define NDIS_FLT_MEMORY_TAG         'nyDC'
+#define WFP_FLT_MEMORY_TAG              'fwDC'
+#define NDIS_FLT_MEMORY_TAG             'nyDC'
+#define ADAPTER_PACKET_POOL_MEMORY_TAG  'MPPA'
+#define CONNECTIONS_MEMORY_POOL_TAG     'TPMC'
+#define CLIENT_PACKET_POOL_MEMORY_TAG   'MPPC'
+#define DRIVER_CLIENTS_POOL_MEMORY_TAG  'MPCD'
 
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6

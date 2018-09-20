@@ -35,3 +35,4 @@ EXPORTS
 		PacketSetLoopbackBehavior
 		PacketGetAirPcapHandle
 		PacketReceivePacketEx
+		PacketGetDriverMemUsage 

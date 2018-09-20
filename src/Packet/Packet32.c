@@ -1007,6 +1007,28 @@ BOOLEAN PacketGetStatsEx(
     return PacketGetStats(AdapterObject, s);
 };
 
+BOOLEAN PacketGetDriverMemUsage(
+    __in    LPADAPTER   AdapterObject,
+    __out   PULONGLONG  TotalAllocations,
+    __out   PULONGLONG  TotalBytesAllocated)
+{
+    PPCAP_NDIS_ADAPTER  Adapter = nullptr;
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterObject),
+        FALSE);
+    RETURN_VALUE_IF_FALSE(
+        AdapterObject->hFile != NULL,
+        FALSE);
+    
+    Adapter = reinterpret_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
+
+    return NdisDriverQueryDiagInfo(
+        Adapter,
+        TotalAllocations,
+        TotalBytesAllocated) ? TRUE : FALSE;
+};
+
 BOOLEAN PacketRequest(LPADAPTER AdapterObject, BOOLEAN Set, PPACKET_OID_DATA OidData)
 {
     UNREFERENCED_PARAMETER(AdapterObject);

@@ -19,6 +19,7 @@ NTSTATUS __stdcall Km_MM_Initialize(
     __in    PKM_MM_FREE_MEM_ROUTINE     FreeMemRoutine,
     __in    PKM_MM_INIT_ROUTINE         InitRoutine,
     __in    PKM_MM_CLEANUP_ROUTINE      CleanupRoutine,
+    __in    PKM_MM_QUERY_STATS_ROUTINE  QueryStatsRoutine,
     __in    ULONG                       MemoryTag,
     __in    PVOID                       InitParams,
     __in    PVOID                       Context)
@@ -47,6 +48,7 @@ NTSTATUS __stdcall Km_MM_Initialize(
     Manager->AllocMemRoutine = AllocMemRoutine;
     Manager->FreeMemRoutine = FreeMemRoutine;
     Manager->CleanupRoutine = CleanupRoutine;
+    Manager->QueryStatsRoutine = QueryStatsRoutine;
     Manager->Context = Context;
     Manager->MemoryTag = MemoryTag;
 

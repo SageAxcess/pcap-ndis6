@@ -28,11 +28,16 @@ NTSTATUS __stdcall Wfp_MM_Cleanup(
     __in    PKM_MEMORY_MANAGER  Manager);
 
 PVOID __stdcall Wfp_MM_AllocMem(
-    __in    PKM_MEMORY_MANAGER  Manager,
-    __in    SIZE_T              Size);
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag);
 
 NTSTATUS __stdcall Wfp_MM_FreeMem(
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
+    __in    PKM_MEMORY_MANAGER  Manager,
     __in    PVOID               Ptr);
+
+NTSTATUS __stdcall Wfp_MM_QueryStats(
+    __in    PKM_MEMORY_MANAGER  Manager,
+    __out   PKM_MM_STATS        Stats);
 
 #endif

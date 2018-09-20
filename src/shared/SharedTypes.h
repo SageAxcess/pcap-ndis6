@@ -221,6 +221,7 @@ typedef struct _PACKET_DESC
 #define IOCTL_GET_ADAPTERS          CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 3, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_OPEN_ADAPTER          CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 4, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_CLOSE_ADAPTER         CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 5, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define IOCTL_GET_DIAG_INFO         CTL_CODE(IOCTL_VENDOR_DEVICE_BASE, IOCTL_VENDOR_FUNC_BASE + 6, METHOD_NEITHER, FILE_ANY_ACCESS)
 
 // Adapter data
 
@@ -286,3 +287,32 @@ typedef __declspec(align(8)) struct _PCAP_NDIS_CLIENT_ID
 } PCAP_NDIS_CLIENT_ID;
 
 typedef PCAP_NDIS_CLIENT_ID *PPCAP_NDIS_CLIENT_ID;
+
+typedef __declspec(align(8)) struct _MEMORY_ALLOCATION_STATS
+{
+    //  Number of allocations 
+    unsigned long long  AllocationsCount;
+
+    //  Number of bytes requested from a memory manager by user code
+    unsigned long long  UserBytesAllocated;
+
+    //  Total number of bytes allocated
+    //  This is a sum of UserBytesAllocated and a number of bytes 
+    //  allocated for servicing purposes
+    unsigned long long  TotalBytesAllocated;
+
+} MEMORY_ALLOCATION_STATS, *PMEMORY_ALLOCATION_STATS;
+
+#define DRIVER_DIAG_INFORMATION_FLAG_NONE           0x0
+#define DRIVER_DIAG_INFORMATION_FLAG_NDIS_MM_STATS  0x1
+#define DRIVER_DIAG_INFORMATION_FLAG_WFP_MM_STATS   0x2
+
+typedef __declspec(align(8)) struct _DRIVER_DIAG_INFORMATION
+{
+    unsigned long           Flags;
+
+    MEMORY_ALLOCATION_STATS NdisMMStats;
+
+    MEMORY_ALLOCATION_STATS WfpMMStats;
+
+} DRIVER_DIAG_INFORMATION, *PDRIVER_DIAG_INFORMATION;

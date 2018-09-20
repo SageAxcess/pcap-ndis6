@@ -44,6 +44,9 @@ typedef struct _KM_MEMORY_POOL
     //  upon initialization of the pool.
     ULONG               BlockSize;
 
+    //  Memory tag to use when allocating the blocks.
+    ULONG               MemoryTag;
+
     struct AvailableBlocks
     {
         //  List head
@@ -83,10 +86,11 @@ NTSTATUS __stdcall Km_MP_CreateBlock(
 
     SizeRequired = (ULONG)sizeof(KM_MEMORY_POOL_BLOCK_HEADER) + Pool->BlockSize;
 
-    NewBlockHeader = Km_MM_AllocMemTypedWithSize(
+    NewBlockHeader = Km_MM_AllocMemTypedWithSizeAndTag(
         Pool->MemoryManager,
         KM_MEMORY_POOL_BLOCK_HEADER,
-        SizeRequired);
+        SizeRequired,
+        Pool->MemoryTag);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewBlockHeader),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -124,11 +128,12 @@ cleanup:
 };
 
 NTSTATUS __stdcall Km_MP_Initialize(
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __in    ULONG               BlockSize,
-    __in    ULONG               InitialBlockCount,
-    __in    BOOLEAN             FixedSize,
-    __out   PHANDLE             InstanceHandle)
+    __in        PKM_MEMORY_MANAGER  MemoryManager,
+    __in        ULONG               BlockSize,
+    __in        ULONG               InitialBlockCount,
+    __in        BOOLEAN             FixedSize,
+    __in_opt    ULONG               Tag,
+    __out       PHANDLE             InstanceHandle)
 {
     NTSTATUS        Status = STATUS_SUCCESS;
     PKM_MEMORY_POOL NewPool = NULL;
@@ -162,6 +167,8 @@ NTSTATUS __stdcall Km_MP_Initialize(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     NewPool->MemoryManager = MemoryManager;
+
+    NewPool->MemoryTag = Tag;
 
     NewPool->FixedSize = FixedSize;
 

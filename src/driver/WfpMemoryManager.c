@@ -19,8 +19,14 @@ typedef struct _WFP_MM
     //  Lock object
     KM_LOCK             Lock;
 
-    //  List containing allocated memory blocks
-    LIST_ENTRY          AllocatedBlocks;
+    struct
+    {
+        KM_MM_ALLOCATION_STATS  Stats;
+
+        //  List containing allocated memory blocks
+        LIST_ENTRY  AllocatedBlocks;
+
+    } Allocations;
 
     //  Priority for allocations
     EX_POOL_PRIORITY    PoolPriority;
@@ -39,6 +45,8 @@ typedef struct _WFP_MM_MEM_BLOCK_HEADER
     SIZE_T              Size;
 
     SIZE_T              MaxSize;
+
+    ULONG               Tag;
 
 } WFP_MM_MEM_BLOCK_HEADER, *PWFP_MM_MEM_BLOCK_HEADER;
 
@@ -78,7 +86,7 @@ NTSTATUS __stdcall Wfp_MM_Initialize(
     Status = Km_Lock_Initialize(&WfpMM->Lock);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    InitializeListHead(&WfpMM->AllocatedBlocks);
+    InitializeListHead(&WfpMM->Allocations.AllocatedBlocks);
 
     WfpMM->PoolPriority = PoolPriority;
     WfpMM->PoolType = PoolType;
@@ -89,6 +97,7 @@ NTSTATUS __stdcall Wfp_MM_Initialize(
         Wfp_MM_FreeMem,
         Wfp_MM_Init,
         Wfp_MM_Cleanup,
+        Wfp_MM_QueryStats,
         MemoryTag,
         NULL,
         (PVOID)WfpMM);
@@ -127,7 +136,7 @@ NTSTATUS __stdcall Wfp_MM_Cleanup(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        if (!IsListEmpty(&WfpMM->AllocatedBlocks))
+        if (!IsListEmpty(&WfpMM->Allocations.AllocatedBlocks))
         {
             Status = STATUS_UNSUCCESSFUL;
         }
@@ -149,12 +158,14 @@ cleanup:
 };
 
 PVOID __stdcall Wfp_MM_AllocMem(
-    __in    PKM_MEMORY_MANAGER  Manager,
-    __in    SIZE_T              Size)
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag)
 {
     PVOID       Result = NULL;
     PWFP_MM     WfpMM = NULL;
     SIZE_T      SizeRequired = 0;
+    ULONG       MemTag;
 
     RETURN_VALUE_IF_FALSE(
         (Assigned(Manager)) &&
@@ -173,10 +184,14 @@ PVOID __stdcall Wfp_MM_AllocMem(
         NULL);
     __try
     {
-        PVOID   NewBlock = ExAllocatePoolWithTagPriority(
+        PVOID   NewBlock;
+        
+        MemTag = Tag == 0 ? Manager->MemoryTag : Tag;
+
+        NewBlock = ExAllocatePoolWithTagPriority(
             WfpMM->PoolType,
             SizeRequired,
-            Manager->MemoryTag,
+            MemTag,
             WfpMM->PoolPriority);
 
         if (Assigned(NewBlock))
@@ -185,10 +200,15 @@ PVOID __stdcall Wfp_MM_AllocMem(
 
             Header->Size = Header->MaxSize = Size;
             Header->MemoryManager = Manager;
+            Header->Tag = MemTag;
 
             InsertHeadList(
-                &WfpMM->AllocatedBlocks,
+                &WfpMM->Allocations.AllocatedBlocks,
                 &Header->Link);
+
+            WfpMM->Allocations.Stats.NumberOfAllocations++;
+            WfpMM->Allocations.Stats.TotalBytesAllocated += SizeRequired;
+            WfpMM->Allocations.Stats.UserBytesAllocated += Size;
 
             Result = (PVOID)((PUCHAR)NewBlock + sizeof(WFP_MM_MEM_BLOCK_HEADER));
         }
@@ -235,12 +255,51 @@ NTSTATUS __stdcall Wfp_MM_FreeMem(
 
         ExFreePoolWithTag(
             Header,
-            Manager->MemoryTag);
+            Header->Tag);
     }
     __finally
     {
         Km_Lock_Release(&WfpMM->Lock);
     }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall Wfp_MM_QueryStats(
+    __in    PKM_MEMORY_MANAGER  Manager,
+    __out   PKM_MM_STATS        Stats)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    PWFP_MM     WfpMM = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Manager),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Manager->Context),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Stats),
+        STATUS_INVALID_PARAMETER_2);
+
+    WfpMM = (PWFP_MM)Manager->Context;
+
+    Status = Km_Lock_Acquire(&WfpMM->Lock);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    __try
+    {
+        RtlCopyMemory(
+            &Stats->CurrentAllocations,
+            &WfpMM->Allocations.Stats,
+            sizeof(KM_MM_ALLOCATION_STATS));
+    }
+    __finally
+    {
+        Km_Lock_Release(&WfpMM->Lock);
+    }
+
+    Stats->Flags = KM_MM_STATS_FLAG_CURRENT_ALLOCATION_STATS_PRESENT;
 
 cleanup:
     return Status;

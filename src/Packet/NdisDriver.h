@@ -88,6 +88,11 @@ BOOL NdisDriverNextPacket(
     __out       PDWORD              BytesReceived,
     __out_opt   PULONGLONG          ProcessId);
 
+BOOL NdisDriverQueryDiagInfo(
+    __in    LPPCAP_NDIS_ADAPTER Adapter,
+    __out   PULONGLONG          AllocationsCount,
+    __out   PULONGLONG          AllocationSize);
+
 // Get adapter list
 LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis);
 

@@ -40,11 +40,12 @@
                                           InitialBlockCount parameter is zero.
 */
 NTSTATUS __stdcall Km_MP_Initialize(
-    __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __in    ULONG               BlockSize,
-    __in    ULONG               InitialBlockCount,
-    __in    BOOLEAN             FixedSize,
-    __out   PHANDLE             InstanceHandle);
+    __in        PKM_MEMORY_MANAGER  MemoryManager,
+    __in        ULONG               BlockSize,
+    __in        ULONG               InitialBlockCount,
+    __in        BOOLEAN             FixedSize,
+    __in_opt    ULONG               Tag,
+    __out       PHANDLE             InstanceHandle);
 
 /*
     Km_MP_Finalize routine.
