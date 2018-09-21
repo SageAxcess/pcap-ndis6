@@ -57,7 +57,7 @@ HKR, Ndi,HelpText,,%PcapNdis6_HelpText%
 
 ; Do not change these values
 HKR, Ndi\Interfaces,UpperRange,,"noupper"
-HKR, Ndi\Interfaces,LowerRange,,"nolower"
+HKR, Ndi\Interfaces,LowerRange,,"ndis5,ndis4"
 
 ;-------------------------------------------------------------------------
 ; Service installation support
