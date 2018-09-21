@@ -956,7 +956,6 @@ BOOLEAN PacketSetBpf(LPADAPTER AdapterObject, struct bpf_program *fp)
     return TRUE;
 };
 
-
 BOOLEAN PacketSetLoopbackBehavior(LPADAPTER AdapterObject, UINT LoopbackBehavior)
 {
     UNREFERENCED_PARAMETER(AdapterObject);
@@ -976,7 +975,6 @@ INT PacketSetSnapLen(LPADAPTER AdapterObject, int snaplen)
 
     return 0;
 }
-
 
 BOOLEAN PacketGetStats(
     __in    LPADAPTER       AdapterObject,
