@@ -56,8 +56,8 @@ HKR, Ndi,HelpText,,%PcapNdis6_HelpText%
 ; HKR, Ndi,FilterType,0x00010001,2
 
 ; Do not change these values
-HKR, Ndi\Interfaces,UpperRange,,"noupper, ndis5, Ndiswan, ndis5_ip, flpp4, flpp6"
-HKR, Ndi\Interfaces,LowerRange,,"nolower, ndis5, ethernet, Wlan, vwifi, ppip, nolower, wan, broadband, ppip"
+HKR, Ndi\Interfaces,UpperRange,,"noupper"
+HKR, Ndi\Interfaces,LowerRange,,"nolower"
 
 ;-------------------------------------------------------------------------
 ; Service installation support
