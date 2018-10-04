@@ -138,7 +138,7 @@ std::wstring UTILS::STR::GetTimeStr(
     }
 
     return FormatW(
-        L"%02d:%02d:%02d%:%03d",
+        L"%02d:%02d:%02d:%03d",
         Time.wHour,
         Time.wMinute,
         Time.wSecond,
