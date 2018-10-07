@@ -204,6 +204,11 @@ typedef struct _PACKET_DESC
 
 } PACKET_DESC, *PPACKET_DESC, *LPPACKET_DESC;
 
+#define FILTER_COMPANY_PRODUCT_NAME                 L"ChangeDynamix AEGIS"
+#define FILTER_COMPONENT_ID                         L"PcapNdis6"
+#define FILTER_INSTALL_TIMEOUT                      60000
+
+
 #define FILTER_UNIQUE_NAME                          L"{37195A99-7BC5-4C82-B00A-553C75C0AA1A}"
 #define FILTER_SERVICE_NAME                         L"PcapNdis6"
 #define FILTER_PROTOCOL_NAME		                L"PcapNdis6"
