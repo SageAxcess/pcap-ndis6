@@ -148,3 +148,11 @@ void __stdcall LOG::LogMessageFmt(
     }
     va_end(ArgList);
 };
+
+void __stdcall LOG::LogOSDetails()
+{
+    if (Assigned(LogWriter))
+    {
+        LogWriter->LogOSDetails();
+    }
+};

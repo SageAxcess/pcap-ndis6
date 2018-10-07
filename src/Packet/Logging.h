@@ -30,4 +30,6 @@ namespace LOG
     void __stdcall LogMessageFmt(
         __in    const   std::wstring    FormatStr,
         __in                            ...);
+
+    void __stdcall LogOSDetails();
 };
