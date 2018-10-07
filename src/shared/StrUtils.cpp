@@ -145,6 +145,28 @@ std::wstring UTILS::STR::GetTimeStr(
         Time.wMilliseconds);
 };
 
+BOOL UTILS::STR::EndsOnA(
+    __in    const   std::string &Str,
+    __in    const   std::string &SubStr)
+{
+    RETURN_VALUE_IF_FALSE(
+        Str.length() >= SubStr.length(),
+        FALSE);
+
+    return Str.substr(Str.length() - SubStr.length()) == SubStr;
+};
+
+BOOL UTILS::STR::EndsOnW(
+    __in    const   std::wstring    &Str,
+    __in    const   std::wstring    &SubStr)
+{
+    RETURN_VALUE_IF_FALSE(
+        Str.length() >= SubStr.length(),
+        FALSE);
+
+    return Str.substr(Str.length() - SubStr.length()) == SubStr;
+};
+
 std::string UTILS::STR::GuidToStringA(
     __in    const   GUID    &Guid)
 {

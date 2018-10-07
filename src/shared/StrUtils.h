@@ -38,6 +38,14 @@ namespace UTILS
         std::wstring GetTimeStr(
             __in_opt    BOOL    LocalOrSystem = FALSE);
 
+        BOOL EndsOnA(
+            __in    const   std::string &Str,
+            __in    const   std::string &SubStr);
+
+        BOOL EndsOnW(
+            __in    const   std::wstring    &Str,
+            __in    const   std::wstring    &SubStr);
+
         std::string GuidToStringA(
             __in    const   GUID    &Guid);
 
