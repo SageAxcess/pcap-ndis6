@@ -82,6 +82,8 @@ int __stdcall Km_Connections_GetPID_ItemCmpCallback(
                 }
                 #pragma endregion
 
+                //  2nd pass
+
                 #pragma region REVERESE_COMPARE
                 if (CmpRes != 0)
                 {
