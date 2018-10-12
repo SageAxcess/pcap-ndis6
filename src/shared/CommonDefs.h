@@ -220,3 +220,9 @@
 
 #define TicksToSeconds(Value)       ((Value) / TicksInASecond)
 #define TicksToMicroseconds(Value)  ((Value) / TicksInAMicrosecond)
+
+#define LogMessageToConsole(Message, ...) \
+{ \
+    printf("[DBG][%s]: ", __FUNCTION__); \
+    printf((Message), __VA_ARGS__); \
+}
