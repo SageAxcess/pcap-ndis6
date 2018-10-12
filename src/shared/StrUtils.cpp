@@ -123,6 +123,17 @@ std::wstring UTILS::STR::FormatW(
     return Result;
 };
 
+std::wstring UTILS::STR::TimeToStringW(
+    __in    const   SYSTEMTIME  &Time)
+{
+    return FormatW(
+        L"%02d:%02d:%02d:%03d",
+        Time.wHour,
+        Time.wMinute,
+        Time.wSecond,
+        Time.wMilliseconds);
+};
+
 std::wstring UTILS::STR::GetTimeStr(
     __in_opt    BOOL    LocalOrSystem)
 {
@@ -137,12 +148,7 @@ std::wstring UTILS::STR::GetTimeStr(
         GetSystemTime(&Time);
     }
 
-    return FormatW(
-        L"%02d:%02d:%02d:%03d",
-        Time.wHour,
-        Time.wMinute,
-        Time.wSecond,
-        Time.wMilliseconds);
+    return TimeToStringW(Time);
 };
 
 BOOL UTILS::STR::EndsOnA(

@@ -35,6 +35,9 @@ namespace UTILS
             __in    LPCWSTR FormatStr,
             __in            ...);
 
+        std::wstring TimeToStringW(
+            __in    const   SYSTEMTIME  &Time);
+
         std::wstring GetTimeStr(
             __in_opt    BOOL    LocalOrSystem = FALSE);
 
