@@ -22,7 +22,7 @@
 BOOL IsWow64()
 {
 #ifdef _AMD64
-	return false;
+	return FALSE;
 #else
 	BOOL b = FALSE;
 
