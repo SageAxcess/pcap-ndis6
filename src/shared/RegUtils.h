@@ -34,5 +34,10 @@ namespace UTILS
             __in            HKEY            Key,
             __in    const   std::wstring    &ValueName,
             __out           LPDWORD         Value);
+
+        BOOL __stdcall ReadStringW(
+            __in            HKEY            Key,
+            __in    const   std::wstring    &ValueName,
+            __out           std::wstring    &Value);
     };
 };

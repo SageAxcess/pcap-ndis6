@@ -88,3 +88,32 @@ BOOL __stdcall UTILS::REG::ReadDWORD(
         reinterpret_cast<LPVOID>(Value),
         &ValueSize);
 };
+
+BOOL __stdcall UTILS::REG::ReadStringW(
+    __in            HKEY            Key,
+    __in    const   std::wstring    &ValueName,
+    __out           std::wstring    &Value)
+{
+    DWORD   ValueSize = 0;
+
+    RETURN_VALUE_IF_FALSE(
+        ReadValueSize(Key, ValueName, &ValueSize),
+        FALSE);
+
+    Value.resize(ValueSize / sizeof(wchar_t));
+
+    RETURN_VALUE_IF_TRUE(
+        ValueSize == 0, 
+        TRUE);
+
+    if (!ReadValue(
+        Key,
+        ValueName,
+        reinterpret_cast<LPVOID>(&Value[0]),
+        &ValueSize))
+    {
+        return FALSE;
+    }
+
+    return TRUE;
+};
