@@ -369,7 +369,8 @@ BOOL NdisDriverQueryDiagInfo(
 };
 
 // Get adapter list
-LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
+LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(
+    __in    PPCAP_NDIS  Ndis)
 {
     ULONG                       AdaptersCount = 0;
     LPPCAP_NDIS_ADAPTER_LIST    List = nullptr;
@@ -377,12 +378,12 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
     BOOL                        Failed = FALSE;
 
     RETURN_VALUE_IF_FALSE(
-        Assigned(ndis),
+        Assigned(Ndis),
         nullptr);
 
     RETURN_VALUE_IF_FALSE(
         NdisDriver_ControlDevice(
-            ndis->Handle,
+            Ndis->Handle,
             static_cast<DWORD>(IOCTL_GET_ADAPTERS_COUNT),
             nullptr,
             0UL,
@@ -401,7 +402,7 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis)
     __try
     {
         Failed = !NdisDriver_ControlDevice(
-            ndis->Handle,
+            Ndis->Handle,
             static_cast<DWORD>(IOCTL_GET_ADAPTERS),
             nullptr,
             0,

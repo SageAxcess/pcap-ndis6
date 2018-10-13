@@ -94,7 +94,8 @@ BOOL NdisDriverQueryDiagInfo(
     __out   PULONGLONG  AllocationSize);
 
 // Get adapter list
-LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(PCAP_NDIS* ndis);
+LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(
+    __in    PPCAP_NDIS  Ndis);
 
 // Free adapter list
 void NdisDriverFreeAdapterList(
