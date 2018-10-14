@@ -13,21 +13,36 @@
 
 #include "CommonDefs.h"
 #include "FileLogWriter.h"
-
+#include "StrUtils.h"
 
 void CFileLogWriter::InternalLogMessage(
-    __in    LPCWSTR Message)
+    __in    const   std::wstring    &Message)
 {
+    DWORD       BytesWritten = 0;
+    LPCVOID     Buffer = nullptr;
+    DWORD       BufferSize = 0;
+    std::string MessageA;
+    
     RETURN_IF_FALSE(
         (FFileHandle != INVALID_HANDLE_VALUE) &&
-        (Assigned(Message)));
+        (Message.length() > 0));
 
-    DWORD   MessageLength = static_cast<DWORD>(wcslen(Message));
-    DWORD   BytesWritten;
+    if (FIsUnicode)
+    {
+        Buffer = reinterpret_cast<LPCVOID>(Message.data());
+        BufferSize = static_cast<DWORD>(Message.length() * sizeof(wchar_t));
+    }
+    else
+    {
+        MessageA = UTILS::STR::FormatA("%S", Message.c_str());
+        Buffer = reinterpret_cast<LPCVOID>(MessageA.data());
+        BufferSize = static_cast<DWORD>(MessageA.length());
+    }
+
     WriteFile(
         FFileHandle,
-        reinterpret_cast<LPCVOID>(Message),
-        MessageLength * sizeof(wchar_t),
+        Buffer,
+        BufferSize,
         &BytesWritten,
         nullptr);
 };
@@ -77,4 +92,33 @@ CFileLogWriter::~CFileLogWriter()
     Leave();
 };
 
+BOOL CFileLogWriter::GetIsUnicode() const
+{
+    BOOL    Result = FALSE;
 
+    (const_cast<CFileLogWriter *>(this))->Enter();
+    __try
+    {
+        Result = FIsUnicode;
+    }
+    __finally
+    {
+        (const_cast<CFileLogWriter *>(this))->Leave();
+    }
+
+    return Result;
+};
+
+void CFileLogWriter::SetIsUnicode(
+    __in    const   BOOL    Value)
+{
+    Enter();
+    __try
+    {
+        FIsUnicode = Value;
+    }
+    __finally
+    {
+        Leave();
+    }
+};

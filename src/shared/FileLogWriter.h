@@ -13,16 +13,18 @@
 #pragma once
 
 #include "LogWriter.h"
+#include "CommonDefs.h"
 
 class CFileLogWriter :
     virtual public CLogWriter
 {
 private:
     HANDLE  FFileHandle = INVALID_HANDLE_VALUE;
+    BOOL    FIsUnicode = FALSE;
 
 protected:
     virtual void InternalLogMessage(
-        __in    LPCWSTR Message);
+        __in    const   std::wstring    &Message);
 
     virtual BOOL InternalCreateLogFile(
         __in    const   std::wstring    &FileName);
@@ -32,4 +34,10 @@ public:
         __in    const   std::wstring    &FileName);
 
     virtual ~CFileLogWriter();
+
+    virtual BOOL GetIsUnicode() const;
+    virtual void SetIsUnicode(
+        __in    const   BOOL    Value);
+
+    __declspec(property(get = GetIsUnicode, put = SetIsUnicode)) BOOL IsUnicode;
 };
