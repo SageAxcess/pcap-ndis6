@@ -121,16 +121,25 @@ BOOL APIENTRY DllMain(
 
             Packet_ProcessNameW = UTILS::MISC::GetModuleName(NULL);
 
-            Packet_LogFileNameW =
-                UTILS::MISC::ChangeFileExtension(
-                    Packet_ProcessNameW,
-                    UTILS::MISC::ExtractFileName(UTILS::MISC::ChangeFileExtension(Packet_DllFileNameW, L".log")));
-            
+            LogMessageToConsole(
+                "Packet_ProcessNameW = %S\n",
+                Packet_ProcessNameW.c_str());
+
+            Packet_LogFileNameW = UTILS::MISC::ExtractFilePath(Packet_ProcessNameW);
+            Packet_LogFileNameW += UTILS::MISC::ExtractFileName(Packet_DllFileNameW);
+            Packet_LogFileNameW = UTILS::MISC::ChangeFileExtension(Packet_LogFileNameW, L".log");
+
+            LogMessageToConsole(
+                "Packet_LogFileNameW = %S\n",
+                Packet_LogFileNameW.c_str());
+
             LOG::Initialize(
                 Packet_LogFileNameW,
                 HKEY_LOCAL_MACHINE,
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
+
+            LOG::LogMessage(L"Log start");
 
             //
             // Retrieve packet.dll version information from the file
@@ -1085,7 +1094,6 @@ BOOLEAN PacketGetAdapterNames(
             SizeNeeded +=
                 (ULONG)AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) +
                 AdapterList->Items[k].DisplayNameLength + 2;
-                //(ULONG)strlen(AdapterList->Items[k].DisplayName) + 2;
 
             SizeNames += AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) + 1;
         }
