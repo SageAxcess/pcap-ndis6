@@ -16,6 +16,7 @@
 #include "CommonDefs.h"
 #include "StrUtils.h"
 #include "MiscUtils.h"
+#include "RegUtils.h"
 
 #include "UmMemoryManager.h"
 
@@ -34,7 +35,7 @@ std::wstring UTILS::MISC::GetModuleName(
         Len > 0,
         L"");
 
-    Result.resize(Len + 1, (wchar_t)0);
+    Result.resize(Len + 1, static_cast<wchar_t>(0));
 
     RtlCopyMemory(&Result[0], Buffer, Len * sizeof(wchar_t));
 
@@ -52,8 +53,8 @@ std::wstring UTILS::MISC::ExtractFileNameEx(
     __in    const   wchar_t         Delimiter)
 {
     RETURN_VALUE_IF_FALSE(
-        (Delimiter == static_cast<wchar_t>(0)) ||
-        (FullFileName.length() < 2),
+        (Delimiter != static_cast<wchar_t>(0)) &&
+        (FullFileName.length() >= 2),
         L"");
 
     for (SSIZE_T k = static_cast<SSIZE_T>(FullFileName.length()); k >= 0; k--)
@@ -68,7 +69,7 @@ std::wstring UTILS::MISC::ExtractFileNameEx(
 };
 
 std::wstring UTILS::MISC::ExtractFilePath(
-    __in    const   std::wstring    FullFileName)
+    __in    const   std::wstring    &FullFileName)
 {
     return ExtractFilePathEx(FullFileName);
 };
@@ -78,8 +79,8 @@ std::wstring UTILS::MISC::ExtractFilePathEx(
     __in    const   wchar_t         Delimiter)
 {
     RETURN_VALUE_IF_FALSE(
-        (Delimiter == static_cast<wchar_t>(0)) ||
-        (FullFileName.length() < 2),
+        (Delimiter != static_cast<wchar_t>(0)) &&
+        (FullFileName.length() >= 2),
         L"");
 
     for (SSIZE_T k = static_cast<SSIZE_T>(FullFileName.length()); k >= 0; k--)
@@ -127,6 +128,11 @@ std::wstring UTILS::MISC::ChangeFileExtension(
 std::wstring UTILS::MISC::GetApplicationFileName()
 {
     return GetModuleName(NULL);
+};
+
+std::wstring UTILS::MISC::GetApplicationFilePath()
+{
+    return ExtractFilePath(GetApplicationFileName());
 };
 
 std::wstring UTILS::MISC::GetOsVersionStr()
@@ -224,6 +230,44 @@ void UTILS::MISC::GetOSVersionInfo(
         VersionInfo, 
         &OsVersionInfo, 
         sizeof(OSVERSIONINFOEXW));
+};
+
+std::wstring UTILS::MISC::GetOSVersionInfoStrFromRegistry()
+{
+    HKEY            Key = NULL;
+    LSTATUS         Status = ERROR_SUCCESS;
+    std::wstring    ProductName;
+    std::wstring    BuildLabEx;
+
+    Status = RegOpenKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+        0,
+        KEY_READ,
+        &Key);
+    RETURN_VALUE_IF_FALSE(
+        Status == ERROR_SUCCESS,
+        L"");
+    try
+    {
+        UTILS::REG::ReadStringW(
+            Key,
+            L"ProductName",
+            ProductName);
+        UTILS::REG::ReadStringW(
+            Key,
+            L"BuildLabEx",
+            BuildLabEx);
+    }
+    catch (...)
+    {
+    }
+    RegCloseKey(Key);
+
+    return UTILS::STR::FormatW(
+        L"%s (%s)",
+        ProductName.c_str(),
+        BuildLabEx.c_str());
 };
 
 std::wstring UTILS::MISC::GetFileVersion(
@@ -400,15 +444,12 @@ BOOL UTILS::MISC::StringToIpAddressV4A(
 
         __try
         {
-            //if (AddrInfo->ai_addrlen == sizeof(ULONG)) // Doesn't work, ai_addrlen is always 16
-            //{
-                RtlCopyMemory(
-                    Address,
-                    AddrInfo->ai_addr->sa_data,
-                    sizeof(ULONG));
+            RtlCopyMemory(
+                Address,
+                AddrInfo->ai_addr->sa_data,
+                sizeof(ULONG));
 
-				Result = *Address != 0;
-            //}
+			Result = *Address != 0;
         }
         __finally
         {

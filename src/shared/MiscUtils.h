@@ -20,6 +20,11 @@ namespace UTILS
 {
     namespace MISC
     {
+        typedef struct _OS_DETAILS
+        {
+            wchar_t ProductName;
+        } OS_DETAILS, *POS_DETAILS, *LPOS_DETAILS;
+
         std::wstring GetModuleName(
             __in    const   HMODULE ModuleHandle);
 
@@ -31,7 +36,7 @@ namespace UTILS
             __in    const   wchar_t         Delimiter = L'\\');
 
         std::wstring ExtractFilePath(
-            __in    const   std::wstring    FullFileName);
+            __in    const   std::wstring    &FullFileName);
 
         std::wstring ExtractFilePathEx(
             __in    const   std::wstring    &FullFileName,
@@ -46,10 +51,14 @@ namespace UTILS
 
         std::wstring GetApplicationFileName();
 
+        std::wstring GetApplicationFilePath();
+
         std::wstring GetOsVersionStr();
 
         void GetOSVersionInfo(
             __out   LPOSVERSIONINFOEXW  VersionInfo);
+
+        std::wstring GetOSVersionInfoStrFromRegistry();
 
         std::wstring GetFileVersion(
             __in    const   std::wstring    &FileName);
