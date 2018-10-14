@@ -53,6 +53,7 @@ BOOL UTILS::PKT::Parse(
 
     switch (Desc.EthType)
     {
+    case ETH_TYPE_IP:
     case ETH_TYPE_IP_BE:
         {
             if (BufferSize <= static_cast<ULONG>(sizeof(ETH_HEADER) + sizeof(IP4_HEADER)))
@@ -68,6 +69,7 @@ BOOL UTILS::PKT::Parse(
             }
         }break;
 
+    case ETH_TYPE_IP6:
     case ETH_TYPE_IP6_BE:
         {
             if (BufferSize <= static_cast<ULONG>(sizeof(ETH_HEADER) + sizeof(IP6_HEADER)))
