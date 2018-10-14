@@ -28,7 +28,7 @@ std::wstring CLogWriter::InternalFormatMessage(
 };
 
 void CLogWriter::InternalLogMessage(
-    __in    LPCWSTR Message)
+    __in    const   std::wstring    &Message)
 {
     UNREFERENCED_PARAMETER(Message);
 };
@@ -37,9 +37,9 @@ void CLogWriter::InternalLogOSDetails()
 {
     std::wstring Message = UTILS::STR::FormatW(
         L"%s\n",
-        UTILS::MISC::GetOsVersionStr().c_str());
+        UTILS::MISC::GetOSVersionInfoStrFromRegistry().c_str());
 
-    InternalLogMessage(Message.c_str());
+    InternalLogMessage(Message);
 };
 
 CLogWriter::CLogWriter():
@@ -60,7 +60,7 @@ void CLogWriter::LogMessage(
     Enter();
     try
     {
-        InternalLogMessage(FormattedMessage.c_str());
+        InternalLogMessage(FormattedMessage);
     }
     catch (...)
     {
@@ -72,14 +72,14 @@ void CLogWriter::LogMessage(
     __in    LPCWSTR Message)
 {
     Enter();
-    __try
+    try
     {
         InternalLogMessage(Message);
     }
-    __finally
+    catch (...)
     {
-        Leave();
     }
+    Leave();
 };
 
 void CLogWriter::LogMessageFmt(
@@ -107,4 +107,17 @@ void CLogWriter::LogMessageFmt(
         }
     }
     va_end(ArgList);
+};
+
+void CLogWriter::LogOSDetails()
+{
+    Enter();
+    __try
+    {
+        InternalLogOSDetails();
+    }
+    __finally
+    {
+        Leave();
+    }
 };

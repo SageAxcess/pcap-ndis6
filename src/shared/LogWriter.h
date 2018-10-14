@@ -25,7 +25,7 @@ protected:
         __in    const   std::wstring    &Message);
 
     virtual void InternalLogMessage(
-        __in    LPCWSTR Message);
+        __in    const   std::wstring    &Message);
 
     virtual void InternalLogOSDetails();
 
@@ -41,4 +41,6 @@ public:
     virtual void LogMessageFmt(
         __in    const   std::wstring    Format,
         __in                            ...);
+
+    virtual void LogOSDetails();
 };
