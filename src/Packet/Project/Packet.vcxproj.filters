@@ -113,6 +113,9 @@
     <ClInclude Include="..\..\shared\UmMemoryManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\packet32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="version.rc">

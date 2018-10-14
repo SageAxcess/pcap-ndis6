@@ -231,6 +231,7 @@
     <ClInclude Include="..\Logging.h" />
     <ClInclude Include="..\NdisDriver.h" />
     <ClInclude Include="..\Packet32-Int.h" />
+    <ClInclude Include="..\packet32.h" />
     <ClInclude Include="..\PacketParser.h" />
     <ClInclude Include="..\Util.h" />
     <ClInclude Include="..\valid_insns.h" />
