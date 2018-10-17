@@ -217,9 +217,15 @@
 #define TicksInASecond              10000000
 #define TicksInAMicrosecond         10
 #define MicrosecondsInASecond       1000000
+#define NanosecondsInMilisecond     1000000
 
 #define TicksToSeconds(Value)       ((Value) / TicksInASecond)
 #define TicksToMicroseconds(Value)  ((Value) / TicksInAMicrosecond)
+
+#define NanosecondsToMiliseconds(Value)             ((Value) / NanosecondsInMilisecond)
+#define MilisecondsToNanoseconds(Value)             MilisecondsToXNanoseconds((Value), 1)
+#define MilisecondsToXNanoseconds(Value, Divider)   (Divider <= NanosecondsInMilisecond ?  ((Value) * (NanosecondsInMilisecond / (Divider))) : (Value * NanosecondsInMilisecond / Divider))
+#define MilisecondsTo100Nanoseconds(Value)          MiliscondsToXNanoseconds((Value), 100)
 
 #define LogMessageToConsole(Message, ...) \
 { \
