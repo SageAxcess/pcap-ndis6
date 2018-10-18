@@ -871,22 +871,6 @@ Protocol_BindAdapterHandlerEx(
         BindParameters->DirectionType,
         BindParameters->ConnectionType);
 
-    /*
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        BindParameters->MacAddressLength == 6,
-        NDIS_STATUS_FAILURE);
-    */
-
-    /*
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        (BindParameters->MediaType == NdisMedium802_3) &&
-        (BindParameters->MacAddressLength == 6) &&
-        (BindParameters->AccessType == NET_IF_ACCESS_BROADCAST) &&
-        (BindParameters->DirectionType == NET_IF_DIRECTION_SENDRECEIVE) &&
-        (BindParameters->ConnectionType == NET_IF_CONNECTION_DEDICATED),
-        NDIS_STATUS_FAILURE);
-        */
-
     Data = (PDRIVER_DATA)ProtocolDriverContext;
 
     Status2 = Adapter_Allocate(
