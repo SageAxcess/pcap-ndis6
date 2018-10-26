@@ -104,7 +104,9 @@ NTSTATUS __stdcall Km_MM_Finalize(
 #define Km_MM_AllocMemTypedWithSize(Manager, Type, Size)            Km_MM_AllocMemTypedWithSizeAndTag((Manager), Type, (Size), 0)
 #define Km_MM_AllocMemTypedWithTag(Manager, Type, Tag)              Km_MM_AllocMemTypedWithSizeAndTag((Manager), Type, sizeof(Type), (Tag))
 #define Km_MM_AllocMemTyped(Manager, Type)                          Km_MM_AllocMemTypedWithSize((Manager), Type, sizeof(Type))
-#define Km_MM_AllocArray(Manager, ItemType, ItemCount)              Km_MM_AllocMemTypedWithSize((Manager), ItemType, sizeof(ItemType) * (ItemCount))
+#define Km_MM_AllocArrayWithTag(Manager, ItemType, ItemCount, Tag)  Km_MM_AllocMemTypedWithSizeAndTag((Manager), ItemType, sizeof(ItemType) * (ItemCount), (Tag))
+#define Km_MM_AllocArray(Manager, ItemType, ItemCount)              Km_MM_AllocArrayWithTag((Manager), ItemType, ItemCount, 0)
+
 
 #define Km_MM_FreeMem(Manager, Ptr)                                 (Assigned((Manager)->FreeMemRoutine) ? (Manager)->FreeMemRoutine((Manager), (Ptr)) : STATUS_UNSUCCESSFUL)
 
