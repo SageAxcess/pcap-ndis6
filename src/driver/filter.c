@@ -100,6 +100,10 @@ void __stdcall Filter_ProcessWatcher_Callback(
     __in        BOOLEAN NewProcess,
     __in        PVOID   Context);
 
+void __stdcall Filter_ReEnumBindingsThreadRoutine(
+    __in    PKM_TIMER_THREAD    Thread,
+    __in    PVOID               Context);
+
 DRIVER_INITIALIZE DriverEntry;
 
 _Use_decl_annotations_
@@ -648,7 +652,6 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
         Filter_CloseAdapter_Internal(Data, Clients[k]);
     }
 
-
 cleanup:
 
     if (Assigned(Clients))
@@ -1067,6 +1070,25 @@ void __stdcall Filter_ProcessWatcher_Callback(
         ProcessId);
 };
 
+void __stdcall Filter_ReEnumBindingsThreadRoutine(
+    __in    PKM_TIMER_THREAD    Thread,
+    __in    PVOID               Context)
+{
+    PDRIVER_DATA    Data = NULL;
+
+    UNREFERENCED_PARAMETER(Thread);
+
+    RETURN_IF_FALSE(Assigned(Context));
+
+    Data = (PDRIVER_DATA)Context;
+
+    RETURN_IF_TRUE(Data->DriverUnload);
+
+    RETURN_IF_FALSE(Data->Ndis.ProtocolHandle != NULL);
+
+    NdisReEnumerateProtocolBindings(Data->Ndis.ProtocolHandle);
+};
+
 _Use_decl_annotations_
 NTSTATUS
 _Function_class_(DRIVER_INITIALIZE)
@@ -1127,6 +1149,13 @@ DriverEntry(
         &DriverData.Other.Connections);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = KmTimerThread_Allocate(
+        &DriverData.Ndis.MemoryManager,
+        &Filter_ReEnumBindingsThreadRoutine,
+        &DriverData,
+        &DriverData.Ndis.ReEnumBindingsThread);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     Status = Wfp_Initialize(
         DriverObject,
         &DriverData.Wfp.MemoryManager,
@@ -1154,6 +1183,10 @@ DriverEntry(
         &DriverData,
         &DriverData.Other.ProcessWather);
 
+    KmTimerThread_SetInterval(
+        DriverData.Ndis.ReEnumBindingsThread,
+        FILTER_RE_ENUM_BINDINGS_INTERVAL);
+
     DriverObject->DriverUnload = DriverUnload;
 
 cleanup:
@@ -1173,6 +1206,13 @@ cleanup:
         }
 
         Km_MM_Finalize(&DriverData.Wfp.MemoryManager);
+
+        if (Assigned(DriverData.Ndis.ReEnumBindingsThread))
+        {
+            KmTimerThread_Stop(DriverData.Ndis.ReEnumBindingsThread, MAXULONG);
+            KmTimerThread_Destroy(DriverData.Ndis.ReEnumBindingsThread);
+            DriverData.Ndis.ReEnumBindingsThread = NULL;
+        }
 
         if (DriverData.Other.Connections != NULL)
         {
@@ -1231,6 +1271,12 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
     {
         Km_Connections_Finalize(
             DriverData.Other.Connections);
+    }
+
+    if (Assigned(DriverData.Ndis.ReEnumBindingsThread))
+    {
+        KmTimerThread_Stop(DriverData.Ndis.ReEnumBindingsThread, MAXULONG);
+        KmTimerThread_Destroy(DriverData.Ndis.ReEnumBindingsThread);
     }
 
     Filter_CloseClientsByPID(

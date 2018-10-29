@@ -19,6 +19,7 @@
 #include "KmList.h"
 #include "KmThreads.h"
 #include "NdisMemoryManager.h"
+#include "KmTimerThread.h"
 #include "..\shared\SharedTypes.h"
 
 #define PACKETS_POOL_INITIAL_SIZE       0x800
@@ -291,6 +292,8 @@ typedef struct _DRIVER_DATA
 
         //  NDIS Protocol Handle
         NDIS_HANDLE         ProtocolHandle;
+
+        PKM_TIMER_THREAD    ReEnumBindingsThread;
     } Ndis;
 
     struct Wfp
@@ -340,12 +343,14 @@ typedef struct _DRIVER_DATA
 
 } DRIVER_DATA, *PDRIVER_DATA;
 
-#define WFP_FLT_MEMORY_TAG              'fwDC'
-#define NDIS_FLT_MEMORY_TAG             'nyDC'
-#define ADAPTER_PACKET_POOL_MEMORY_TAG  'MPPA'
-#define CONNECTIONS_MEMORY_POOL_TAG     'TPMC'
-#define CLIENT_PACKET_POOL_MEMORY_TAG   'MPPC'
-#define DRIVER_CLIENTS_POOL_MEMORY_TAG  'MPCD'
+#define FILTER_RE_ENUM_BINDINGS_INTERVAL    30000
+
+#define WFP_FLT_MEMORY_TAG                  'fwDC'
+#define NDIS_FLT_MEMORY_TAG                 'nyDC'
+#define ADAPTER_PACKET_POOL_MEMORY_TAG      'MPPA'
+#define CONNECTIONS_MEMORY_POOL_TAG         'TPMC'
+#define CLIENT_PACKET_POOL_MEMORY_TAG       'MPPC'
+#define DRIVER_CLIENTS_POOL_MEMORY_TAG      'MPCD'
 
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6

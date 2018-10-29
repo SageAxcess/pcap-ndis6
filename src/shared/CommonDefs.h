@@ -224,7 +224,7 @@
 
 #define NanosecondsToMiliseconds(Value)             ((Value) / NanosecondsInMilisecond)
 #define MilisecondsToNanoseconds(Value)             MilisecondsToXNanoseconds((Value), 1)
-#define MilisecondsToXNanoseconds(Value, Divider)   (Divider <= NanosecondsInMilisecond ?  ((Value) * (NanosecondsInMilisecond / (Divider))) : (Value * NanosecondsInMilisecond / Divider))
+#define MilisecondsToXNanoseconds(Value, Divider)   (Divider <= NanosecondsInMilisecond ?  ((LONGLONG)(Value) * (NanosecondsInMilisecond / (LONGLONG)(Divider))) : ((LONGLONG)Value * NanosecondsInMilisecond / (LONGLONG)(Divider)))
 #define MilisecondsTo100Nanoseconds(Value)          MilisecondsToXNanoseconds((Value), 100)
 
 #define LogMessageToConsole(Message, ...) \
