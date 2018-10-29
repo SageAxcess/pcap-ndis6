@@ -1367,6 +1367,22 @@ Protocol_NetPnPEventHandler(
             DEBUGP(DL_TRACE, "    power up adapter\n");
         }break;
 
+    case NetEventReconfigure:
+        {
+            DEBUGP(
+                DL_TRACE, 
+                "    reconfiguration event, context = %p\n", 
+                (PVOID)ProtocolBindingContext);
+
+            if ((ProtocolBindingContext == NULL) &&
+                (DriverData.Ndis.ProtocolHandle != NULL) &&
+                (!DriverData.DriverUnload))
+            {
+                NdisReEnumerateProtocolBindings(DriverData.Ndis.ProtocolHandle);
+            }
+            
+        }break;
+
     case NetEventBindFailed:
         {
             DEBUGP(DL_TRACE, "    binding failed\n");
