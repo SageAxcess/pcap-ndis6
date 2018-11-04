@@ -470,16 +470,8 @@ NTSTATUS __stdcall Filter_OpenAdapter(
 
         AdapterRefCnt = InterlockedIncrement(&Adapter->OpenCount);
 
-        if (AdapterRefCnt == 1)
-        {
-            UINT filter = NDIS_PACKET_TYPE_PROMISCUOUS;
-            SendOidRequest(Adapter, TRUE, OID_GEN_CURRENT_PACKET_FILTER, &filter, sizeof(filter));
-
-            //  TODO: Add waiting for the OID request completion.
-            //  The completion must not be waited inside the list lock, since
-            //  the interrupt-request level is equal to DISPATCH_LEVEL at that point.
-            //  The wait should be initiated outside of this __try/__finally block (outside the list lock).
-        }
+        UINT filter = NDIS_PACKET_TYPE_PROMISCUOUS;
+        SendOidRequest(Adapter, TRUE, OID_GEN_CURRENT_PACKET_FILTER, &filter, sizeof(filter));
     }
     __finally
     {
@@ -1149,12 +1141,14 @@ DriverEntry(
         &DriverData.Other.Connections);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    /*
     Status = KmTimerThread_Allocate(
         &DriverData.Ndis.MemoryManager,
         &Filter_ReEnumBindingsThreadRoutine,
         &DriverData,
         &DriverData.Ndis.ReEnumBindingsThread);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    */
 
     Status = Wfp_Initialize(
         DriverObject,
@@ -1183,9 +1177,10 @@ DriverEntry(
         &DriverData,
         &DriverData.Other.ProcessWather);
 
-    KmTimerThread_SetInterval(
+    /*KmTimerThread_SetInterval(
         DriverData.Ndis.ReEnumBindingsThread,
         FILTER_RE_ENUM_BINDINGS_INTERVAL);
+        */
 
     DriverObject->DriverUnload = DriverUnload;
 
