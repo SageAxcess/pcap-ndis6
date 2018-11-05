@@ -428,6 +428,8 @@
     <ClCompile Include="KmMemoryPool.c" />
     <ClCompile Include="KmProcessWatcher.c" />
     <ClCompile Include="KmThreads.c" />
+    <ClCompile Include="KmTimer.c" />
+    <ClCompile Include="KmTimerThread.c" />
     <ClCompile Include="NdisMemoryManager.c" />
     <ClCompile Include="WfpFlt.c" />
     <ClCompile Include="WfpMemoryManager.c" />
@@ -455,6 +457,8 @@
     <ClInclude Include="KmMemoryPool.h" />
     <ClInclude Include="KmProcessWatcher.h" />
     <ClInclude Include="KmThreads.h" />
+    <ClInclude Include="KmTimer.h" />
+    <ClInclude Include="KmTimerThread.h" />
     <ClInclude Include="KmTypes.h" />
     <ClInclude Include="NdisMemoryManager.h" />
     <ClInclude Include="WfpFlt.h" />
