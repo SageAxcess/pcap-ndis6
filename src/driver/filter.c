@@ -427,7 +427,6 @@ NTSTATUS __stdcall Filter_OpenAdapter(
 {
     NTSTATUS    Status = STATUS_SUCCESS;
     PVOID       NewDataEventObject = NULL;
-    LONG        AdapterRefCnt = -1;
     
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
@@ -468,10 +467,7 @@ NTSTATUS __stdcall Filter_OpenAdapter(
             ClientId);
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
-        AdapterRefCnt = InterlockedIncrement(&Adapter->OpenCount);
-
-        UINT filter = NDIS_PACKET_TYPE_PROMISCUOUS;
-        SendOidRequest(Adapter, TRUE, OID_GEN_CURRENT_PACKET_FILTER, &filter, sizeof(filter));
+        Adapter_Reference(Adapter);
     }
     __finally
     {

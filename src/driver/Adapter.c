@@ -467,7 +467,10 @@ NTSTATUS Adapter_Dereference(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        Adapter->OpenCount--;
+        if (Adapter->OpenCount > 0)
+        {
+            Adapter->OpenCount--;
+        }
     }
     __finally
     {
