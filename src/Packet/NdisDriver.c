@@ -204,6 +204,19 @@ BOOL NdisDriver_ControlDevice(
     __out_opt   LPDWORD ErrorCode)
 {
     BOOL Result = FALSE;
+
+    LOG::LogMessageFmt(
+        L"%S: DeviceHandle = %p, ControlCode = %x, InBuffer = %p, InBufferSize = %d, OutBuffer = %p, OutBufferSize = %d, BytesReturned = %p, ErrorCode = %p\n",
+        __FUNCTION__,
+        DeviceHandle,
+        static_cast<int>(ControlCode),
+        InBuffer,
+        static_cast<int>(InBufferSize),
+        OutBuffer,
+        static_cast<int>(OutBufferSize),
+        BytesReturned,
+        ErrorCode);
+
     RETURN_VALUE_IF_FALSE(
         (DeviceHandle != NULL) &&
         (DeviceHandle != INVALID_HANDLE_VALUE),
@@ -228,6 +241,20 @@ BOOL NdisDriver_ControlDevice(
     {
         *ErrorCode = GetLastError();
     }
+
+    LOG::LogMessageFmt(
+        L"%S: DeviceIoControl(%p, %x, %p, %d, %p, %d, %p, nullptr) --> %s(%x)\n",
+        __FUNCTION__,
+        DeviceHandle,
+        static_cast<int>(ControlCode),
+        InBuffer,
+        static_cast<int>(InBufferSize),
+        OutBuffer,
+        static_cast<int>(OutBufferSize),
+        BytesReturned,
+        Result ? L"TRUE" : L"FALSE",
+        Assigned(ErrorCode) ? *ErrorCode : 0);
+
     return Result;
 };
 
@@ -238,6 +265,15 @@ BOOL NdisDriverNextPacket(
     __out       PDWORD              BytesReceived,
     __out_opt   PULONGLONG          ProcessId)
 {
+    LOG::LogMessageFmt(
+        L"%S: Adapter = %p, Buffer = %p, Size = %d, BytesReceived = %p, ProcessId = %p\n",
+        __FUNCTION__,
+        Adapter,
+        Buffer,
+        static_cast<int>(Size),
+        BytesReceived,
+        ProcessId);
+
     RETURN_VALUE_IF_FALSE(
         (Assigned(Adapter)) &&
         (Assigned(BytesReceived)),
@@ -259,17 +295,31 @@ BOOL NdisDriverNextPacket(
 
 		Sleep(100); //This is for performance
 
-        RETURN_VALUE_IF_FALSE(
-            NdisDriver_ControlDevice(
-                Adapter->Ndis->Handle,
-                static_cast<DWORD>(IOCTL_READ_PACKETS),
-                reinterpret_cast<LPVOID>(&Adapter->ClientId),
-                static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID)),
-                Adapter->ReadBuffer,
-                READ_BUFFER_SIZE,
-                &BytesRead,
-                &ErrorCode),
-            FALSE);
+        LOG::LogMessageFmt(
+            L"%S: Reading packets from the driver\n",
+            __FUNCTION__);
+
+        if (!NdisDriver_ControlDevice(
+            Adapter->Ndis->Handle,
+            static_cast<DWORD>(IOCTL_READ_PACKETS),
+            reinterpret_cast<LPVOID>(&Adapter->ClientId),
+            static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID)),
+            Adapter->ReadBuffer,
+            READ_BUFFER_SIZE,
+            &BytesRead,
+            &ErrorCode))
+        {
+            LOG::LogMessageFmt(
+                L"%S: NdisDriver_ControlDevice failed. ErrorCode = %x\n",
+                __FUNCTION__,
+                static_cast<int>(ErrorCode));
+            return FALSE;
+        }
+
+        LOG::LogMessageFmt(
+            L"%S: BytesRead = %d\n",
+            __FUNCTION__,
+            BytesRead);
 
         Adapter->BufferOffset = 0;
         
@@ -284,20 +334,33 @@ BOOL NdisDriverNextPacket(
 
             Adapter->BufferedPackets++;
         }
+
+        LOG::LogMessageFmt(
+            L"%S: Adapter->BufferedPackets = %d\n",
+            __FUNCTION__,
+            static_cast<int>(Adapter->BufferedPackets));
     }
 
     if (Adapter->BufferedPackets == 0)
     {
         *BytesReceived = 0;
+        LOG::LogMessageFmt(
+            L"%S: No packets found\n",
+            __FUNCTION__);
     }
-
-    if (Adapter->BufferedPackets > 0)
+    else
     {
         pbpf_hdr2   bpf = reinterpret_cast<pbpf_hdr2>(Adapter->ReadBuffer + Adapter->BufferOffset);
         ULONG       RequiredSize = bpf->bh_hdrlen + bpf->bh_datalen;
         PUCHAR      CurrentPtr;
 
 		//printf("[packet.dll] Header: datalen=%d, caplen=%d, hdrlen=%d, pid=%d\n", bpf->bh_datalen, bpf->bh_caplen, bpf->bh_hdrlen, bpf->ProcessId);
+
+        LOG::LogMessageFmt(
+            L"%S: Copying packet. SizeLeft = %d, RequiredSize = %d\n",
+            __FUNCTION__,
+            Size,
+            RequiredSize);
 
         RETURN_VALUE_IF_FALSE(
             Size >= RequiredSize,
@@ -310,6 +373,14 @@ BOOL NdisDriverNextPacket(
             reinterpret_cast<LPVOID>(bpf),
             RequiredSize);
 
+        LOG::LogMessageFmt(
+            L"%S: Original hdrlen = %d, datalen = %d; Copy hdrlen = %d, datalen = %d\n",
+            __FUNCTION__,
+            bpf->bh_hdrlen,
+            bpf->bh_datalen,
+            reinterpret_cast<bpf_hdr2 *>(CurrentPtr)->bh_hdrlen,
+            reinterpret_cast<bpf_hdr2 *>(CurrentPtr)->bh_datalen);
+
         CurrentPtr += RequiredSize;
 
         *BytesReceived = RequiredSize;
@@ -321,6 +392,7 @@ BOOL NdisDriverNextPacket(
 
         Adapter->BufferedPackets--;
         Adapter->BufferOffset += RequiredSize;
+        Size -= RequiredSize;
     }
 
     return TRUE;

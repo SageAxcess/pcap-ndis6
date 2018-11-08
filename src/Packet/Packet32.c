@@ -139,7 +139,7 @@ BOOL APIENTRY DllMain(
                 AEGIS_REGISTRY_KEY_W,
                 DEBUG_LOGGING_REG_VALUE_NAME_W);
 
-            LOG::LogMessage(L"Log start");
+            LOG::LogMessage(L"Log start\n");
 
             //
             // Retrieve packet.dll version information from the file
@@ -159,6 +159,10 @@ BOOL APIENTRY DllMain(
                 PacketLibraryVersion,
                 Packet_DllFileVersionA.c_str(),
                 BytesToCopy);
+
+            LOG::LogMessageFmt(
+                L"DLL version: %S\n",
+                Packet_DllFileVersionA.c_str());
 
             //
             // Retrieve driver version information from the file. 
@@ -181,21 +185,27 @@ BOOL APIENTRY DllMain(
             Packet_DriverNameA = UTILS::STR::FormatA("%S", Packet_DriverNameW.c_str());
             Packet_DriverVersionA = UTILS::STR::FormatA("%S", Packet_DriverVersionW.c_str());
 
+            LOG::LogMessageFmt(
+                L"Driver version: %s\n",
+                __FUNCTION__,
+                Packet_DriverVersionW.c_str());
+
             ndis = NdisDriverOpen();
 
         }break;
         
     case DLL_PROCESS_DETACH:
-        if(ndis)
         {
-            NdisDriverClose(ndis);
-        }
+            if (ndis)
+            {
+                NdisDriverClose(ndis);
+            }
 
-        LOG::Finalize();
+            LOG::Finalize();
 
-        UMM_Finalize();
+            UMM_Finalize();
 
-        break;
+        }break;
         
     default:
         break;
@@ -694,9 +704,18 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
     BOOLEAN res = FALSE;
 
+    LOG::LogMessageFmt(
+        L"%S: AdapterObject = %p, lpPacket = %p, Sync = %s\n",
+        __FUNCTION__,
+        AdapterObject,
+        lpPacket,
+        Sync ? L"TRUE" : L"FALSE");
+
     if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
     {
         TRACE_LOG_MESSAGE("   ... NdisDriverNextPacket\n");
+
+        LOG::LogMessageFmt(L"    INFO_FLAG_NDIS_ADAPTER present\n");
 
         WaitForSingleObject(
             AdapterObject->ReadEvent, 
@@ -709,9 +728,11 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
             &lpPacket->ulBytesReceived,
             NULL);
 
+        /*
         #ifdef _DEBUG
         NdisDriverLogPacket(lpPacket);
         #endif
+        */
 
         if(!res)
         {
