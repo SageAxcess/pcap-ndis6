@@ -206,6 +206,8 @@ typedef struct _PACKET
 
     ULONGLONG           ProcessId;
 
+    ULONG               MaxDataSize;
+
     ULONG               DataSize;
 
     UCHAR               Data[1];
@@ -213,7 +215,7 @@ typedef struct _PACKET
 } PACKET, *PPACKET;
 
 #define CalcRequiredPacketSize(MTUSize) \
-    (sizeof(PACKET) + MTUSize - sizeof(UCHAR))
+    ((ULONG)(sizeof(PACKET) + MTUSize - sizeof(UCHAR)))
 
 typedef struct _EVENT
 {

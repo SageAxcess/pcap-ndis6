@@ -289,7 +289,7 @@ NTSTATUS __stdcall Filter_CreateClient(
 
     Status = Km_MP_Initialize(
         &Data->Ndis.MemoryManager,
-        (ULONG)sizeof(PACKET) + Adapter->MtuSize - 1,
+        CalcRequiredPacketSize(Adapter->MtuSize),
         PACKETS_POOL_INITIAL_SIZE,
         TRUE,
         CLIENT_PACKET_POOL_MEMORY_TAG,

@@ -232,3 +232,6 @@
     printf("[DBG][%s]: ", __FUNCTION__); \
     printf((Message), __VA_ARGS__); \
 }
+
+#define BoolStrA(Value) ((Value) ? "TRUE" : "FALSE")
+#define BoolStrW(Value) ((Value) ? L"TRUE" : L"FALSE")
