@@ -661,39 +661,6 @@ void __stdcall Adapter_WorkerThreadRoutine(
     }
 };
 
-NTSTATUS Adapter_CopyPacket(
-    __in    PPACKET Source,
-    __out   PPACKET Destination)
-{
-    NTSTATUS    Status = STATUS_SUCCESS;
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Source),
-        STATUS_INVALID_PARAMETER_1);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Destination),
-        STATUS_INVALID_PARAMETER_2);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Source->DataSize <= Destination->MaxDataSize,
-        STATUS_UNSUCCESSFUL);
-
-    Destination->ProcessId = Source->ProcessId;
-    Destination->Timestamp.Seconds = Source->Timestamp.Seconds;
-    Destination->Timestamp.Microseconds = Source->Timestamp.Microseconds;
-    Destination->DataSize = Source->DataSize;
-
-    if (Source->DataSize > 0)
-    {
-        RtlCopyMemory(
-            Destination->Data,
-            Source->Data,
-            Source->DataSize);
-    }
-
-cleanup:
-    return Status;
-};
-
 NTSTATUS Adapter_AllocateAndFillPacket(
     __in    PADAPTER    Adapter,
     __in    PVOID       PacketData,

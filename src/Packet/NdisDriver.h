@@ -21,8 +21,6 @@
 #include "..\shared\SharedTypes.h"
 #include <string>
 
-#define READ_BUFFER_SIZE 32000
-
 typedef struct _PCAP_NDIS
 {
     HANDLE  Handle;
@@ -51,7 +49,7 @@ typedef struct _PCAP_NDIS_ADAPTER
 
     UINT                    BufferOffset;
     UINT                    BufferedPackets;
-    UCHAR                   ReadBuffer[READ_BUFFER_SIZE];
+    UCHAR                   ReadBuffer[ADAPTER_READ_BUFFER_SIZE];
 } PCAP_NDIS_ADAPTER, *PPCAP_NDIS_ADAPTER, *LPPCAP_NDIS_ADAPTER;
 
 typedef struct _PCAP_NDIS_ADAPTER_LIST

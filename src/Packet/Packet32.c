@@ -1240,8 +1240,8 @@ BOOLEAN PacketGetNetInfoEx(PCHAR AdapterName, npf_if_addr* buffer, PLONG NEntrie
     }
     catch (...)
     {
-        FreeMibTable(Table);
     }
+    FreeMibTable(Table);
 
     if (InterfaceIndex >= 0)
     {

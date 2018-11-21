@@ -266,6 +266,11 @@ typedef struct _DRIVER_CLIENTS
     //  (8192 bytes on x64 systems and 4096 bytes on x86 systems)
     HANDLE          ServicePool;
 
+    //  Handle to a memory pool used for reading packets from
+    //  driver client queue
+    //  All of entries in this pool are of ADAPTER_READ_BUFFER_SIZE size.
+    HANDLE          ReadBuffersPool;
+
     //  Number of connected clients
     ULONG           Count;
 
@@ -353,6 +358,7 @@ typedef struct _DRIVER_DATA
 #define CONNECTIONS_MEMORY_POOL_TAG         'TPMC'
 #define CLIENT_PACKET_POOL_MEMORY_TAG       'MPPC'
 #define DRIVER_CLIENTS_POOL_MEMORY_TAG      'MPCD'
+#define DRIVER_CLIENTS_READ_BUFFER_POOL_TAG 'PBRC'
 
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6

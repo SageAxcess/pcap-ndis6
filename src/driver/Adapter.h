@@ -59,10 +59,6 @@ NTSTATUS Adapter_Reference(
 NTSTATUS Adapter_Dereference(
     __in    PADAPTER    Adapter);
 
-NTSTATUS Adapter_CopyPacket(
-    __in    PPACKET Source,
-    __out   PPACKET Destination);
-
 NTSTATUS Adapter_AllocateAndFillPacket(
     __in    PADAPTER    Adapter,
     __in    PVOID       PacketData,

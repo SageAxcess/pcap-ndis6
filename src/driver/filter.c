@@ -619,6 +619,7 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
 
             Clients[i] = Data->Clients.Items[k];
             Data->Clients.Items[k] = NULL;
+            i++;
             
             NumberOfClientsFound++;
         }
@@ -670,7 +671,8 @@ NTSTATUS __stdcall Filter_ReadPackets(
     PDRIVER_CLIENT  Client = NULL;
     ULONG           BytesCopied = 0;
     LONGLONG        BytesLeft = BufferSize;
-    PUCHAR          CurrentPtr = (PUCHAR)Buffer;
+    PUCHAR          CurrentPtr = NULL;
+    PVOID           ReadBuffer = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Data),
@@ -689,7 +691,8 @@ NTSTATUS __stdcall Filter_ReadPackets(
         Assigned(Buffer),
         STATUS_INSUFFICIENT_RESOURCES);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        BufferSize >= sizeof(bpf_hdr2),
+        (BufferSize >= sizeof(bpf_hdr2)) &&
+        (BufferSize <= ADAPTER_READ_BUFFER_SIZE),
         STATUS_INVALID_BUFFER_SIZE);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(BytesReturned),
@@ -712,45 +715,62 @@ NTSTATUS __stdcall Filter_ReadPackets(
             Client->OwnerProcessId == ProcessId,
             STATUS_ACCESS_DENIED);
 
-        for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
-            ListEntry != &Client->AllocatedPackets.Head;
-            ListEntry = NextEntry, NextEntry = NextEntry->Flink)
+        Status = Km_MP_AllocateCheckSize(
+            Data->Clients.ReadBuffersPool,
+            ADAPTER_READ_BUFFER_SIZE,
+            &ReadBuffer);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+        __try
         {
-            PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
-            USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
-            bpf_hdr2    bpf;
-            ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
-
-            BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
-
-            bpf.bh_caplen = Packet->DataSize;
-            bpf.bh_datalen = Packet->DataSize;
-            bpf.bh_hdrlen = HeaderSize;
-            bpf.ProcessId = (unsigned long)Packet->ProcessId;
-            bpf.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
-            bpf.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
-
-            RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
-            RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
-
-            BytesCopied += TotalPacketSize;
-            CurrentPtr += TotalPacketSize;
-            BytesLeft -= TotalPacketSize;
-
-            Km_List_RemoveItemEx(
-                &Client->AllocatedPackets,
-                ListEntry,
-                FALSE,
-                FALSE);
-
-            Km_MP_Release((PVOID)Packet);
-        }
-
-        if (Client->AllocatedPackets.Count.QuadPart == 0)
-        {
-            if (Assigned(Client->NewPacketEvent))
+            
+            for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
+                ListEntry != &Client->AllocatedPackets.Head;
+                ListEntry = NextEntry, NextEntry = NextEntry->Flink)
             {
-                KeClearEvent(Client->NewPacketEvent);
+                PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
+                USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
+                bpf_hdr2    bpf;
+                ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
+
+                BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
+
+                bpf.bh_caplen = Packet->DataSize;
+                bpf.bh_datalen = Packet->DataSize;
+                bpf.bh_hdrlen = HeaderSize;
+                bpf.ProcessId = (unsigned long)Packet->ProcessId;
+                bpf.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
+                bpf.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
+
+                RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
+                RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
+
+                BytesCopied += TotalPacketSize;
+                CurrentPtr += TotalPacketSize;
+                BytesLeft -= TotalPacketSize;
+
+                Km_List_RemoveItemEx(
+                    &Client->AllocatedPackets,
+                    ListEntry,
+                    FALSE,
+                    FALSE);
+
+                Km_MP_Release((PVOID)Packet);
+            }
+
+            if (Client->AllocatedPackets.Count.QuadPart == 0)
+            {
+                if (Assigned(Client->NewPacketEvent))
+                {
+                    KeClearEvent(Client->NewPacketEvent);
+                }
+            }
+        }
+        __finally
+        {
+            if (!NT_SUCCESS(Status))
+            {
+                Km_MP_Release(ReadBuffer);
+                ReadBuffer = NULL;
             }
         }
     }
@@ -1132,6 +1152,15 @@ DriverEntry(
         &DriverData.Clients.ServicePool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = Km_MP_Initialize(
+        &DriverData.Ndis.MemoryManager,
+        ADAPTER_READ_BUFFER_SIZE,
+        1,
+        FALSE,
+        DRIVER_CLIENTS_READ_BUFFER_POOL_TAG,
+        &DriverData.Clients.ReadBuffersPool);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     Status = Km_Connections_Initialize(
         &DriverData.Ndis.MemoryManager,
         &DriverData.Other.Connections);
@@ -1218,6 +1247,11 @@ cleanup:
             Km_MP_Finalize(DriverData.Clients.ServicePool);
         }
 
+        if (DriverData.Clients.ReadBuffersPool != NULL)
+        {
+            Km_MP_Finalize(DriverData.Clients.ReadBuffersPool);
+        }
+
         Km_MM_Finalize(&DriverData.Ndis.MemoryManager);
 
         if (DriverData.Ndis.ProtocolHandle != NULL)
@@ -1283,6 +1317,11 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
     if (DriverData.Clients.ServicePool != NULL)
     {
         Km_MP_Finalize(DriverData.Clients.ServicePool);
+    }
+
+    if (DriverData.Clients.ReadBuffersPool != NULL)
+    {
+        Km_MP_Finalize(DriverData.Clients.ReadBuffersPool);
     }
 
     Km_MM_Finalize(&DriverData.Ndis.MemoryManager);

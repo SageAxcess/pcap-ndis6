@@ -305,7 +305,7 @@ BOOL NdisDriverNextPacket(
             reinterpret_cast<LPVOID>(&Adapter->ClientId),
             static_cast<DWORD>(sizeof(PCAP_NDIS_CLIENT_ID)),
             Adapter->ReadBuffer,
-            READ_BUFFER_SIZE,
+            ADAPTER_READ_BUFFER_SIZE,
             &BytesRead,
             &ErrorCode))
         {
@@ -326,7 +326,7 @@ BOOL NdisDriverNextPacket(
         DWORD   CurrentSize = 0;
 
         for (PUCHAR CurrentPtr = Adapter->ReadBuffer;
-             (CurrentSize < BytesRead) && (CurrentSize < READ_BUFFER_SIZE);
+             (CurrentSize < BytesRead) && (CurrentSize < ADAPTER_READ_BUFFER_SIZE);
              CurrentPtr = Adapter->ReadBuffer + CurrentSize)
         {
             pbpf_hdr2   bpf = reinterpret_cast<pbpf_hdr2>(CurrentPtr);
