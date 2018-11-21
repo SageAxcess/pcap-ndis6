@@ -287,7 +287,7 @@ BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
     if (AdapterObject->ReadEvent != NULL)
     {
         TRACE_LOG_MESSAGE(
-            "%s: AdapterObject == NULL\n",
+            "%s: AdapterObject->ReadEvent != NULL\n",
             __FUNCTION__);
         SetLastError(ERROR_INVALID_FUNCTION);
 
@@ -588,16 +588,6 @@ VOID PacketCloseAdapter(LPADAPTER lpAdapter)
     }
 
     delete reinterpret_cast<CCSObject *>(lpAdapter->FilterLock);
-
-    TRACE_LOG_MESSAGE(
-        "%s: Closing event (%p)\n",
-        __FUNCTION__,
-        lpAdapter->ReadEvent);
-
-    if(lpAdapter->ReadEvent != NULL)
-    {
-        CloseHandle(lpAdapter->ReadEvent);
-    }
 
     TRACE_LOG_MESSAGE(
         "%s: Releasing adapter\n",
