@@ -9,7 +9,7 @@
 
 		<Package InstallerVersion="200" Compressed="yes" Languages="1033"
 						 Description="Aegis"
-						 Manufacturer="ChangeDynamix, LLC"
+						 Manufacturer="ChangeDynamix, Inc."
 						 Platform="x86" />
 
 		<Upgrade Id="{711CA6BE-6851-45fd-976E-C3968900C9AB}">
