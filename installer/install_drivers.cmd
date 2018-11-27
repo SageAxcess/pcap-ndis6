@@ -33,6 +33,8 @@ x86\DriverInstaller.exe /install
 goto exit
 :exit
 net stop aegis
+net stop pcapndis6
+net start pcapndis6
 net start aegis
 
 echo Finished
