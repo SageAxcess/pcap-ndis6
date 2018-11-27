@@ -722,7 +722,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
-            
+            CurrentPtr = (PUCHAR)ReadBuffer;
             for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
                 ListEntry != &Client->AllocatedPackets.Head;
                 ListEntry = NextEntry, NextEntry = NextEntry->Flink)
@@ -777,6 +777,18 @@ NTSTATUS __stdcall Filter_ReadPackets(
     __finally
     {
         Km_Lock_Release(&Data->Clients.Lock);
+    }
+
+    if (Assigned(ReadBuffer))
+    {
+        if (BytesCopied > 0)
+        {
+            RtlCopyMemory(
+                Buffer,
+                ReadBuffer,
+                BytesCopied);
+        }
+        Km_MP_Release(ReadBuffer);
     }
 
     *BytesReturned = BytesCopied;
