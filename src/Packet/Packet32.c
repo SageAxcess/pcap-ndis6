@@ -705,7 +705,9 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
     {
         TRACE_LOG_MESSAGE("   ... NdisDriverNextPacket\n");
 
-        LOG::LogMessageFmt(L"    INFO_FLAG_NDIS_ADAPTER present\n");
+        LOG::LogMessageFmt(
+            L"    INFO_FLAG_NDIS_ADAPTER present, waiting for %dms before reading...\n",
+            (int)AdapterObject->ReadTimeOut);
 
         WaitForSingleObject(
             AdapterObject->ReadEvent, 
@@ -717,12 +719,6 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
             lpPacket->Length, 
             &lpPacket->ulBytesReceived,
             NULL);
-
-        /*
-        #ifdef _DEBUG
-        NdisDriverLogPacket(lpPacket);
-        #endif
-        */
 
         if(!res)
         {

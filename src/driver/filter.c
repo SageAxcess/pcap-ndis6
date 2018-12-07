@@ -659,6 +659,54 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Filter_CopyPACKETToBuffer(
+    __in        PPACKET Packet,
+    __out       LPVOID  Buffer,
+    __in        ULONG   BufferSize,
+    __out_opt   PULONG  BytesReturned)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    bpf_hdr2    Header;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Packet),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Buffer),
+        STATUS_INVALID_PARAMETER_2);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        BufferSize >= (ULONG)sizeof(bpf_hdr2) + Packet->DataSize,
+        STATUS_BUFFER_TOO_SMALL);
+
+    Header.bh_caplen = Packet->DataSize;
+    Header.bh_datalen = Packet->DataSize;
+    Header.bh_hdrlen = (USHORT)sizeof(bpf_hdr2);
+    Header.ProcessId = (unsigned long)Packet->ProcessId;
+    Header.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
+    Header.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
+
+    RtlCopyMemory(
+        Buffer,
+        &Header,
+        sizeof(Header));
+
+    if (Packet->DataSize > 0)
+    {
+        RtlCopyMemory(
+            (PUCHAR)Buffer + sizeof(Header),
+            Packet->Data,
+            Packet->DataSize);
+    }
+
+    if (Assigned(BytesReturned))
+    {
+        *BytesReturned = (ULONG)sizeof(Header) + Packet->DataSize;
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Filter_ReadPackets(
     __in    PDRIVER_DATA            Data,
     __in    PPCAP_NDIS_CLIENT_ID    ClientId,
@@ -670,7 +718,6 @@ NTSTATUS __stdcall Filter_ReadPackets(
     NTSTATUS        Status = STATUS_SUCCESS;
     PDRIVER_CLIENT  Client = NULL;
     ULONG           BytesCopied = 0;
-    LONGLONG        BytesLeft = BufferSize;
     PUCHAR          CurrentPtr = NULL;
     PVOID           ReadBuffer = NULL;
 
@@ -704,6 +751,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
     {
         PLIST_ENTRY ListEntry;
         PLIST_ENTRY NextEntry;
+        LIST_ENTRY  TmpList;
 
         LEAVE_IF_FALSE_SET_STATUS(
             Data->Clients.Items[ClientId->Index] == (PDRIVER_CLIENT)((ULONG_PTR)ClientId->Handle),
@@ -722,48 +770,61 @@ NTSTATUS __stdcall Filter_ReadPackets(
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
-            CurrentPtr = (PUCHAR)ReadBuffer;
-            for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
-                ListEntry != &Client->AllocatedPackets.Head;
-                ListEntry = NextEntry, NextEntry = NextEntry->Flink)
+            InitializeListHead(&TmpList);
+
+            Status = Km_List_Lock(&Client->AllocatedPackets);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+            __try
             {
-                PPACKET     Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
-                USHORT      HeaderSize = (USHORT)sizeof(bpf_hdr2);
-                bpf_hdr2    bpf;
-                ULONG       TotalPacketSize = Packet->DataSize + HeaderSize;
-
-                BREAK_IF_FALSE(BytesLeft >= TotalPacketSize);
-
-                bpf.bh_caplen = Packet->DataSize;
-                bpf.bh_datalen = Packet->DataSize;
-                bpf.bh_hdrlen = HeaderSize;
-                bpf.ProcessId = (unsigned long)Packet->ProcessId;
-                bpf.bh_tstamp.tv_sec = Packet->Timestamp.Seconds;
-                bpf.bh_tstamp.tv_usec = Packet->Timestamp.Microseconds;
-
-                RtlCopyMemory(CurrentPtr, &bpf, HeaderSize);
-                RtlCopyMemory(CurrentPtr + HeaderSize, Packet->Data, Packet->DataSize);
-
-                BytesCopied += TotalPacketSize;
-                CurrentPtr += TotalPacketSize;
-                BytesLeft -= TotalPacketSize;
-
-                Km_List_RemoveItemEx(
-                    &Client->AllocatedPackets,
-                    ListEntry,
-                    FALSE,
-                    FALSE);
-
-                Km_MP_Release((PVOID)Packet);
-            }
-
-            if (Client->AllocatedPackets.Count.QuadPart == 0)
-            {
-                if (Assigned(Client->NewPacketEvent))
+                ULONG   BytesTotal = 0;
+                for (ListEntry = Client->AllocatedPackets.Head.Flink, NextEntry = ListEntry->Flink;
+                    ListEntry != &Client->AllocatedPackets.Head;
+                    ListEntry = NextEntry, NextEntry = NextEntry->Flink)
                 {
-                    KeClearEvent(Client->NewPacketEvent);
+                    PPACKET Packet = CONTAINING_RECORD(ListEntry, PACKET, Link);
+                    BytesTotal += (ULONG)sizeof(bpf_hdr2) + Packet->DataSize;
+                    BREAK_IF_TRUE(BytesTotal > BufferSize);
+
+                    Km_List_RemoveItemEx(
+                        &Client->AllocatedPackets,
+                        ListEntry,
+                        FALSE,
+                        FALSE);
+
+                    InsertTailList(&TmpList, ListEntry);
+
+                    if ((Client->AllocatedPackets.Count.QuadPart == 0) &&
+                        (Assigned(Client->NewPacketEvent)))
+                    {
+                        KeClearEvent(Client->NewPacketEvent);
+                    }
                 }
             }
+            __finally
+            {
+                Km_List_Unlock(&Client->AllocatedPackets);
+            }
+
+            CurrentPtr = (PUCHAR)ReadBuffer;
+            while (!IsListEmpty(&TmpList))
+            {
+                ULONG   PacketSize = 0;
+                PPACKET Packet = CONTAINING_RECORD(
+                    RemoveHeadList(&TmpList),
+                    PACKET,
+                    Link);
+
+                Filter_CopyPACKETToBuffer(
+                    Packet,
+                    CurrentPtr,
+                    BufferSize - BytesCopied,
+                    &PacketSize);
+
+                BytesCopied += PacketSize;
+                CurrentPtr += PacketSize;
+
+                Km_MP_Release(Packet);
+            };
         }
         __finally
         {
