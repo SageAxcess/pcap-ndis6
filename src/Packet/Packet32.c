@@ -886,21 +886,26 @@ BOOLEAN PacketSetNumWrites(LPADAPTER AdapterObject, int nwrites)
     return FALSE;
 };
 
-BOOLEAN PacketSetReadTimeout(LPADAPTER AdapterObject, int timeout)
+BOOLEAN PacketSetReadTimeout(
+    __in    LPADAPTER   AdapterObject,
+    __in    int         Timeout)
 {
-    if(AdapterObject==NULL)
-    {
-        return FALSE;
-    }
-    if(timeout<0)
-    {
-        timeout = 0;
-    }
-    PCAP_NDIS_ADAPTER* adapter = (PCAP_NDIS_ADAPTER*)AdapterObject->hFile;
-    adapter->ReadTimeout = timeout;	
+    PPCAP_NDIS_ADAPTER  Adapter = nullptr;
+
+    RETURN_VALUE_IF_FALSE(
+        Assigned(AdapterObject),
+        FALSE);
+    RETURN_VALUE_IF_FALSE(
+        AdapterObject->hFile != NULL,
+        FALSE);
+
+    Adapter = static_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
+    InterlockedExchange(
+        reinterpret_cast<volatile unsigned long *>(&Adapter->ReadTimeout),
+        Timeout < 0 ? MAXUINT : static_cast<unsigned long>(Timeout));
 
     return TRUE;	
-}
+};
 
 BOOLEAN PacketSetBuff(LPADAPTER AdapterObject, int dim)
 {
