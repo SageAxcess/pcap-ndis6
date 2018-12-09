@@ -252,6 +252,15 @@ BOOL SendOidRequest(
     InterlockedIncrement((volatile LONG *)&adapter->PendingOidRequests);
 
     NDIS_STATUS ret = NdisOidRequest(adapter->AdapterHandle, Request);
+
+    DEBUGP(
+        DL_TRACE,
+        "%s: NdisOidRequst(%p, %p) --> 0x%x\n",
+        __FUNCTION__,
+        adapter->AdapterHandle,
+        Request,
+        ret);
+
     if(ret != NDIS_STATUS_PENDING)
     {
         if (ret == NDIS_STATUS_SUCCESS)
@@ -433,14 +442,19 @@ NTSTATUS Adapter_Reference(
         if ((Adapter->OpenCount == 1) &&
             (!Adapter->PacketsInterceptionEnabled))
         {
-            UINT PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
+            UINT    PacketFilter = NDIS_PACKET_TYPE_PROMISCUOUS;
+            BOOL    SendRes = FALSE;
 
-            SendOidRequest(
+            DEBUGP(DL_TRACE, "Sending OID request with OID_GEN_CURRENT_PACKET_FILTER\n");
+
+            SendRes = SendOidRequest(
                 Adapter,
                 TRUE,
                 OID_GEN_CURRENT_PACKET_FILTER,
                 &PacketFilter,
                 sizeof(PacketFilter));
+
+            DEBUGP(DL_TRACE, "SendOidRequest(...) --> %s\n", SendRes ? "TRUE" : "FALSE");
 
             Adapter->PacketsInterceptionEnabled = TRUE;
         }
@@ -1105,6 +1119,14 @@ Protocol_OidRequestCompleteHandler(
     BOOL        CanRelease = FALSE;
 
     UNREFERENCED_PARAMETER(Status);
+
+    DEBUGP(
+        DL_TRACE,
+        "%s: ProtocolBiningContext = %p, OidRequest = %p, Status = %x\n",
+        __FUNCTION__,
+        ProtocolBindingContext,
+        OidRequest,
+        Status);
 
     RETURN_IF_FALSE(
         Assigned(Adapter->DriverData));
