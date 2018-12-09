@@ -1130,6 +1130,12 @@ BOOLEAN PacketGetAdapterNames(
                     AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
                 std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
 
+                LOG::LogMessageFmt(
+                    L"%S: AdapterId = %s, AdapterName = %s\n",
+                    __FUNCTION__,
+                    AdapterId.c_str(),
+                    AdapterName.c_str());
+
                 StringCchCopyA(
                     ((PCHAR)pStr) + SizeNames,
                     *BufferSize - SizeNames,
