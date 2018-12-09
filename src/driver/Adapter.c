@@ -1384,7 +1384,7 @@ Protocol_NetPnPEventHandler(
 
     DEBUGP(
         DL_TRACE,
-        "    NetEvent: %s",
+        "    NetEvent: %s\n",
         NetEventString(NetPnPEventNotification->NetPnPEvent.NetEvent));
 
     switch (NetPnPEventNotification->NetPnPEvent.NetEvent)
