@@ -910,6 +910,18 @@ Protocol_BindAdapterHandlerEx(
         NT_SUCCESS(Status2),
         NDIS_STATUS_RESOURCES);
 
+    DEBUGP(
+        DL_TRACE,
+        "%s: Allocated adapter id: ",
+        __FUNCTION__);
+    DEBUGP_PRINT_CHAR_ARRAY_W(
+        DL_TRACE,
+        Adapter->AdapterId.Buffer,
+        Adapter->AdapterId.Length);
+    DEBUGP(
+        DL_TRACE,
+        "\n");
+
     MediumArray = BindParameters->MediaType;
 
     Adapter->DriverData = Data;
@@ -1098,6 +1110,15 @@ Protocol_CloseAdapterCompleteHandlerEx(
             FALSE);
     }
 
+    DEBUGP(
+        DL_TRACE,
+        "Closing adapter with id: ");
+    DEBUGP_PRINT_CHAR_ARRAY_W(
+        DL_TRACE,
+        Adapter->AdapterId.Buffer,
+        Adapter->AdapterId.Length);
+    DEBUGP(DL_TRACE, "\n");
+
     FreeAdapter(Adapter);
 
     DEBUGP_FUNC_LEAVE(DL_TRACE);
@@ -1219,11 +1240,11 @@ Protocol_ReceiveNetBufferListsHandler(
             Assigned(CurrentNbl);
             CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
         {
-            PUCHAR              MdlVA = NULL;
-            PNET_BUFFER         NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
-            PMDL                Mdl = NET_BUFFER_CURRENT_MDL(NB);
-            ULONG               Offset = NET_BUFFER_DATA_OFFSET(NB);
-            ULONG               BufferLength = 0;
+            PUCHAR      MdlVA = NULL;
+            PNET_BUFFER NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
+            PMDL        Mdl = NET_BUFFER_CURRENT_MDL(NB);
+            ULONG       Offset = NET_BUFFER_DATA_OFFSET(NB);
+            ULONG       BufferLength = 0;
 
             if (Assigned(Mdl))
             {

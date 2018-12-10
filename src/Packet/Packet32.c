@@ -1131,10 +1131,10 @@ BOOLEAN PacketGetAdapterNames(
                 std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
 
                 LOG::LogMessageFmt(
-                    L"%S: AdapterId = %s, AdapterName = %s\n",
+                    L"%S: AdapterId = %s, AdapterDesc = %S\n",
                     __FUNCTION__,
                     AdapterId.c_str(),
-                    AdapterName.c_str());
+                    AdapterList->Items[k].DisplayName);
 
                 StringCchCopyA(
                     ((PCHAR)pStr) + SizeNames,

@@ -70,6 +70,15 @@ extern unsigned long FILTER_DEBUG_LEVEL;
 #define DEBUGP_FUNC_LEAVE(Level)                        DEBUGP((Level), "<=== "__FUNCTION__"\n")
 #define DEBUGP_FUNC_LEAVE_WITH_STATUS(Level, Status)    DEBUGP((Level), "<=== "__FUNCTION__", Status = %x\n", (Status))
 
+#define DEBUGP_PRINT_CHAR_ARRAY_W(Level, ArrayPtr, ArraySize) \
+{ \
+    unsigned long k; \
+    for (k = 0; k < (unsigned long)(ArraySize); k++) \
+    { \
+        DEBUGP((Level), "%C", (ArrayPtr)[k]); \
+    } \
+}
+
 void DbgPrintHexDump(
     __in    PUCHAR  Buffer,
     __in    ULONG   BufferSize);

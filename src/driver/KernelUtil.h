@@ -107,8 +107,6 @@ NTSTATUS __stdcall IOUtils_ValidateAndGetIOBuffers(
     __out	PVOID	*OutBuffer,
     __out	PULONG	OutLength);
 
-
-
 #define NetEventString(Value) \
     ((Value) == NetEventSetPower ? "NetEventSetPower" : \
      (Value) == NetEventQueryPower ? "NetEventQueryPower" : \
