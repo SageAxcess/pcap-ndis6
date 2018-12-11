@@ -912,15 +912,9 @@ Protocol_BindAdapterHandlerEx(
 
     DEBUGP(
         DL_TRACE,
-        "%s: Allocated adapter id: ",
-        __FUNCTION__);
-    DEBUGP_PRINT_CHAR_ARRAY_W(
-        DL_TRACE,
-        Adapter->AdapterId.Buffer,
-        Adapter->AdapterId.Length);
-    DEBUGP(
-        DL_TRACE,
-        "\n");
+        "%s: Allocated adapter id: %S\n",
+        __FUNCTION__,
+        Adapter->AdapterId.Buffer);
 
     MediumArray = BindParameters->MediaType;
 
@@ -1112,13 +1106,8 @@ Protocol_CloseAdapterCompleteHandlerEx(
 
     DEBUGP(
         DL_TRACE,
-        "Closing adapter with id: ");
-    DEBUGP_PRINT_CHAR_ARRAY_W(
-        DL_TRACE,
-        Adapter->AdapterId.Buffer,
-        Adapter->AdapterId.Length);
-    DEBUGP(DL_TRACE, "\n");
-
+        "Closing adapter with id: %S\n",
+        Adapter->AdapterId.Buffer);
     FreeAdapter(Adapter);
 
     DEBUGP_FUNC_LEAVE(DL_TRACE);

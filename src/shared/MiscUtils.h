@@ -78,5 +78,9 @@ namespace UTILS
             __in    const   std::string &String,
             __out           PULONG      Address);
 
+        BOOL GetAdapterDescByIdFromRegistry(
+            __in    const   std::wstring    &AdapterId,
+            __out           std::wstring    &AdapterDesc);
+
     };
 };

@@ -1129,12 +1129,18 @@ BOOLEAN PacketGetAdapterNames(
                     AdapterList->Items[k].AdapterId.Buffer, 
                     AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
                 std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
+                std::wstring    AdapterDescFromRegistry;
+
+                UTILS::MISC::GetAdapterDescByIdFromRegistry(
+                    AdapterId,
+                    AdapterDescFromRegistry);
 
                 LOG::LogMessageFmt(
-                    L"%S: AdapterId = %s, AdapterDesc = %S\n",
+                    L"%S: AdapterId = %s, AdapterDesc = %S, AdapterRegDesc = %s\n",
                     __FUNCTION__,
                     AdapterId.c_str(),
-                    AdapterList->Items[k].DisplayName);
+                    AdapterList->Items[k].DisplayName,
+                    AdapterDescFromRegistry.c_str());
 
                 StringCchCopyA(
                     ((PCHAR)pStr) + SizeNames,

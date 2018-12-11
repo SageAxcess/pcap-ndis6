@@ -22,6 +22,10 @@
 
 #include <vector>
 
+#define ADAPTER_INFO_REG_KEY_NAME_FORMAT_W              L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}\\%04d"
+#define ADAPTER_INFO_DRIVER_DESC_VALUE_NAME_W           L"DriverDesc"
+#define ADAPTER_INFO_NET_CFG_INSTANCE_ID_VALUE_NAME_W   L"NetCfgInstanceId"
+
 std::wstring UTILS::MISC::GetModuleName(
     __in    const   HMODULE ModuleHandle)
 {
@@ -460,4 +464,58 @@ BOOL UTILS::MISC::StringToIpAddressV4A(
     }
 
     return FALSE;
+};
+
+BOOL UTILS::MISC::GetAdapterDescByIdFromRegistry(
+    __in    const   std::wstring    &AdapterId,
+    __out           std::wstring    &AdapterDesc)
+{
+    HKEY    Key = NULL;
+    BOOL    Result = FALSE;
+
+    RETURN_VALUE_IF_FALSE(
+        AdapterId.length() > 0,
+        FALSE);
+
+    for (int k = 0; k < 9999; k++)
+    {
+        std::wstring    KeyName = UTILS::STR::FormatW(
+            ADAPTER_INFO_REG_KEY_NAME_FORMAT_W,
+            k);
+
+        LSTATUS Status = RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            KeyName.c_str(),
+            0,
+            KEY_QUERY_VALUE,
+            &Key);
+        BREAK_IF_FALSE(Status == ERROR_SUCCESS);
+        try
+        {
+            std::wstring    NetCfgInstanceId;
+            if (UTILS::REG::ReadStringW(
+                Key,
+                ADAPTER_INFO_NET_CFG_INSTANCE_ID_VALUE_NAME_W,
+                NetCfgInstanceId))
+            {
+                if (UTILS::STR::SameTextW(
+                    NetCfgInstanceId,
+                    AdapterId))
+                {
+                    Result = UTILS::REG::ReadStringW(
+                        Key,
+                        ADAPTER_INFO_DRIVER_DESC_VALUE_NAME_W,
+                        AdapterDesc);
+                }
+            }
+        }
+        catch (...)
+        {
+        }
+        RegCloseKey(Key);
+
+        BREAK_IF_TRUE(Result);
+    }
+
+    return Result;
 };

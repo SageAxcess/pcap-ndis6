@@ -242,7 +242,9 @@ typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_ID
     unsigned long   Length;
 
     //  Adapter id buffer
-    wchar_t         Buffer[PCAP_NDIS_ADAPTER_ID_SIZE_MAX];
+    //  The maximum length is PCAP_NDIS_ADAPTER_ID_SIZE_MAX
+    //  One character is reserved for termination null character.
+    wchar_t         Buffer[PCAP_NDIS_ADAPTER_ID_SIZE_MAX + 1];
 
 } PCAP_NDIS_ADAPTER_ID, *PPCAP_NDIS_ADAPTER_ID;
 

@@ -75,7 +75,7 @@ extern unsigned long FILTER_DEBUG_LEVEL;
     unsigned long k; \
     for (k = 0; k < (unsigned long)(ArraySize); k++) \
     { \
-        DEBUGP((Level), "%C", (ArrayPtr)[k]); \
+        DbgPrint("%C", (ArrayPtr)[k]); \
     } \
 }
 
