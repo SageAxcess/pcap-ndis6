@@ -270,6 +270,11 @@ BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
     BOOLEAN Result = FALSE;
     HANDLE  EventHandle = NULL;
 
+    LOG::LogMessageFmt(
+        L"%S: AdapterObject = %p\n",
+        __FUNCTION__,
+        AdapterObject);
+
     TRACE_ENTER();
 
     if (!Assigned(AdapterObject))
@@ -289,6 +294,11 @@ BOOLEAN PacketSetReadEvt(LPADAPTER AdapterObject)
         TRACE_LOG_MESSAGE(
             "%s: AdapterObject->ReadEvent != NULL\n",
             __FUNCTION__);
+
+        LOG::LogMessageFmt(
+            L"%S: AdapterObject->ReadEvent != NULL\n",
+            __FUNCTION__);
+
         SetLastError(ERROR_INVALID_FUNCTION);
 
         TRACE_EXIT();
