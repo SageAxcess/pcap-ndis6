@@ -703,15 +703,20 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
     if (AdapterObject->Flags == INFO_FLAG_NDIS_ADAPTER)
     {
+        LPPCAP_NDIS_ADAPTER NdisAdapter = static_cast<LPPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
+
         TRACE_LOG_MESSAGE("   ... NdisDriverNextPacket\n");
 
-        LOG::LogMessageFmt(
-            L"    INFO_FLAG_NDIS_ADAPTER present, waiting for %dms before reading...\n",
-            (int)AdapterObject->ReadTimeOut);
+        if (NdisAdapter->BufferedPackets == 0)
+        {
+            LOG::LogMessageFmt(
+                L"    Waiting for %dms before reading...\n",
+                (int)AdapterObject->ReadTimeOut);
 
-        WaitForSingleObject(
-            AdapterObject->ReadEvent, 
-            (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+            WaitForSingleObject(
+                AdapterObject->ReadEvent,
+                (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+        }
 
         res = (BOOLEAN)NdisDriverNextPacket(
             (PCAP_NDIS_ADAPTER*)AdapterObject->hFile, 
@@ -892,17 +897,41 @@ BOOLEAN PacketSetReadTimeout(
 {
     PPCAP_NDIS_ADAPTER  Adapter = nullptr;
 
+    LOG::LogMessageFmt(
+        L"%S: AdapterObject = %p, Timeout = %d\n",
+        __FUNCTION__,
+        AdapterObject,
+        Timeout);
+
     RETURN_VALUE_IF_FALSE(
         Assigned(AdapterObject),
         FALSE);
+
+    LOG::LogMessageFmt(
+        L"%S: AdapterObject->hFile = %p\n",
+        __FUNCTION__,
+        AdapterObject->hFile);
+
     RETURN_VALUE_IF_FALSE(
         AdapterObject->hFile != NULL,
         FALSE);
 
+    if ((Timeout != -1) &&
+        (Timeout < PCAP_NDIS_ADAPTER_READ_TIMEOUT_MIN))
+    {
+        Timeout = PCAP_NDIS_ADAPTER_READ_TIMEOUT_MIN;
+    }
+
     Adapter = static_cast<PPCAP_NDIS_ADAPTER>(AdapterObject->hFile);
+
     InterlockedExchange(
         reinterpret_cast<volatile unsigned long *>(&Adapter->ReadTimeout),
         Timeout < 0 ? MAXUINT : static_cast<unsigned long>(Timeout));
+
+    LOG::LogMessageFmt(
+        L"%S: Adapter->ReadTimeout = %d\n",
+        __FUNCTION__,
+        Adapter->ReadTimeout);
 
     return TRUE;	
 };

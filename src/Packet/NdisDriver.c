@@ -166,6 +166,10 @@ PPCAP_NDIS_ADAPTER NdisDriverOpenAdapter(
     {
         CloseHandle(NewPacketEvent);
     }
+    else
+    {
+        Adapter->ReadTimeout = PCAP_NDIS_ADAPTER_READ_TIMEOUT_MIN;
+    }
 
     return Adapter;
 };

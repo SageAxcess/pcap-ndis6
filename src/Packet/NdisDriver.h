@@ -21,6 +21,8 @@
 #include "..\shared\SharedTypes.h"
 #include <string>
 
+#define PCAP_NDIS_ADAPTER_READ_TIMEOUT_MIN  5000
+
 typedef struct _PCAP_NDIS
 {
     HANDLE  Handle;
