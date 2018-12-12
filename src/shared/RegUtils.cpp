@@ -115,5 +115,11 @@ BOOL __stdcall UTILS::REG::ReadStringW(
         return FALSE;
     }
 
+    while (Value.length() > 0)
+    {
+        BREAK_IF_FALSE(Value[Value.length() - 1] == L'\0');
+        Value.erase(Value.length() - 1, 1);
+    }
+
     return TRUE;
 };
