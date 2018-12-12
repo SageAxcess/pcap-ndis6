@@ -118,12 +118,6 @@ typedef struct _ADAPTER
     //  List link
     LIST_ENTRY              Link;
 
-    //  Size of the data stored in DisplayName field
-    ULONG                   DisplayNameSize;
-    
-    //  Adapter display name
-    char                    DisplayName[256];
-
     //  Adapter ID
     PCAP_NDIS_ADAPTER_ID    AdapterId;
 

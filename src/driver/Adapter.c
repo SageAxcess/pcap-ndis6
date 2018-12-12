@@ -263,11 +263,6 @@ BOOL SendOidRequest(
 
     if(ret != NDIS_STATUS_PENDING)
     {
-        if (ret == NDIS_STATUS_SUCCESS)
-        {
-            adapter->DisplayNameSize = Request->DATA.QUERY_INFORMATION.BytesWritten;
-        }
-
         InterlockedDecrement((volatile LONG *)&adapter->PendingOidRequests);
 
         if (set)
@@ -1050,13 +1045,6 @@ Protocol_OpenAdapterCompleteHandlerEx(
 
     if (Status == NDIS_STATUS_SUCCESS)
     {
-        SendOidRequest(
-            Adapter,
-            FALSE,
-            OID_GEN_VENDOR_DESCRIPTION,
-            Adapter->DisplayName,
-            sizeof(Adapter->DisplayName) - 1);
-
         if (Assigned(Adapter->DriverData))
         {
             Km_List_AddItem(
@@ -1145,11 +1133,6 @@ Protocol_OidRequestCompleteHandler(
     if ((OidRequest->RequestType == NdisRequestQueryInformation) && 
         (OidRequest->DATA.QUERY_INFORMATION.Oid == OID_GEN_VENDOR_DESCRIPTION))
     {
-        if (Status == NDIS_STATUS_SUCCESS)
-        {
-            Adapter->DisplayNameSize = OidRequest->DATA.QUERY_INFORMATION.BytesWritten;
-        }
-
         CanRelease = FALSE;
     }
 

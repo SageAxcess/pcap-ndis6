@@ -460,9 +460,9 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
         Assigned(ndis),
         nullptr);
 
-    PPCAP_NDIS_ADAPTER_INFO     AdapterInfo = nullptr;
-    LPADAPTER                   Result = nullptr;
-    LPPCAP_NDIS_ADAPTER_LIST    AdapterList = NdisDriverGetAdapterList(ndis);
+    PPCAP_ADAPTER_INFO  AdapterInfo = nullptr;
+    LPADAPTER           Result = nullptr;
+    LPPCAP_ADAPTER_LIST AdapterList = NdisDriverGetAdapterList(ndis);
 
     RETURN_VALUE_IF_FALSE(
         Assigned(AdapterList),
@@ -473,11 +473,11 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
 
         for (ULONG k = 0; k < AdapterList->Count; k++)
         {
-            if (AdapterList->Items[k].AdapterId.Length > 0)
+            if (AdapterList->Items[k].NdisAdapterInfo.AdapterId.Length > 0)
             {
                 std::wstring    AdapterIdStr(
-                    AdapterList->Items[k].AdapterId.Buffer,
-                    AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
+                    AdapterList->Items[k].NdisAdapterInfo.AdapterId.Buffer,
+                    AdapterList->Items[k].NdisAdapterInfo.AdapterId.Length / sizeof(wchar_t));
                 std::wstring    AdapterNameStr = UTILS::STR::FormatW(L"%S", AdapterNameWA);
 
                 if (AdapterNameStr == AdapterIdStr)
@@ -493,7 +493,7 @@ LPADAPTER PacketOpenAdapter(PCHAR AdapterNameWA)
         {
             PPCAP_NDIS_ADAPTER  NdisAdapter = NdisDriverOpenAdapter(
                 ndis,
-                &AdapterInfo->AdapterId);
+                &AdapterInfo->NdisAdapterInfo.AdapterId);
             if (Assigned(NdisAdapter))
             {
                 try
@@ -1090,12 +1090,12 @@ BOOLEAN PacketGetAdapterNames(
         Assigned(ndis),
         FALSE);
 
-    BOOLEAN                     Result = FALSE;
-    ULONG                       SizeNeeded = 0;
-    ULONG                       SizeNames = 0;
-    ULONG                       SizeDesc = 0;
-    ULONG                       OffDescriptions = 0;
-    LPPCAP_NDIS_ADAPTER_LIST    AdapterList = NdisDriverGetAdapterList(ndis);
+    BOOLEAN             Result = FALSE;
+    ULONG               SizeNeeded = 0;
+    ULONG               SizeNames = 0;
+    ULONG               SizeDesc = 0;
+    ULONG               OffDescriptions = 0;
+    LPPCAP_ADAPTER_LIST AdapterList = NdisDriverGetAdapterList(ndis);
     RETURN_VALUE_IF_FALSE(
         Assigned(AdapterList),
         FALSE);
@@ -1104,10 +1104,10 @@ BOOLEAN PacketGetAdapterNames(
         for (ULONG k = 0; k < AdapterList->Count; k++)
         {
             SizeNeeded +=
-                (ULONG)AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) +
+                (ULONG)AdapterList->Items[k].NdisAdapterInfo.AdapterId.Length / sizeof(wchar_t) +
                 AdapterList->Items[k].DisplayNameLength + 2;
 
-            SizeNames += AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t) + 1;
+            SizeNames += AdapterList->Items[k].NdisAdapterInfo.AdapterId.Length / sizeof(wchar_t) + 1;
         }
 
         if ((SizeNeeded + 2 > *BufferSize) ||
@@ -1126,34 +1126,33 @@ BOOLEAN PacketGetAdapterNames(
             for (ULONG k = 0; k < AdapterList->Count; k++)
             {
                 std::wstring    AdapterId(
-                    AdapterList->Items[k].AdapterId.Buffer, 
-                    AdapterList->Items[k].AdapterId.Length / sizeof(wchar_t));
-                std::string     AdapterName = UTILS::STR::FormatA("%S", AdapterId.c_str());
-                std::wstring    AdapterDescFromRegistry;
+                    AdapterList->Items[k].NdisAdapterInfo.AdapterId.Buffer,
+                    AdapterList->Items[k].NdisAdapterInfo.AdapterId.Length / sizeof(wchar_t));
+                std::wstring    AdapterDisplayName(
+                    AdapterList->Items[k].DisplayName,
+                    AdapterList->Items[k].DisplayNameLength);
 
-                UTILS::MISC::GetAdapterDescByIdFromRegistry(
-                    AdapterId,
-                    AdapterDescFromRegistry);
+                std::string     AdapterIdA = UTILS::STR::FormatA("%S", AdapterId.c_str());
+                std::string     AdapterDisplayNameA = UTILS::STR::FormatA("%S", AdapterDisplayName.c_str());
 
                 LOG::LogMessageFmt(
-                    L"%S: AdapterId = %s, AdapterDesc = %S, AdapterRegDesc = %s\n",
+                    L"%S: AdapterId = %s, AdapterDesc = %s\n",
                     __FUNCTION__,
                     AdapterId.c_str(),
-                    AdapterList->Items[k].DisplayName,
-                    AdapterDescFromRegistry.c_str());
+                    AdapterDisplayName.c_str());
 
                 StringCchCopyA(
                     ((PCHAR)pStr) + SizeNames,
                     *BufferSize - SizeNames,
-                    AdapterName.c_str());
+                    AdapterIdA.c_str());
 
                 StringCchCopyA(
                     ((PCHAR)pStr) + OffDescriptions + SizeDesc,
                     *BufferSize - OffDescriptions - SizeDesc,
-                    AdapterList->Items[k].DisplayName);
+                    AdapterDisplayNameA.c_str());
 
-                SizeNames += (ULONG)AdapterName.length() + 1;
-                SizeDesc += (ULONG)strlen(AdapterList->Items[k].DisplayName) + 1;
+                SizeNames += (ULONG)AdapterIdA.length() + 1;
+                SizeDesc += (ULONG)AdapterDisplayNameA.length() + 1;
             }
 
             Result = TRUE;

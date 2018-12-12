@@ -29,6 +29,7 @@
 #include <string>
 
 #include "..\shared\StrUtils.h"
+#include "..\shared\MiscUtils.h"
 #include "PacketParser.h"
 
 #include "Logging.h"
@@ -440,13 +441,64 @@ BOOL NdisDriverQueryDiagInfo(
     return TRUE;
 };
 
+BOOL NdisDriverFillPcapAdaptersList(
+    __in    LPPCAP_NDIS_ADAPTER_LIST    KernelList,
+    __out   LPPCAP_ADAPTER_LIST         UserList)
+{
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(KernelList)) &&
+        (Assigned(UserList)),
+        FALSE);
+
+    for (unsigned long k = 0; k < KernelList->Count; k++)
+    {
+        RtlCopyMemory(
+            &UserList->Items[k].NdisAdapterInfo,
+            &KernelList->Items[k],
+            sizeof(PCAP_NDIS_ADAPTER_INFO));
+
+        std::wstring    DisplayName;
+
+        if (UTILS::MISC::GetAdapterDescByIdFromRegistry(
+            KernelList->Items[k].AdapterId.Buffer,
+            DisplayName))
+        {
+            SIZE_T  CharsToCopy;
+            if (DisplayName.length() > PCAP_ADAPTER_DISPLAY_NAME_LENGTH_MAX)
+            {
+                CharsToCopy = PCAP_ADAPTER_DISPLAY_NAME_LENGTH_MAX;
+            }
+            else
+            {
+                CharsToCopy = DisplayName.length();
+            }
+
+            if (CharsToCopy > 0)
+            {
+                RtlCopyMemory(
+                    UserList->Items[k].DisplayName,
+                    DisplayName.c_str(),
+                    CharsToCopy * sizeof(wchar_t));
+            }
+
+            UserList->Items[k].DisplayNameLength = static_cast<ULONG>(CharsToCopy);
+        }
+    }
+
+    UserList->Count = KernelList->Count;
+
+    return TRUE;
+};
+
 // Get adapter list
-LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(
+LPPCAP_ADAPTER_LIST NdisDriverGetAdapterList(
     __in    PPCAP_NDIS  Ndis)
 {
     ULONG                       AdaptersCount = 0;
-    LPPCAP_NDIS_ADAPTER_LIST    List = nullptr;
-    SIZE_T                      SizeRequired = 0;
+    LPPCAP_NDIS_ADAPTER_LIST    KernelList = nullptr;
+    LPPCAP_ADAPTER_LIST         UserList = nullptr;
+    SIZE_T                      KernelListSize = 0;
+    SIZE_T                      UserListSize = 0;
     BOOL                        Failed = FALSE;
 
     RETURN_VALUE_IF_FALSE(
@@ -463,38 +515,60 @@ LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(
             static_cast<DWORD>(sizeof(AdaptersCount))),
         nullptr);
 
-    SizeRequired =
+    KernelListSize =
         sizeof(PCAP_NDIS_ADAPTER_LIST) +
         (AdaptersCount - 1) * sizeof(PCAP_NDIS_ADAPTER_INFO);
 
-    List = UMM_AllocTypedWithSize<PCAP_NDIS_ADAPTER_LIST>(SizeRequired);
+    KernelList = UMM_AllocTypedWithSize<PCAP_NDIS_ADAPTER_LIST>(KernelListSize);
     RETURN_VALUE_IF_FALSE(
-        Assigned(List),
+        Assigned(KernelList),
         nullptr);
     __try
     {
+        RtlZeroMemory(KernelList, KernelListSize);
+
         Failed = !NdisDriver_ControlDevice(
             Ndis->Handle,
             static_cast<DWORD>(IOCTL_GET_ADAPTERS),
             nullptr,
             0,
-            reinterpret_cast<LPVOID>(List),
-			static_cast<DWORD>(SizeRequired));
+            reinterpret_cast<LPVOID>(KernelList),
+			static_cast<DWORD>(KernelListSize));
+        LEAVE_IF_TRUE(Failed);
+
+        UserListSize =
+            sizeof(PCAP_ADAPTER_LIST) +
+            (AdaptersCount - 1) * sizeof(PCAP_ADAPTER_INFO);
+        
+        UserList = UMM_AllocTypedWithSize<PCAP_ADAPTER_LIST>(UserListSize);
+        LEAVE_IF_FALSE(Assigned(UserList));
+        __try
+        {
+            RtlZeroMemory(UserList, UserListSize);
+
+            Failed = !NdisDriverFillPcapAdaptersList(
+                KernelList,
+                UserList);
+        }
+        __finally
+        {
+            if (Failed)
+            {
+                UMM_FreeMem(reinterpret_cast<void *>(UserList));
+                UserList = nullptr;
+            }
+        }
     }
     __finally
     {
-        if (Failed)
-        {
-            UMM_FreeMem(reinterpret_cast<void *>(List));
-            List = nullptr;
-        }
+        UMM_FreeMem(reinterpret_cast<void *>(KernelList));
     }
     
-    return List;
+    return UserList;
 };
 
 void NdisDriverFreeAdapterList(
-    __in    LPPCAP_NDIS_ADAPTER_LIST    List)
+    __in    LPPCAP_ADAPTER_LIST List)
 {
     RETURN_IF_FALSE(Assigned(List));
 

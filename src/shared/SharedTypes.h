@@ -263,12 +263,6 @@ typedef __declspec(align(4)) struct _PCAP_NDIS_ADAPTER_INFO
     //  Adapter id
     PCAP_NDIS_ADAPTER_ID    AdapterId;
 
-    //  Display name length in bytes
-    unsigned long   DisplayNameLength;
-
-    //  Display name
-    char            DisplayName[256];
-
     //  Adapter physical address (mac address)
     unsigned char   MacAddress[PCAP_NDIS_ADAPTER_MAC_ADDRESS_SIZE];
 

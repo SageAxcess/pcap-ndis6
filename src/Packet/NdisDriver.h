@@ -58,6 +58,28 @@ typedef struct _PCAP_NDIS_ADAPTER_LIST
     PCAP_NDIS_ADAPTER_INFO  Items[1];
 } PCAP_NDIS_ADAPTER_LIST, *PPCAP_NDIS_ADAPTER_LIST, *LPPCAP_NDIS_ADAPTER_LIST;
 
+#define PCAP_ADAPTER_DISPLAY_NAME_LENGTH_MAX    0x200
+
+typedef struct _PCAP_ADAPTER_INFO
+{
+    //  Length of the adapter display name in chars
+    ULONG                   DisplayNameLength;
+
+    //  Display name
+    //  The last item in the array is reserved for termination null character.
+    wchar_t                 DisplayName[PCAP_ADAPTER_DISPLAY_NAME_LENGTH_MAX + 1];
+
+    //  Data received from kernel
+    PCAP_NDIS_ADAPTER_INFO  NdisAdapterInfo;
+
+} PCAP_ADAPTER_INFO, *PPCAP_ADAPTER_INFO, *LPPCAP_ADAPTER_INFO;
+
+typedef struct _PCAP_ADAPTER_LIST
+{
+    ULONG               Count;
+    PCAP_ADAPTER_INFO   Items[1];
+} PCAP_ADAPTER_LIST, *PPCAP_ADAPTER_LIST, *LPPCAP_ADAPTER_LIST;
+
 // Open channel to ndis driver
 LPPCAP_NDIS NdisDriverOpen();
 
@@ -92,12 +114,12 @@ BOOL NdisDriverQueryDiagInfo(
     __out   PULONGLONG  AllocationSize);
 
 // Get adapter list
-LPPCAP_NDIS_ADAPTER_LIST NdisDriverGetAdapterList(
+LPPCAP_ADAPTER_LIST NdisDriverGetAdapterList(
     __in    PPCAP_NDIS  Ndis);
 
 // Free adapter list
 void NdisDriverFreeAdapterList(
-    __in    LPPCAP_NDIS_ADAPTER_LIST    List);
+    __in    LPPCAP_ADAPTER_LIST List);
 
 void NdisDriverLogPacket(
     __in    LPPACKET    Packet);
