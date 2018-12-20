@@ -90,7 +90,7 @@ NTSTATUS __stdcall Adapter_Allocate(
 
     Status = Km_MP_Initialize(
         MemoryManager,
-        CalcRequiredPacketSize(BindParameters->MtuSize),
+        CalcRequiredPacketSize(BindParameters->MtuSize) * 2,
         PACKETS_POOL_INITIAL_SIZE,
         FALSE,
         ADAPTER_PACKET_POOL_MEMORY_TAG,
