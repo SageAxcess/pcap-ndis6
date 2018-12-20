@@ -265,6 +265,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -293,6 +294,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <PostBuildEvent>
       <Command>signtool remove /s $(SolutionDir)build\$(Configuration)\$(PlatformShortName)\pcap-ndis6.sys</Command>
@@ -325,6 +327,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -351,6 +354,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
     </ClCompile>
     <PostBuildEvent>
       <Command>

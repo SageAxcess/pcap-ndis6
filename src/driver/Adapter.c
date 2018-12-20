@@ -704,12 +704,31 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Packet),
         STATUS_INVALID_PARAMETER_6);
+
+    if ((EthHeader->EthType != ETH_TYPE_IP) &&
+        (EthHeader->EthType != ETH_TYPE_IP6) &&
+        (EthHeader->EthType != ETH_TYPE_IP_BE) &&
+        (EthHeader->EthType != ETH_TYPE_IP6_BE))
+    {
+        DEBUGP(
+            DL_TRACE,
+            "%s: Unknown eth type: 0x%x\n",
+            __FUNCTION__,
+            EthHeader->EthType);
+
+        Status = STATUS_NOT_SUPPORTED;
+
+        goto cleanup;
+    }
+
+    /*
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         (EthHeader->EthType == ETH_TYPE_IP) ||
         (EthHeader->EthType == ETH_TYPE_IP6) ||
         (EthHeader->EthType == ETH_TYPE_IP_BE) ||
         (EthHeader->EthType == ETH_TYPE_IP6_BE),
         STATUS_NOT_SUPPORTED);
+    */
 
     Status = Km_MP_AllocateCheckSize(
         Adapter->Packets.Pool,

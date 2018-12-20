@@ -21,12 +21,12 @@
 #define ETH_ADDRESS_LENGTH  0x6
 #endif
 
-typedef struct _ETH_ADDRESS
+typedef __declspec(align(2)) struct _ETH_ADDRESS
 {
     unsigned char   Addr[ETH_ADDRESS_LENGTH];
 } ETH_ADDRESS, *PETH_ADDRESS, *LPETH_ADDRESS;
 
-typedef struct _ETH_HEADER
+typedef __declspec(align(2)) struct _ETH_HEADER
 {
     ETH_ADDRESS     DstAddr;
     ETH_ADDRESS     SrcAddr;
@@ -42,6 +42,10 @@ typedef struct _ETH_HEADER
 #define ETH_TYPE_REVERSE_ARP_BE 0x3580  //  Reverse ARP, big endian
 #define ETH_TYPE_ARP_BE         0x0608  //  ARP, big endian
 #define ETH_TYPE_IP6_BE         0xdd86  //  IPv6, big endian
+
+#pragma pack(push, 1)
+
+#pragma warning (disable:4359)
 
 typedef struct _IP_ADDRESS_V4
 {
@@ -203,6 +207,10 @@ typedef struct _PACKET_DESC
     } DestinationPortOrIcmpCode;
 
 } PACKET_DESC, *PPACKET_DESC, *LPPACKET_DESC;
+
+#pragma pack(pop)
+
+#pragma warning(default:4359)
 
 #define FILTER_COMPANY_PRODUCT_NAME                 L"ChangeDynamix AEGIS"
 #define FILTER_COMPONENT_ID                         L"PcapNdis6"

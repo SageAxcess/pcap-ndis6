@@ -114,7 +114,7 @@ typedef struct _ADAPTER_CLOSE_CONTEXT
 
 } ADAPTER_CLOSE_CONTEXT, *PADAPTER_CLOSE_CONTEXT;
 
-typedef struct _ADAPTER
+typedef __declspec(align(1)) struct _ADAPTER
 {
     //  List link
     LIST_ENTRY              Link;
