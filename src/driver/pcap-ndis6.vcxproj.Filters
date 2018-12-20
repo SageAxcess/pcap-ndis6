@@ -21,6 +21,7 @@
     <ClCompile Include="KmEvent.c" />
     <ClCompile Include="KmTimer.c" />
     <ClCompile Include="KmTimerThread.c" />
+    <ClCompile Include="KmRulesEngine.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adapter.h" />
@@ -45,6 +46,7 @@
     <ClInclude Include="KmEvent.h" />
     <ClInclude Include="KmTimer.h" />
     <ClInclude Include="KmTimerThread.h" />
+    <ClInclude Include="KmRulesEngine.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />

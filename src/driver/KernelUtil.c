@@ -525,6 +525,37 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall NetEventInfoToPacketDesc(
+    __in    PNETWORK_EVENT_INFO EventInfo,
+    __out   PPACKET_DESC        PacketDesc)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EventInfo),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(PacketDesc),
+        STATUS_INVALID_PARAMETER_2);
+
+    PacketDesc->IPProtocol = (unsigned char)EventInfo->IpProtocol;
+
+    PacketDesc->EthType =
+        EventInfo->AddressFamily == AF_INET ? ETH_TYPE_IP :
+        EventInfo->AddressFamily == AF_INET6 ? ETH_TYPE_IP6 : 0;
+
+    PacketDesc->DestinationIPAddress = EventInfo->Remote.Address;
+    PacketDesc->DestinationPortOrIcmpCode.DestinationPort = EventInfo->Remote.Port;
+    
+    PacketDesc->SourceIPAddress = EventInfo->Remote.Address;
+    PacketDesc->SourcePortOrIcmpType.SourcePort = EventInfo->Remote.Port;
+
+    PacketDesc->ProcessId = (unsigned long)EventInfo->Process.Id;
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall IOUtils_ProbeBuffer(
     __in    PVOID   Buffer,
     __in    ULONG   Length,

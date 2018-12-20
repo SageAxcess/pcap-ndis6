@@ -23,6 +23,7 @@
 #include "..\shared\SharedTypes.h"
 
 #define PACKETS_POOL_INITIAL_SIZE       0x2000
+#define DRIVER_CLIENT_POOL_INITIAL_SIZE 0x5000
 #define DRIVER_MAX_CLIENTS              0x400
 #define DRIVER_SVC_CLIENTS_POOL_SIZE    0x1
 
@@ -182,6 +183,13 @@ typedef struct _ADAPTER
     //  This field is being used during packet receive.
     NETWORK_EVENT_INFO      CurrentEventInfo;
 
+    //  RESERVED.
+    //  Do not use outside of packet reading routine.
+    //
+    //  Current packet desc info
+    //  This field is being use during packet receive.
+    PACKET_DESC             CurrentPacketDesc;
+
     //  Pointer to the adapter close context
     PADAPTER_CLOSE_CONTEXT  CloseContext;
 
@@ -244,6 +252,8 @@ typedef struct _DRIVER_CLIENT
 
     //  ID of associated (opened) adapter
     PCAP_NDIS_ADAPTER_ID    AdapterId;
+
+    HANDLE                  RuleHandle;
 
 } DRIVER_CLIENT, *PDRIVER_CLIENT;
 
@@ -330,6 +340,9 @@ typedef struct _DRIVER_DATA
 
         //  Inter-mode comms instance handle
         HANDLE          IMCInstance;
+
+        //  Rules engine instance handle
+        HANDLE          RulesEngineInstance;
 
     } Other;
 

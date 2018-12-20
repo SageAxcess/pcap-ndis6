@@ -27,6 +27,7 @@
 #include "KmMemoryManager.h"
 #include "KmConnections.h"
 #include "KmMemoryPool.h"
+#include "KmRulesEngine.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -91,7 +92,7 @@ NTSTATUS __stdcall Adapter_Allocate(
         MemoryManager,
         CalcRequiredPacketSize(BindParameters->MtuSize),
         PACKETS_POOL_INITIAL_SIZE,
-        TRUE,
+        FALSE,
         ADAPTER_PACKET_POOL_MEMORY_TAG,
         &NewAdapter->Packets.Pool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -585,6 +586,11 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                     if (Status == STATUS_NO_MORE_ENTRIES)
                                     {
                                         PLIST_ENTRY TmpEntry = NULL;
+
+                                        DEBUGP(
+                                            DL_WARN,
+                                            "%s: Client packets pool is full. Dropping 1 old packet\n",
+                                            __FUNCTION__);
 
                                         Status = Km_List_RemoveListHeadEx(
                                             &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
@@ -1212,11 +1218,12 @@ Protocol_ReceiveNetBufferListsHandler(
             Assigned(CurrentNbl);
             CurrentNbl = NET_BUFFER_LIST_NEXT_NBL(CurrentNbl))
         {
-            PUCHAR      MdlVA = NULL;
-            PNET_BUFFER NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
-            PMDL        Mdl = NET_BUFFER_CURRENT_MDL(NB);
-            ULONG       Offset = NET_BUFFER_DATA_OFFSET(NB);
-            ULONG       BufferLength = 0;
+            PUCHAR              MdlVA = NULL;
+            PNET_BUFFER         NB = NET_BUFFER_LIST_FIRST_NB(CurrentNbl);
+            PMDL                Mdl = NET_BUFFER_CURRENT_MDL(NB);
+            ULONG               Offset = NET_BUFFER_DATA_OFFSET(NB);
+            ULONG               BufferLength = 0;
+            KM_RULE_RESOLUTION  CurrentRuleResolution = Rule_None;
 
             if (Assigned(Mdl))
             {
@@ -1243,10 +1250,31 @@ Protocol_ReceiveNetBufferListsHandler(
                     BufferLength,
                     &Adapter->CurrentEventInfo);
 
+                RtlZeroMemory(
+                    &Adapter->CurrentPacketDesc,
+                    sizeof(PACKET_DESC));
+
                 Km_Connections_GetPIDForPacket(
                     Adapter->DriverData->Other.Connections,
                     &Adapter->CurrentEventInfo,
                     &Adapter->CurrentEventInfo.Process.Id);
+
+                NetEventInfoToPacketDesc(
+                    &Adapter->CurrentEventInfo,
+                    &Adapter->CurrentPacketDesc);
+
+                if (KmRulesEngine_CheckRules(
+                    Adapter->DriverData->Other.RulesEngineInstance,
+                    &Adapter->CurrentPacketDesc,
+                    &CurrentRuleResolution) == STATUS_SUCCESS)
+                {
+                    //  The rules engine contain a list of rules.
+                    //  Currently, there're only "skip" rules, so
+                    //  if there's a matching rule - we should skip the
+                    //  packet in question.
+
+                    continue;
+                };
 
                 //  We may loose certain extra-large packets here
                 //  (the ones exceeding the size of the mem pool entry
@@ -1258,6 +1286,16 @@ Protocol_ReceiveNetBufferListsHandler(
                     Adapter->CurrentEventInfo.Process.Id,
                     &PacketTimeStamp,
                     &NewPacket);
+
+                if (!NT_SUCCESS(Status))
+                {
+                    DEBUGP(
+                        DL_WARN,
+                        "%s: Packet skipped (packet allocation failed). Status = 0x%x\n",
+                        __FUNCTION__,
+                        Status);
+                    continue;
+                }
 
                 CONTINUE_IF_FALSE(NT_SUCCESS(Status));
 

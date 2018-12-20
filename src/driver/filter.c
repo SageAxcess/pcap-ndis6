@@ -28,6 +28,7 @@
 #include "KmInterModeComms.h"
 #include "KmMemoryPool.h"
 #include "KmProcessWatcher.h"
+#include "KmRulesEngine.h"
 
 #include "..\shared\win_bpf.h"
 
@@ -39,6 +40,10 @@ NTSTATUS __stdcall Filter_GetAdapters(
     __in    PVOID           Buffer,
     __in    DWORD           BufferSize,
     __out   PDWORD          BytesRead);
+
+NTSTATUS __stdcall Filter_AddAllowRuleForClient(
+    __in    PDRIVER_DATA    Data,
+    __in    PDRIVER_CLIENT  Client);
 
 NTSTATUS __stdcall Filter_CreateClient(
     __in    PDRIVER_DATA            Data,
@@ -64,6 +69,11 @@ NTSTATUS __stdcall Filter_CloseAdapter(
 NTSTATUS __stdcall Filter_CloseClientsByPID(
     __in    PDRIVER_DATA    Data,
     __in    HANDLE          ProcessId);
+
+int __stdcall Filter_RuleMatchingRoutine(
+    __in    PVOID           Context,
+    __in    PPACKET_DESC    RuleDesc,
+    __in    PPACKET_DESC    EventDesc);
 
 NTSTATUS __stdcall Filter_ReadPackets(
     __in    PDRIVER_DATA            Data,
@@ -234,6 +244,34 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Filter_AddAllowRuleForClient(
+    __in    PDRIVER_DATA    Data,
+    __in    PDRIVER_CLIENT  Client)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    KM_RULE     RuleDefinition;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Client),
+        STATUS_INVALID_PARAMETER_2);
+
+    RtlZeroMemory(&RuleDefinition, sizeof(RuleDefinition));
+
+    RuleDefinition.PacketDesc.ProcessId = (unsigned long)((unsigned long long)Client->OwnerProcessId);
+    RuleDefinition.Resolution = Rule_Skip;
+
+    Status = KmRulesEngine_AddRule(
+        Data->Other.RulesEngineInstance,
+        &RuleDefinition,
+        &Client->RuleHandle);
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Filter_CreateClient(
     __in    PDRIVER_DATA            Data,
     __in    HANDLE                  ProcessId,
@@ -304,6 +342,11 @@ NTSTATUS __stdcall Filter_CreateClient(
                 Data->Clients.Items[k] = NewClient;
                 Data->Clients.Count++;
                 NewClientId.Index = k;
+
+                Filter_AddAllowRuleForClient(
+                    Data,
+                    NewClient);
+
                 __leave;
             }
         }
@@ -540,6 +583,11 @@ NTSTATUS __stdcall Filter_CloseAdapter(
         Client = Data->Clients.Items[ClientId->Index];
         Data->Clients.Items[ClientId->Index] = NULL;
         Data->Clients.Count--;
+
+        KmRulesEngine_RemoveRuleByHandle(
+            Data->Other.RulesEngineInstance,
+            Client->RuleHandle);
+        Client->RuleHandle = NULL;
     }
     __finally
     {
@@ -682,6 +730,21 @@ NTSTATUS __stdcall Filter_CopyPACKETToBuffer(
 
 cleanup:
     return Status;
+};
+
+int __stdcall Filter_RuleMatchingRoutine(
+    __in    PVOID           Context,
+    __in    PPACKET_DESC    RuleDesc,
+    __in    PPACKET_DESC    EventDesc)
+{
+    UNREFERENCED_PARAMETER(Context);
+
+    RETURN_VALUE_IF_FALSE(
+        (Assigned(RuleDesc)) &&
+        (Assigned(EventDesc)),
+        COMPARE_VALUES(RuleDesc, EventDesc));
+
+    return COMPARE_VALUES(RuleDesc->ProcessId, EventDesc->ProcessId);
 };
 
 NTSTATUS __stdcall Filter_ReadPackets(
@@ -1216,6 +1279,13 @@ DriverEntry(
         &DriverData.Other.Connections);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = KmRulesEngine_Initialize(
+        &DriverData.Ndis.MemoryManager,
+        Filter_RuleMatchingRoutine,
+        &DriverData,
+        &DriverData.Other.RulesEngineInstance);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
     /*
     Status = KmTimerThread_Allocate(
         &DriverData.Ndis.MemoryManager,
@@ -1284,10 +1354,17 @@ cleanup:
             DriverData.Ndis.ReEnumBindingsThread = NULL;
         }
 
+        if (DriverData.Other.RulesEngineInstance != NULL)
+        {
+            KmRulesEngine_Finalize(DriverData.Other.RulesEngineInstance);
+            DriverData.Other.RulesEngineInstance = NULL;
+        }
+
         if (DriverData.Other.Connections != NULL)
         {
             Km_Connections_Finalize(
                 DriverData.Other.Connections);
+            DriverData.Other.Connections = NULL;
         }
 
         Km_ProcessWatcher_Finalize();
@@ -1341,6 +1418,12 @@ DriverUnload(DRIVER_OBJECT* DriverObject)
     }
 
     Km_MM_Finalize(&DriverData.Wfp.MemoryManager);
+
+    if (DriverData.Other.RulesEngineInstance != NULL)
+    {
+        KmRulesEngine_Finalize(DriverData.Other.RulesEngineInstance);
+        DriverData.Other.RulesEngineInstance = NULL;
+    }
 
     if (DriverData.Other.Connections != NULL)
     {

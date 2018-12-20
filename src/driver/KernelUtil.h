@@ -82,6 +82,14 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
     __inout PNETWORK_EVENT_INFO EventInfo);
 
 ///////////////////////////////////////////////////
+// Packet desc helpers
+///////////////////////////////////////////////////
+
+NTSTATUS __stdcall NetEventInfoToPacketDesc(
+    __in    PNETWORK_EVENT_INFO EventInfo,
+    __out   PPACKET_DESC        PacketDesc);
+
+///////////////////////////////////////////////////
 // IO buffer helpers
 ///////////////////////////////////////////////////
 
