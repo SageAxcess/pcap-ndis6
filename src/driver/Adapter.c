@@ -734,7 +734,14 @@ NTSTATUS Adapter_AllocateAndFillPacket(
         Adapter->Packets.Pool,
         SizeRequired,
         (PVOID *)&NewPacket);
-    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    if (!NT_SUCCESS(Status))
+    {
+        DEBUGP(
+            DL_WARN,
+            "%s: memory allocation failed with status 0x%x. Size requested: 0x%x bytes.\n"
+            __FUNCTION__);
+        goto cleanup;
+    }
 
     RtlZeroMemory(
         NewPacket,
