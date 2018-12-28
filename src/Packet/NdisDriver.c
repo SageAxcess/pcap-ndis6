@@ -298,8 +298,6 @@ BOOL NdisDriverNextPacket(
         DWORD   BytesRead = 0;
         DWORD   ErrorCode = 0;
 
-		Sleep(100); //This is for performance
-
         LOG::LogMessageFmt(
             L"%S: Reading packets from the driver\n",
             __FUNCTION__);

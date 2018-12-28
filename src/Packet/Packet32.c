@@ -53,6 +53,8 @@
 
 #include <string>
 
+#define PACKET_READ_WAIT_TIMEOUT    15000
+
 static PCAP_NDIS *ndis = nullptr;
 
 #ifdef _DEBUG_TO_FILE
@@ -719,13 +721,24 @@ BOOLEAN PacketReceivePacket(LPADAPTER AdapterObject, LPPACKET lpPacket, BOOLEAN 
 
         if (NdisAdapter->BufferedPackets == 0)
         {
-            LOG::LogMessageFmt(
-                L"    Waiting for %dms before reading...\n",
-                (int)AdapterObject->ReadTimeOut);
+            if (AdapterObject->ReadEvent != NULL)
+            {
+                LOG::LogMessageFmt(
+                    L"    Waiting for %dms before reading...\n",
+                    static_cast<int>(PACKET_READ_WAIT_TIMEOUT));
 
+                WaitForSingleObject(
+                    AdapterObject->ReadEvent,
+                    PACKET_READ_WAIT_TIMEOUT);
+            }
+
+            //  The code below is disabled since the timeout is not being set to -1 or
+            //  a meaninful value.
+            /*
             WaitForSingleObject(
                 AdapterObject->ReadEvent,
                 (AdapterObject->ReadTimeOut == -1) ? INFINITE : AdapterObject->ReadTimeOut);
+                */
         }
 
         res = (BOOLEAN)NdisDriverNextPacket(
