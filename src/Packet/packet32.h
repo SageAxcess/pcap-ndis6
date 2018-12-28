@@ -275,7 +275,7 @@ typedef struct _PACKET
 typedef struct _PACKET_EX
 {
     //  Original packet structure
-    PACKET  Packet;
+    PACKET      Packet;
 
     //  Process id (or zero)
     ULONGLONG   ProcessId;
