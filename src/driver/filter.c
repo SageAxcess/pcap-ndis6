@@ -72,8 +72,8 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
 
 int __stdcall Filter_RuleMatchingRoutine(
     __in    PVOID           Context,
-    __in    PPACKET_DESC    RuleDesc,
-    __in    PPACKET_DESC    EventDesc);
+    __in    PNET_EVENT_INFO RuleInfo,
+    __in    PNET_EVENT_INFO EventInfo);
 
 NTSTATUS __stdcall Filter_ReadPackets(
     __in    PDRIVER_DATA            Data,
@@ -98,7 +98,7 @@ NTSTATUS __stdcall Filter_IMC_IOCTL_Callback(
 
 void __stdcall Filter_Wfp_EventCallback(
     __in    WFP_NETWORK_EVENT_TYPE  EventType,
-    __in    PNETWORK_EVENT_INFO     EventInfo,
+    __in    PNET_EVENT_INFO         EventInfo,
     __in    PVOID                   Context);
 
 NTSTATUS __stdcall RegisterNdisProtocol(
@@ -260,7 +260,7 @@ NTSTATUS __stdcall Filter_AddAllowRuleForClient(
 
     RtlZeroMemory(&RuleDefinition, sizeof(RuleDefinition));
 
-    RuleDefinition.PacketDesc.ProcessId = (unsigned long)((unsigned long long)Client->OwnerProcessId);
+    RuleDefinition.Info.Process.Id = (unsigned long)((unsigned long long)Client->OwnerProcessId);
     RuleDefinition.Resolution = Rule_Skip;
 
     Status = KmRulesEngine_AddRule(
@@ -734,17 +734,17 @@ cleanup:
 
 int __stdcall Filter_RuleMatchingRoutine(
     __in    PVOID           Context,
-    __in    PPACKET_DESC    RuleDesc,
-    __in    PPACKET_DESC    EventDesc)
+    __in    PNET_EVENT_INFO RuleInfo,
+    __in    PNET_EVENT_INFO EventInfo)
 {
     UNREFERENCED_PARAMETER(Context);
 
     RETURN_VALUE_IF_FALSE(
-        (Assigned(RuleDesc)) &&
-        (Assigned(EventDesc)),
-        COMPARE_VALUES(RuleDesc, EventDesc));
+        (Assigned(RuleInfo)) &&
+        (Assigned(EventInfo)),
+        COMPARE_VALUES(RuleInfo, EventInfo));
 
-    return COMPARE_VALUES(RuleDesc->ProcessId, EventDesc->ProcessId);
+    return COMPARE_VALUES(RuleInfo->Process.Id, EventInfo->Process.Id);
 };
 
 NTSTATUS __stdcall Filter_ReadPackets(
@@ -1087,7 +1087,7 @@ cleanup:
 
 void __stdcall Filter_Wfp_EventCallback(
     __in    WFP_NETWORK_EVENT_TYPE  EventType,
-    __in    PNETWORK_EVENT_INFO     EventInfo,
+    __in    PNET_EVENT_INFO         EventInfo,
     __in    PVOID                   Context)
 {
     PDRIVER_DATA    Data = NULL;

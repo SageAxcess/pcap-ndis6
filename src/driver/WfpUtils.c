@@ -170,10 +170,32 @@ NTSTATUS __stdcall WfpUtils_GetAddressFamily(
     __out   ADDRESS_FAMILY  *AddressFamily)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
+    UINT16      EthType = 0;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(AddressFamily),
         STATUS_INVALID_PARAMETER_2);
+
+    Status = WfpUtils_GetEthType(LayerId, &EthType);
+    GOTO_CLEANUP_IF_FALSE(
+        (NT_SUCCESS(Status)) || 
+        (Status == STATUS_NOT_SUPPORTED));
+
+    *AddressFamily = EthTypeToAddressFamily(EthType);
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall WfpUtils_GetEthType(
+    __in    UINT16  LayerId,
+    __out   PUINT16 EthType)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(EthType),
+        STATUS_INVALID_PARAMETER_1);
 
     switch (LayerId)
     {
@@ -182,7 +204,7 @@ NTSTATUS __stdcall WfpUtils_GetAddressFamily(
     case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4:
     case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V4_DISCARD:
         {
-            *AddressFamily = AF_INET;
+            *EthType = ETH_TYPE_IP;
         }break;
 
     case FWPS_LAYER_ALE_AUTH_CONNECT_V6:
@@ -190,12 +212,12 @@ NTSTATUS __stdcall WfpUtils_GetAddressFamily(
     case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6:
     case FWPS_LAYER_ALE_AUTH_RECV_ACCEPT_V6_DISCARD:
         {
-            *AddressFamily = AF_INET6;
+            *EthType = ETH_TYPE_IP6;
         }break;
 
     default:
         {
-            *AddressFamily = AF_UNSPEC;
+            *EthType = 0;
             Status = STATUS_NOT_SUPPORTED;
         }break;
     };
@@ -207,7 +229,7 @@ cleanup:
 NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     __in    const   FWPS_INCOMING_VALUES            *InFixedValues,
     __in    const   FWPS_INCOMING_METADATA_VALUES   *InMetaValues,
-    __out           PNETWORK_EVENT_INFO             Info)
+    __out           PNET_EVENT_INFO                 Info)
 {
     NTSTATUS            Status = STATUS_SUCCESS;
     WFP_LAYER_INDEXES   LayerIndexes;
@@ -233,16 +255,16 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
         &LayerIndexes);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
-    Status = WfpUtils_GetAddressFamily(
+    Status = WfpUtils_GetEthType(
         InFixedValues->layerId,
-        (ADDRESS_FAMILY *)&Info->AddressFamily);
+        &Info->EthType);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     if (LayerIndexes.LocalPort != WFP_INVALID_LAYER_INDEX)
     {
         if (InFixedValues->incomingValue[LayerIndexes.LocalPort].value.type != FWP_EMPTY)
         {
-            Info->Local.Port = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.LocalPort].value.uint16);
+            Info->Local.TransportSpecific = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.LocalPort].value.uint16);
         }
     }
 
@@ -250,7 +272,7 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     {
         if (InFixedValues->incomingValue[LayerIndexes.RemotePort].value.type != FWP_EMPTY)
         {
-            Info->Remote.Port = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.RemotePort].value.uint16); 
+            Info->Remote.TransportSpecific = BYTES_SWAP_16(InFixedValues->incomingValue[LayerIndexes.RemotePort].value.uint16); 
         }
     }
 
@@ -262,15 +284,16 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
         }
     }
 
-    switch (Info->AddressFamily)
+    switch (Info->EthType)
     {
-    case AF_INET:
+    case ETH_TYPE_IP:
+    case ETH_TYPE_IP_BE:
         {
             if (LayerIndexes.LocalAddress != WFP_INVALID_LAYER_INDEX)
             {
                 if (InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Local.Address.Address.v4.ip.l = BYTES_SWAP_32(
+                    Info->Local.IpAddress.Address.v4.ip.l = BYTES_SWAP_32(
                         InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.uint32);
                 }
             }
@@ -279,24 +302,25 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
             {
                 if (InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.type != FWP_EMPTY)
                 {
-                    Info->Remote.Address.Address.v4.ip.l = BYTES_SWAP_32(
+                    Info->Remote.IpAddress.Address.v4.ip.l = BYTES_SWAP_32(
                         InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.uint32);
                 }
             }
 
         }break;
 
-    case AF_INET6:
+    case ETH_TYPE_IP6:
+    case ETH_TYPE_IP6_BE:
         {
             if (LayerIndexes.LocalAddress != WFP_INVALID_LAYER_INDEX)
             {
                 if (InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.type != FWP_EMPTY)
                 {
                     RtlCopyMemory(
-                        &Info->Local.Address,
+                        &Info->Local.IpAddress,
                         InFixedValues->incomingValue[LayerIndexes.LocalAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
-                    IP6_SWAP_BYTE_ORDER(Info->Local.Address.Address.v6.ip.s);
+                    IP6_SWAP_BYTE_ORDER(Info->Local.IpAddress.Address.v6.ip.s);
                 }
             }
 
@@ -305,10 +329,10 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
                 if (InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.type != FWP_EMPTY)
                 {
                     RtlCopyMemory(
-                        &Info->Remote.Address,
+                        &Info->Remote.IpAddress,
                         InFixedValues->incomingValue[LayerIndexes.RemoteAddress].value.byteArray16,
                         sizeof(FWP_BYTE_ARRAY16));
-                    IP6_SWAP_BYTE_ORDER(Info->Remote.Address.Address.v6.ip.s);
+                    IP6_SWAP_BYTE_ORDER(Info->Remote.IpAddress.Address.v6.ip.s);
                 }
             }
 
@@ -327,8 +351,8 @@ NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     if (FWPS_IS_METADATA_FIELD_PRESENT(InMetaValues, FWPS_METADATA_FIELD_PROCESS_PATH))
     {
         ULONG   BytesToCopy =
-            InMetaValues->processPath->size > NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE ?
-            NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE :
+            InMetaValues->processPath->size > NET_EVENT_INFO_PROCESS_PATH_MAX_SIZE ?
+            NET_EVENT_INFO_PROCESS_PATH_MAX_SIZE :
             InMetaValues->processPath->size;
 
         if (BytesToCopy > 0)

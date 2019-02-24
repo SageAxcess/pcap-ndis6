@@ -335,10 +335,10 @@ int __stdcall CompareAdapterIds(
 
 NTSTATUS __stdcall NetEventInfo_Allocate(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __out   PNETWORK_EVENT_INFO *EventInfo)
+    __out   PNET_EVENT_INFO     *EventInfo)
 {
-    NTSTATUS            Status = STATUS_SUCCESS;
-    PNETWORK_EVENT_INFO NewInfo = NULL;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PNET_EVENT_INFO NewInfo = NULL;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -349,14 +349,14 @@ NTSTATUS __stdcall NetEventInfo_Allocate(
 
     NewInfo = Km_MM_AllocMemTyped(
         MemoryManager,
-        NETWORK_EVENT_INFO);
+        NET_EVENT_INFO);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewInfo),
         STATUS_INSUFFICIENT_RESOURCES);
 
     RtlZeroMemory(
         NewInfo,
-        sizeof(NETWORK_EVENT_INFO));
+        sizeof(NET_EVENT_INFO));
 
     *EventInfo = NewInfo;
 
@@ -365,9 +365,9 @@ cleanup:
 };
 
 NTSTATUS __stdcall NetEventInfo_FFB_TCP(
-    __in    PVOID               Buffer,
-    __in    ULONG               BufferSize,
-    __inout PNETWORK_EVENT_INFO EventInfo)
+    __in    PVOID           Buffer,
+    __in    ULONG           BufferSize,
+    __inout PNET_EVENT_INFO EventInfo)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
     PTCP_HEADER Header = NULL;
@@ -384,17 +384,17 @@ NTSTATUS __stdcall NetEventInfo_FFB_TCP(
 
     Header = (PTCP_HEADER)Buffer;
 
-    EventInfo->Local.Port = Header->SourcePort;
-    EventInfo->Remote.Port = Header->DestinationPort;
+    EventInfo->Local.TransportSpecific = Header->SourcePort;
+    EventInfo->Remote.TransportSpecific = Header->DestinationPort;
 
 cleanup:
     return Status;
 };
 
 NTSTATUS __stdcall NetEventInfo_FFB_UDP(
-    __in    PVOID               Buffer,
-    __in    ULONG               BufferSize,
-    __inout PNETWORK_EVENT_INFO EventInfo)
+    __in    PVOID           Buffer,
+    __in    ULONG           BufferSize,
+    __inout PNET_EVENT_INFO EventInfo)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
     PUDP_HEADER Header = NULL;
@@ -411,17 +411,17 @@ NTSTATUS __stdcall NetEventInfo_FFB_UDP(
 
     Header = (PUDP_HEADER)Buffer;
 
-    EventInfo->Local.Port = Header->SourcePort;
-    EventInfo->Remote.Port = Header->DestinationPort;
+    EventInfo->Local.TransportSpecific = Header->SourcePort;
+    EventInfo->Remote.TransportSpecific = Header->DestinationPort;
 
 cleanup:
     return Status;
 };
 
 NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
-    __in    PVOID               Buffer,
-    __in    ULONG               BufferSize,
-    __inout PNETWORK_EVENT_INFO EventInfo)
+    __in    PVOID           Buffer,
+    __in    ULONG           BufferSize,
+    __inout PNET_EVENT_INFO EventInfo)
 {
     NTSTATUS    Status = STATUS_SUCCESS;
     PETH_HEADER EthHeader = NULL;
@@ -439,6 +439,8 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
 
     EthHeader = (PETH_HEADER)Buffer;
 
+    EventInfo->EthType = EthHeader->EthType;
+
     switch (EthHeader->EthType)
     {
     case ETH_TYPE_IP_BE:
@@ -447,13 +449,11 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
 
             IpHeaderLength = (Header->VerLen & 15) * 4;
             
-            EventInfo->AddressFamily = AF_INET;
-
             EventInfo->IpProtocol = Header->Protocol;
 
-            EventInfo->Local.Address.Address.v4.ip.l = Header->SourceAddress.ip.l;
+            EventInfo->Local.IpAddress.Address.v4.ip.l = Header->SourceAddress.ip.l;
 
-            EventInfo->Remote.Address.Address.v4.ip.l = Header->DestinationAddress.ip.l;
+            EventInfo->Remote.IpAddress.Address.v4.ip.l = Header->DestinationAddress.ip.l;
 
             switch (Header->Protocol)
             {
@@ -482,15 +482,14 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
 
             IpHeaderLength = sizeof(IP6_HEADER);
             
-            EventInfo->AddressFamily = AF_INET6;
             EventInfo->IpProtocol = Header->NextHeader;
 
             RtlCopyMemory(
-                &EventInfo->Local.Address,
+                &EventInfo->Local.IpAddress,
                 &Header->SourceAddress,
                 sizeof(IP_ADDRESS_V6));
             RtlCopyMemory(
-                &EventInfo->Remote.Address,
+                &EventInfo->Remote.IpAddress,
                 &Header->DestinationAddress,
                 sizeof(IP_ADDRESS_V6));
 
@@ -521,37 +520,6 @@ NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
         }break;
     };
     
-cleanup:
-    return Status;
-};
-
-NTSTATUS __stdcall NetEventInfoToPacketDesc(
-    __in    PNETWORK_EVENT_INFO EventInfo,
-    __out   PPACKET_DESC        PacketDesc)
-{
-    NTSTATUS    Status = STATUS_SUCCESS;
-
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(EventInfo),
-        STATUS_INVALID_PARAMETER_1);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(PacketDesc),
-        STATUS_INVALID_PARAMETER_2);
-
-    PacketDesc->IPProtocol = (unsigned char)EventInfo->IpProtocol;
-
-    PacketDesc->EthType =
-        EventInfo->AddressFamily == AF_INET ? ETH_TYPE_IP :
-        EventInfo->AddressFamily == AF_INET6 ? ETH_TYPE_IP6 : 0;
-
-    PacketDesc->DestinationIPAddress = EventInfo->Remote.Address;
-    PacketDesc->DestinationPortOrIcmpCode.DestinationPort = EventInfo->Remote.Port;
-    
-    PacketDesc->SourceIPAddress = EventInfo->Remote.Address;
-    PacketDesc->SourcePortOrIcmpType.SourcePort = EventInfo->Remote.Port;
-
-    PacketDesc->ProcessId = (unsigned long)EventInfo->Process.Id;
-
 cleanup:
     return Status;
 };

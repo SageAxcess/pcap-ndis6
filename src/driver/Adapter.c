@@ -1276,22 +1276,14 @@ Protocol_ReceiveNetBufferListsHandler(
                     BufferLength,
                     &Adapter->CurrentEventInfo);
 
-                RtlZeroMemory(
-                    &Adapter->CurrentPacketDesc,
-                    sizeof(PACKET_DESC));
-
                 Km_Connections_GetPIDForPacket(
                     Adapter->DriverData->Other.Connections,
                     &Adapter->CurrentEventInfo,
                     &Adapter->CurrentEventInfo.Process.Id);
 
-                NetEventInfoToPacketDesc(
-                    &Adapter->CurrentEventInfo,
-                    &Adapter->CurrentPacketDesc);
-
                 if (KmRulesEngine_CheckRules(
                     Adapter->DriverData->Other.RulesEngineInstance,
-                    &Adapter->CurrentPacketDesc,
+                    &Adapter->CurrentEventInfo,
                     &CurrentRuleResolution) == STATUS_SUCCESS)
                 {
                     //  The rules engine contain a list of rules.

@@ -53,9 +53,13 @@ NTSTATUS __stdcall WfpUtils_GetAddressFamily(
     __in    UINT16          LayerId,
     __out   ADDRESS_FAMILY  *AddressFamily);
 
+NTSTATUS __stdcall WfpUtils_GetEthType(
+    __in    UINT16  LayerId,
+    __out   PUINT16 EthType);
+
 NTSTATUS __stdcall WfpUtils_FillNetworkEventInfo(
     __in    const   FWPS_INCOMING_VALUES            *InFixedValues,
     __in    const   FWPS_INCOMING_METADATA_VALUES   *InMetaValues,
-    __out           PNETWORK_EVENT_INFO             Info);
+    __out           PNET_EVENT_INFO                 Info);
 
 #endif

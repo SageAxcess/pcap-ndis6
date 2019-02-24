@@ -268,7 +268,7 @@ cleanup:
 
 NTSTATUS __stdcall KmRulesEngine_CheckRules(
     __in    HANDLE              InstanceHandle,
-    __in    PPACKET_DESC        PacketDesc,
+    __in    PNET_EVENT_INFO     EventInfo,
     __out   PKM_RULE_RESOLUTION Resolution)
 {
     NTSTATUS            Status = STATUS_SUCCESS;
@@ -278,7 +278,7 @@ NTSTATUS __stdcall KmRulesEngine_CheckRules(
         InstanceHandle != NULL,
         STATUS_INVALID_PARAMETER_1);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(PacketDesc),
+        Assigned(EventInfo),
         STATUS_INVALID_PARAMETER_2);
 
     Engine = (PKM_RULES_ENGINE)InstanceHandle;
@@ -295,8 +295,8 @@ NTSTATUS __stdcall KmRulesEngine_CheckRules(
             PKM_RULE    Rule = CONTAINING_RECORD(Entry, KM_RULE, Link);
             if (Engine->Rules.MatchingRoutine(
                 Engine->Rules.MatchingRoutineContext,
-                &Rule->PacketDesc,
-                PacketDesc) == 0)
+                &Rule->Info,
+                EventInfo) == 0)
             {
                 if (Assigned(Resolution))
                 {

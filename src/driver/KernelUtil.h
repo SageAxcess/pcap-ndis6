@@ -70,24 +70,16 @@ int __stdcall CompareAdapterIds(
 #define EqualAdapterIds(AdapterIdPtr1, AdapterIdPtr2) (CompareAdapterIds((AdapterIdPtr1), (AdapterIdPtr2)) == 0)
 
 ///////////////////////////////////////////////////
-// Network eEvent info helpers
+// Network event info helpers
 ///////////////////////////////////////////////////
 NTSTATUS __stdcall NetEventInfo_Allocate(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
-    __out   PNETWORK_EVENT_INFO *EventInfo);
+    __out   PNET_EVENT_INFO     *EventInfo);
 
 NTSTATUS __stdcall NetEventInfo_FillFromBuffer(
-    __in    PVOID               Buffer,
-    __in    ULONG               BufferSize,
-    __inout PNETWORK_EVENT_INFO EventInfo);
-
-///////////////////////////////////////////////////
-// Packet desc helpers
-///////////////////////////////////////////////////
-
-NTSTATUS __stdcall NetEventInfoToPacketDesc(
-    __in    PNETWORK_EVENT_INFO EventInfo,
-    __out   PPACKET_DESC        PacketDesc);
+    __in    PVOID           Buffer,
+    __in    ULONG           BufferSize,
+    __inout PNET_EVENT_INFO EventInfo);
 
 ///////////////////////////////////////////////////
 // IO buffer helpers

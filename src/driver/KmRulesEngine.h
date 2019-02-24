@@ -39,14 +39,14 @@ typedef struct _KM_RULE
 
     KM_RULE_RESOLUTION  Resolution;
 
-    PACKET_DESC         PacketDesc;
+    NET_EVENT_INFO      Info;
 
 } KM_RULE, *PKM_RULE;
 
 typedef int(__stdcall _KM_RULES_ENGINE_RULE_MATCHING_ROUTINE)(
     __in    PVOID           Context,
-    __in    PPACKET_DESC    RuleDesc,
-    __in    PPACKET_DESC    EventDesc);
+    __in    PNET_EVENT_INFO RuleInfo,
+    __in    PNET_EVENT_INFO RuleDesc);
 typedef _KM_RULES_ENGINE_RULE_MATCHING_ROUTINE  KM_RULES_ENGINE_RULE_MATCHING_ROUTINE, *PKM_RULES_ENGINE_RULE_MATCHING_ROUTINE;
 
 NTSTATUS __stdcall KmRulesEngine_Initialize(
@@ -69,5 +69,5 @@ NTSTATUS __stdcall KmRulesEngine_RemoveRuleByHandle(
 
 NTSTATUS __stdcall KmRulesEngine_CheckRules(
     __in    HANDLE              InstanceHandle,
-    __in    PPACKET_DESC        PacketDesc,
+    __in    PNET_EVENT_INFO     EventInfo,
     __out   PKM_RULE_RESOLUTION Resolution);

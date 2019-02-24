@@ -57,51 +57,6 @@ typedef struct _KM_TIME
     long    Microseconds;
 } KM_TIME, *PKM_TIME;
 
-#define NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE    1024
-
-typedef struct _NETWORK_EVENT_INFO
-{
-    //  IP protocol (one of IPPROTO_XXX values)
-    unsigned short  IpProtocol;
-
-    //  Address family (AF_INET or AF_INET6)
-    unsigned short  AddressFamily;
-
-    struct Local
-    {
-        //  Local address
-        IP_ADDRESS      Address;
-
-        //  Local port
-        unsigned short  Port;
-
-    } Local;
-
-    struct Remote
-    {
-        //  Remote address
-        IP_ADDRESS      Address;
-
-        //  Remote port
-        unsigned short  Port;
-
-    } Remote;
-
-    struct Process
-    {
-        //  Process id
-        unsigned long long  Id;
-
-        //  Process executable path size (in bytes)
-        unsigned long       NameSize;
-
-        //  Process executable path buffer
-        wchar_t             NameBuffer[NETWORK_EVENT_INFO_PROCESS_PATH_MAX_SIZE];
-
-    } Process;
-
-} NETWORK_EVENT_INFO, *PNETWORK_EVENT_INFO;
-
 typedef struct _ADAPTER_CLOSE_CONTEXT
 {
     //  Memory manager for this context
@@ -181,14 +136,7 @@ typedef __declspec(align(1)) struct _ADAPTER
     //  
     //  Current network event info
     //  This field is being used during packet receive.
-    NETWORK_EVENT_INFO      CurrentEventInfo;
-
-    //  RESERVED.
-    //  Do not use outside of packet reading routine.
-    //
-    //  Current packet desc info
-    //  This field is being use during packet receive.
-    PACKET_DESC             CurrentPacketDesc;
+    NET_EVENT_INFO          CurrentEventInfo;
 
     //  Pointer to the adapter close context
     PADAPTER_CLOSE_CONTEXT  CloseContext;

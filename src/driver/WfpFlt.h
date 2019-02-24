@@ -27,7 +27,7 @@ typedef enum _WFP_NETWORK_EVENT_TYPE
 
 typedef void(__stdcall _WFP_NETWORK_EVENT_CALLBACK)(
     __in    WFP_NETWORK_EVENT_TYPE  EventType,
-    __in    PNETWORK_EVENT_INFO     Info,
+    __in    PNET_EVENT_INFO         Info,
     __in    PVOID                   Context);
 typedef _WFP_NETWORK_EVENT_CALLBACK WFP_NETWORK_EVENT_CALLBACK, *PWFP_NETWORK_EVENT_CALLBACK;
 

@@ -357,8 +357,6 @@ BOOL NdisDriverNextPacket(
         ULONG       RequiredSize = bpf->bh_hdrlen + bpf->bh_datalen;
         PUCHAR      CurrentPtr;
 
-		//printf("[packet.dll] Header: datalen=%d, caplen=%d, hdrlen=%d, pid=%d\n", bpf->bh_datalen, bpf->bh_caplen, bpf->bh_hdrlen, bpf->ProcessId);
-
         LOG::LogMessageFmt(
             L"%S: Copying packet. SizeLeft = %d, RequiredSize = %d\n",
             __FUNCTION__,
@@ -584,17 +582,17 @@ std::wstring NdisDriver_PacketToString(
         Assigned(Packet),
         L"");
 
-    PACKET_DESC PacketDesc;
+    NET_EVENT_INFO  EventInfo;
 
     RETURN_VALUE_IF_FALSE(
         UTILS::PKT::Parse(
             Packet->Buffer,
             Packet->Length,
             0,
-            &PacketDesc),
+            &EventInfo),
         L"");
 
-    return UTILS::PKT::PacketDescToStringW(&PacketDesc);
+    return UTILS::PKT::NetEventInfoToStringW(&EventInfo);
 };
 
 std::wstring NdisDriver_PacketExToString(
@@ -604,17 +602,17 @@ std::wstring NdisDriver_PacketExToString(
         Assigned(Packet),
         L"");
 
-    PACKET_DESC PacketDesc;
+    NET_EVENT_INFO  EventInfo;
 
     RETURN_VALUE_IF_FALSE(
         UTILS::PKT::Parse(
             Packet->Packet.Buffer,
             Packet->Packet.Length,
             static_cast<ULONG>(Packet->ProcessId),
-            &PacketDesc),
+            &EventInfo),
         L"");
 
-    return UTILS::PKT::PacketDescToStringW(&PacketDesc);
+    return UTILS::PKT::NetEventInfoToStringW(&EventInfo);
 };
 
 void NdisDriverLogPacket(

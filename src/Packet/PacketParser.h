@@ -24,14 +24,14 @@ namespace UTILS
     namespace PKT
     {
         BOOL Parse(
-            __in    LPVOID          Buffer,
-            __in    ULONG           BufferSize,
-            __in    ULONG           ProcessId,
-            __out   LPPACKET_DESC   PacketDesc);
+            __in    LPVOID              Buffer,
+            __in    ULONG               BufferSize,
+            __in    ULONG               ProcessId,
+            __out   LPNET_EVENT_INFO    EventInfo);
 
-        std::wstring PacketDescToStringW(
-            __in        LPPACKET_DESC   PacketDesc,
-            __in_opt    BOOLEAN         IncludeEthDetails = FALSE);
+        std::wstring NetEventInfoToStringW(
+            __in        LPNET_EVENT_INFO    EventInfo,
+            __in_opt    BOOLEAN             IncludeEthDetails = FALSE);
 
         std::wstring EthAddressToStringW(
             __in    PETH_ADDRESS    Address);

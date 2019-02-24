@@ -15,43 +15,43 @@
 #include "..\shared\StrUtils.h"
 
 BOOL UTILS::PKT::Parse(
-    __in    LPVOID          Buffer,
-    __in    ULONG           BufferSize,
-    __in    ULONG           ProcessId,
-    __out   LPPACKET_DESC   PacketDesc)
+    __in    LPVOID              Buffer,
+    __in    ULONG               BufferSize,
+    __in    ULONG               ProcessId,
+    __out   LPNET_EVENT_INFO    EventInfo)
 {
     RETURN_VALUE_IF_FALSE(
         (Assigned(Buffer)) &&
         (BufferSize >= static_cast<ULONG>(sizeof(ETH_HEADER))) &&
-        (Assigned(PacketDesc)),
+        (Assigned(EventInfo)),
         FALSE);
 
-    PACKET_DESC Desc;
-    PETH_HEADER EthHeader = nullptr;
-    DWORD       IpHeaderLength = 0;
-    PUCHAR      TransportHeaderPtr = nullptr;
+    NET_EVENT_INFO  Info;
+    PETH_HEADER     EthHeader = nullptr;
+    DWORD           IpHeaderLength = 0;
+    PUCHAR          TransportHeaderPtr = nullptr;
 
     RtlZeroMemory(
-        &Desc,
-        sizeof(Desc));
+        &Info,
+        sizeof(Info));
 
-    Desc.ProcessId = ProcessId;
+    Info.Process.Id = ProcessId;
 
     EthHeader = reinterpret_cast<PETH_HEADER>(Buffer);
 
     RtlCopyMemory(
-        &Desc.SourceEthAddress,
+        &Info.Local.EthAddress,
         &EthHeader->SrcAddr,
         sizeof(ETH_ADDRESS));
 
     RtlCopyMemory(
-        &Desc.DestinationEthAddress,
+        &Info.Remote.EthAddress,
         &EthHeader->DstAddr,
         sizeof(ETH_ADDRESS));
 
-    Desc.EthType = EthHeader->EthType;
+    Info.EthType = EthHeader->EthType;
 
-    switch (Desc.EthType)
+    switch (Info.EthType)
     {
     case ETH_TYPE_IP:
     case ETH_TYPE_IP_BE:
@@ -63,9 +63,9 @@ BOOL UTILS::PKT::Parse(
 
                 IpHeaderLength = (Header->VerLen & 15) * 4;
 
-                Desc.SourceIPAddress.Address.v4 = Header->SourceAddress;
-                Desc.DestinationIPAddress.Address.v4 = Header->DestinationAddress;
-                Desc.IPProtocol = Header->Protocol;
+                Info.Local.IpAddress.Address.v4 = Header->SourceAddress;
+                Info.Remote.IpAddress.Address.v4 = Header->DestinationAddress;
+                Info.IpProtocol = Header->Protocol;
             }
         }break;
 
@@ -79,9 +79,9 @@ BOOL UTILS::PKT::Parse(
 
                 IpHeaderLength = sizeof(IP6_HEADER);
 
-                Desc.SourceIPAddress.Address.v6 = Header->SourceAddress;
-                Desc.DestinationIPAddress.Address.v6 = Header->DestinationAddress;
-                Desc.IPProtocol = Header->NextHeader;
+                Info.Local.IpAddress.Address.v6 = Header->SourceAddress;
+                Info.Remote.IpAddress.Address.v6 = Header->DestinationAddress;
+                Info.IpProtocol = Header->NextHeader;
             }
         }break;
     };
@@ -92,7 +92,7 @@ BOOL UTILS::PKT::Parse(
 
         TransportHeaderPtr = reinterpret_cast<PUCHAR>(Buffer) + TransportHeaderOffset;
 
-        switch (Desc.IPProtocol)
+        switch (Info.IpProtocol)
         {
         case IPPROTO_TCP:
             {
@@ -100,8 +100,8 @@ BOOL UTILS::PKT::Parse(
                 {
                     PTCP_HEADER Header = reinterpret_cast<PTCP_HEADER>(TransportHeaderPtr);
 
-                    Desc.SourcePortOrIcmpType.SourcePort = Header->SourcePort;
-                    Desc.DestinationPortOrIcmpCode.DestinationPort = Header->DestinationPort;
+                    Info.Local.TransportSpecific = Header->SourcePort;
+                    Info.Remote.TransportSpecific = Header->DestinationPort;
                 }
             }break;
 
@@ -111,8 +111,8 @@ BOOL UTILS::PKT::Parse(
                 {
                     PUDP_HEADER Header = reinterpret_cast<PUDP_HEADER>(TransportHeaderPtr);
 
-                    Desc.SourcePortOrIcmpType.SourcePort = Header->SourcePort;
-                    Desc.DestinationPortOrIcmpCode.DestinationPort = Header->DestinationPort;
+                    Info.Local.TransportSpecific = Header->SourcePort;
+                    Info.Remote.TransportSpecific = Header->DestinationPort;
                 }
             }break;
 
@@ -122,27 +122,27 @@ BOOL UTILS::PKT::Parse(
                 {
                     PICMP_HEADER Header = reinterpret_cast<PICMP_HEADER>(TransportHeaderPtr);
 
-                    Desc.DestinationPortOrIcmpCode.IcmpCode = Header->Code;
-                    Desc.SourcePortOrIcmpType.IcmpType = Header->IcmpType;
+                    Info.Local.TransportSpecific = Header->IcmpType;
+                    Info.Remote.TransportSpecific = Header->Code;
                 }
             }break;
         };
     }
 
     RtlCopyMemory(
-        PacketDesc,
-        &Desc,
-        sizeof(Desc));
+        EventInfo,
+        &Info,
+        sizeof(Info));
 
     return TRUE;
 };
 
-std::wstring UTILS::PKT::PacketDescToStringW(
-    __in        LPPACKET_DESC   PacketDesc,
-    __in_opt    BOOLEAN         IncludeEthDetails)
+std::wstring UTILS::PKT::NetEventInfoToStringW(
+    __in        LPNET_EVENT_INFO    EventInfo,
+    __in_opt    BOOLEAN             IncludeEthDetails)
 {
     RETURN_VALUE_IF_FALSE(
-        Assigned(PacketDesc),
+        Assigned(EventInfo),
         L"");
 
     std::wstring    EthDetailsStr;
@@ -155,25 +155,25 @@ std::wstring UTILS::PKT::PacketDescToStringW(
     {
         EthDetailsStr = UTILS::STR::FormatW(
             L"ETH: SRC=%s, DST=%s, TYPE=%04x ",
-            EthAddressToStringW(&PacketDesc->SourceEthAddress).c_str(),
-            EthAddressToStringW(&PacketDesc->DestinationEthAddress).c_str(),
-            PacketDesc->EthType);
+            EthAddressToStringW(&EventInfo->Local.EthAddress).c_str(),
+            EthAddressToStringW(&EventInfo->Local.EthAddress).c_str(),
+            EventInfo->EthType);
     }
 
-    switch (PacketDesc->EthType)
+    switch (EventInfo->EthType)
     {
     case ETH_TYPE_IP:
     case ETH_TYPE_IP_BE:
         {
-            SrcIPStr = IP4AddressToStringW(&PacketDesc->SourceIPAddress.Address.v4);
-            DstIPStr = IP4AddressToStringW(&PacketDesc->DestinationIPAddress.Address.v4);
+            SrcIPStr = IP4AddressToStringW(&EventInfo->Local.IpAddress.Address.v4);
+            DstIPStr = IP4AddressToStringW(&EventInfo->Remote.IpAddress.Address.v4);
         }break;
 
     case ETH_TYPE_IP6:
     case ETH_TYPE_IP6_BE:
         {
-            SrcIPStr = IP6AddressToStringW(&PacketDesc->SourceIPAddress.Address.v6);
-            DstIPStr = IP6AddressToStringW(&PacketDesc->DestinationIPAddress.Address.v6);
+            SrcIPStr = IP6AddressToStringW(&EventInfo->Local.IpAddress.Address.v6);
+            DstIPStr = IP6AddressToStringW(&EventInfo->Remote.IpAddress.Address.v6);
         }break;
     };
 
@@ -182,10 +182,10 @@ std::wstring UTILS::PKT::PacketDescToStringW(
         UTILS::STR::FormatW(
             L"src=%s:%d, dst=%s:%d, ipproto = %d",
             SrcIPStr.c_str(),
-            PacketDesc->SourcePortOrIcmpType.SourcePort,
+            EventInfo->Local.TransportSpecific,
             DstIPStr.c_str(),
-            PacketDesc->DestinationPortOrIcmpCode.DestinationPort,
-            PacketDesc->IPProtocol);
+            EventInfo->Remote.TransportSpecific,
+            EventInfo->IpProtocol);
 
     return Result;
 };

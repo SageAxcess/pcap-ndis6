@@ -177,36 +177,50 @@ typedef struct _ICMP_HEADER
     unsigned short  SeqNum;
 } ICMP_HEADER, *PICMP_HEADER;
 
-typedef struct _PACKET_DESC
+#define NET_EVENT_INFO_PROCESS_PATH_MAX_SIZE    1024
+
+typedef struct _NET_EVENT_INFO
 {
-    //  Owner process ID or zero
-    unsigned long   ProcessId;
-
-    ETH_ADDRESS     SourceEthAddress;
-
-    ETH_ADDRESS     DestinationEthAddress;
-
+    //  Eth type
     unsigned short  EthType;
 
-    IP_ADDRESS      SourceIPAddress;
+    //  IP protocol (one of IPPROTO_XXX values)
+    unsigned short  IpProtocol;
 
-    IP_ADDRESS      DestinationIPAddress;
-
-    unsigned char   IPProtocol;
-
-    union SourcePortOrIcmpType
+    struct NEI_IP_AND_TRANSPORT
     {
-        unsigned short  SourcePort;
-        unsigned short  IcmpType;
-    } SourcePortOrIcmpType;
+        //  Source or destination physical address
+        ETH_ADDRESS     EthAddress;
 
-    union DestinationPortOrIcmpCode
+        //  Source or destination ip address
+        IP_ADDRESS      IpAddress;
+
+        //  Transport-specific local/source remote/destination value.
+        //  It can be a TCP/UDP port or an ICMP type/code or any other
+        //  transport-specific value.
+        unsigned short  TransportSpecific;
+
+    } Remote, Local;
+
+    struct NEI_PROCESS
     {
-        unsigned short DestinationPort;
-        unsigned short IcmpCode;
-    } DestinationPortOrIcmpCode;
+        //  Process id
+        unsigned long long  Id;
 
-} PACKET_DESC, *PPACKET_DESC, *LPPACKET_DESC;
+        //  Process executable path size (in bytes)
+        unsigned long       NameSize;
+
+        //  Process executable path buffer
+        wchar_t             NameBuffer[NET_EVENT_INFO_PROCESS_PATH_MAX_SIZE];
+
+    } Process;
+
+} NET_EVENT_INFO, *PNET_EVENT_INFO, *LPNET_EVENT_INFO;
+
+#define EthTypeToAddressFamily(Value) \
+    ((((Value) == ETH_TYPE_IP) || ((Value) == ETH_TYPE_IP_BE)) ? AF_INET : \
+     (((Value) == ETH_TYPE_IP6) || ((Value) == ETH_TYPE_IP6_BE)) ? AF_INET6 : \
+     AF_UNSPEC)
 
 #pragma pack(pop)
 

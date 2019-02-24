@@ -19,7 +19,7 @@ typedef struct _KM_CONNECTIONS_ITEM
 {
     LIST_ENTRY          Link;
 
-    NETWORK_EVENT_INFO  Info;
+    NET_EVENT_INFO      Info;
 
 } KM_CONNECTIONS_ITEM, *PKM_CONNECTIONS_ITEM;
 
@@ -39,14 +39,14 @@ int __stdcall Km_Connections_GetPID_ItemCmpCallback(
     __in    PLIST_ENTRY Item)
 {
     PKM_CONNECTIONS_ITEM    ConnItem = CONTAINING_RECORD(Item, KM_CONNECTIONS_ITEM, Link);
-    PNETWORK_EVENT_INFO     EventInfo = (PNETWORK_EVENT_INFO)ItemDefinition;
+    PNET_EVENT_INFO         EventInfo = (PNET_EVENT_INFO)ItemDefinition;
 
     UNREFERENCED_PARAMETER(List);
 
     if ((Assigned(ConnItem)) &&
         (Assigned(EventInfo)))
     {
-        int CmpRes = COMPARE_VALUES(EventInfo->AddressFamily, ConnItem->Info.AddressFamily);
+        int CmpRes = COMPARE_VALUES(EventInfo->EthType, ConnItem->Info.EthType);
         if (CmpRes == 0)
         {
             CmpRes = COMPARE_VALUES(EventInfo->IpProtocol, ConnItem->Info.IpProtocol);
@@ -55,27 +55,27 @@ int __stdcall Km_Connections_GetPID_ItemCmpCallback(
                 //  1st pass
 
                 #pragma region STD_COMPARE
-                CmpRes = COMPARE_VALUES(EventInfo->Local.Port, ConnItem->Info.Local.Port);
+                CmpRes = COMPARE_VALUES(EventInfo->Local.TransportSpecific, ConnItem->Info.Local.TransportSpecific);
                 if (CmpRes == 0)
                 {
-                    CmpRes = COMPARE_VALUES(EventInfo->Remote.Port, ConnItem->Info.Remote.Port);
+                    CmpRes = COMPARE_VALUES(EventInfo->Remote.TransportSpecific, ConnItem->Info.Remote.TransportSpecific);
                     if (CmpRes == 0)
                     {
-                        size_t  CmpSize =
-                            EventInfo->AddressFamily == 2 ?
+                        size_t  CmpSize = 
+                            EthTypeToAddressFamily(EventInfo->EthType) == AF_INET ?
                             sizeof(IP_ADDRESS_V4) :
                             sizeof(IP_ADDRESS_V6);
 
                         CmpRes = memcmp(
-                            &EventInfo->Local.Address,
-                            &ConnItem->Info.Local.Address,
+                            &EventInfo->Local.IpAddress,
+                            &ConnItem->Info.Local.IpAddress,
                             CmpSize);
 
                         if (CmpRes == 0)
                         {
                             CmpRes = memcmp(
-                                &EventInfo->Remote.Address,
-                                &ConnItem->Info.Remote.Address,
+                                &EventInfo->Remote.IpAddress,
+                                &ConnItem->Info.Remote.IpAddress,
                                 CmpSize);
                         }
                     }
@@ -87,27 +87,27 @@ int __stdcall Km_Connections_GetPID_ItemCmpCallback(
                 #pragma region REVERESE_COMPARE
                 if (CmpRes != 0)
                 {
-                    CmpRes = COMPARE_VALUES(EventInfo->Remote.Port, ConnItem->Info.Local.Port);
+                    CmpRes = COMPARE_VALUES(EventInfo->Remote.TransportSpecific, ConnItem->Info.Local.TransportSpecific);
                     if (CmpRes == 0)
                     {
-                        CmpRes = COMPARE_VALUES(EventInfo->Local.Port, ConnItem->Info.Remote.Port);
+                        CmpRes = COMPARE_VALUES(EventInfo->Local.TransportSpecific, ConnItem->Info.Remote.TransportSpecific);
                         if (CmpRes == 0)
                         {
                             size_t  CmpSize =
-                                EventInfo->AddressFamily == 2 ?
+                                EthTypeToAddressFamily(EventInfo->EthType) == AF_INET ? 
                                 sizeof(IP_ADDRESS_V4) :
                                 sizeof(IP_ADDRESS_V6);
 
                             CmpRes = memcmp(
-                                &EventInfo->Remote.Address,
-                                &ConnItem->Info.Local.Address,
+                                &EventInfo->Remote.IpAddress,
+                                &ConnItem->Info.Local.IpAddress,
                                 CmpSize);
 
                             if (CmpRes == 0)
                             {
                                 CmpRes = memcmp(
-                                    &EventInfo->Local.Address,
-                                    &ConnItem->Info.Remote.Address,
+                                    &EventInfo->Local.IpAddress,
+                                    &ConnItem->Info.Remote.IpAddress,
                                     CmpSize);
                             }
                         }
@@ -129,39 +129,39 @@ int __stdcall Km_Connections_ItemCmpCallback(
     __in    PLIST_ENTRY Item)
 {
     PKM_CONNECTIONS_ITEM    ConnItem = CONTAINING_RECORD(Item, KM_CONNECTIONS_ITEM, Link);
-    PNETWORK_EVENT_INFO     EventInfo = (PNETWORK_EVENT_INFO)ItemDefinition;
+    PNET_EVENT_INFO         EventInfo = (PNET_EVENT_INFO)ItemDefinition;
 
     UNREFERENCED_PARAMETER(List);
 
     if ((Assigned(ConnItem)) &&
         (Assigned(EventInfo)))
     {
-        int CmpRes = COMPARE_VALUES(EventInfo->AddressFamily, ConnItem->Info.AddressFamily);
+        int CmpRes = COMPARE_VALUES(EventInfo->EthType, ConnItem->Info.EthType);
         if (CmpRes == 0)
         {
             CmpRes = COMPARE_VALUES(EventInfo->IpProtocol, ConnItem->Info.IpProtocol);
             if (CmpRes == 0)
             {
-                CmpRes = COMPARE_VALUES(EventInfo->Local.Port, ConnItem->Info.Local.Port);
+                CmpRes = COMPARE_VALUES(EventInfo->Local.TransportSpecific, ConnItem->Info.Local.TransportSpecific);
                 if (CmpRes == 0)
                 {
-                    CmpRes = COMPARE_VALUES(EventInfo->Remote.Port, ConnItem->Info.Remote.Port);
+                    CmpRes = COMPARE_VALUES(EventInfo->Remote.TransportSpecific, ConnItem->Info.Remote.TransportSpecific);
                     if (CmpRes == 0)
                     {
                         size_t  CmpSize =
-                            EventInfo->AddressFamily == 2 ?
+                            EthTypeToAddressFamily(EventInfo->EthType) == AF_INET ?
                             sizeof(IP_ADDRESS_V4) :
                             sizeof(IP_ADDRESS_V6);
 
                         CmpRes = memcmp(
-                            &EventInfo->Local.Address,
-                            &ConnItem->Info.Local.Address,
+                            &EventInfo->Local.IpAddress,
+                            &ConnItem->Info.Local.IpAddress,
                             CmpSize);
                         if (CmpRes == 0)
                         {
                             return memcmp(
-                                &EventInfo->Remote.Address,
-                                &ConnItem->Info.Remote.Address,
+                                &EventInfo->Remote.IpAddress,
+                                &ConnItem->Info.Remote.IpAddress,
                                 CmpSize);
                         }
                     }
@@ -177,7 +177,7 @@ int __stdcall Km_Connections_ItemCmpCallback(
 
 NTSTATUS __stdcall Km_Connections_AllocateItem(
     __in    HANDLE                  MemoryPool,
-    __in    PNETWORK_EVENT_INFO     Info,
+    __in    PNET_EVENT_INFO         Info,
     __out   PKM_CONNECTIONS_ITEM    *Item)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
@@ -206,7 +206,7 @@ NTSTATUS __stdcall Km_Connections_AllocateItem(
     RtlCopyMemory(
         &NewItem->Info,
         Info,
-        sizeof(NETWORK_EVENT_INFO));
+        sizeof(NET_EVENT_INFO));
 
     *Item = NewItem;
 
@@ -325,8 +325,8 @@ cleanup:
 };
 
 NTSTATUS __stdcall Km_Connections_Add(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info)
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
     PKM_CONNECTIONS_DATA    Data = NULL;
@@ -381,8 +381,8 @@ cleanup:
 };
 
 NTSTATUS __stdcall Km_Connections_Remove(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info)
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
     PKM_CONNECTIONS_DATA    Data = NULL;
@@ -434,9 +434,9 @@ cleanup:
 };
 
 NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info,
-    __out   PULONGLONG          ProcessId)
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info,
+    __out   PULONGLONG      ProcessId)
 {
     NTSTATUS                Status = STATUS_SUCCESS;
     PKM_CONNECTIONS_DATA    Data = NULL;

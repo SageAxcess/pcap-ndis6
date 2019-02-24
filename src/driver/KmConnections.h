@@ -27,16 +27,16 @@ NTSTATUS __stdcall Km_Connections_Finalize(
     __in    HANDLE  Instance);
 
 NTSTATUS __stdcall Km_Connections_Add(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info);
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info);
 
 NTSTATUS __stdcall Km_Connections_Remove(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info);
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info);
 
 NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
-    __in    HANDLE              Instance,
-    __in    PNETWORK_EVENT_INFO Info,
-    __out   PULONGLONG          ProcessId);
+    __in    HANDLE          Instance,
+    __in    PNET_EVENT_INFO Info,
+    __out   PULONGLONG      ProcessId);
 
 #endif

@@ -138,16 +138,16 @@ typedef struct _WFP_FLOW_INFO
 typedef struct _WFP_FLOW_CONTEXT
 {
     //  List link
-    LIST_ENTRY          Link;
+    LIST_ENTRY      Link;
 
     //  Flow info
-    WFP_FLOW_INFO       FlowInfo;
+    WFP_FLOW_INFO   FlowInfo;
 
     //  Network event info
-    PNETWORK_EVENT_INFO Info;
+    PNET_EVENT_INFO Info;
 
     //  Wfp data
-    PWFP_DATA           WfpData;
+    PWFP_DATA       WfpData;
 
 } WFP_FLOW_CONTEXT, *PWFP_FLOW_CONTEXT;
 
@@ -268,10 +268,10 @@ NTSTATUS Wfp_AddDefaultFilteringRule(
     __out           PUINT64     FilterId);
 
 NTSTATUS Wfp_AllocateAndAssociateFlowContext(
-    __in    PWFP_DATA           Data,
-    __in    PNETWORK_EVENT_INFO Info,
-    __in    UINT64              FlowHandle,
-    __in    UINT16              LayerId);
+    __in    PWFP_DATA       Data,
+    __in    PNET_EVENT_INFO Info,
+    __in    UINT64          FlowHandle,
+    __in    UINT16          LayerId);
 
 NTSTATUS Wfp_FindCalloutIdByLayerId(
     __in    PWFP_DATA   Data,
@@ -477,9 +477,9 @@ cleanup:
 
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
 {
-    NTSTATUS            Status = STATUS_SUCCESS;
-    PWFP_DATA           Data = NULL;
-    PNETWORK_EVENT_INFO Info = NULL;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PWFP_DATA       Data = NULL;
+    PNET_EVENT_INFO Info = NULL;
 
     UNREFERENCED_PARAMETER(ClassifyContext);
     UNREFERENCED_PARAMETER(LayerData);
@@ -511,7 +511,7 @@ WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_Connect_Callback)
 
     Info = Km_MM_AllocMemTyped(
         Data->MemoryManager,
-        NETWORK_EVENT_INFO);
+        NET_EVENT_INFO);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Info),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -568,9 +568,9 @@ cleanup:
 
 WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_RecvAccept_Callback)
 {
-    NTSTATUS            Status = STATUS_SUCCESS;
-    PWFP_DATA           Data = NULL;
-    PNETWORK_EVENT_INFO Info = NULL;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    PWFP_DATA       Data = NULL;
+    PNET_EVENT_INFO Info = NULL;
 
     UNREFERENCED_PARAMETER(ClassifyContext);
     UNREFERENCED_PARAMETER(LayerData);
@@ -602,7 +602,7 @@ WFP_DECLARE_CALLOUT_CALLBACK1(Wfp_ALE_RecvAccept_Callback)
 
     Info = Km_MM_AllocMemTyped(
         Data->MemoryManager,
-        NETWORK_EVENT_INFO);
+        NET_EVENT_INFO);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Info),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -1091,10 +1091,10 @@ cleanup:
 };
 
 NTSTATUS Wfp_AllocateAndAssociateFlowContext(
-    __in    PWFP_DATA           Data,
-    __in    PNETWORK_EVENT_INFO Info,
-    __in    UINT64              FlowHandle,
-    __in    UINT16              LayerId)
+    __in    PWFP_DATA       Data,
+    __in    PNET_EVENT_INFO Info,
+    __in    UINT64          FlowHandle,
+    __in    UINT16          LayerId)
 {
     NTSTATUS            Status = STATUS_SUCCESS;
     ULONG               CalloutId;
