@@ -26,11 +26,11 @@ BEGIN
     BEGIN
         BLOCK "000004b0"
         BEGIN
-			VALUE "CompanyName",       "ChangeDynamix, Inc."
+			VALUE "CompanyName",       "Change Dynamix, Inc."
 			VALUE "FileDescription",   "packet-ndis6.dll Dynamic Link Library"
 			VALUE "FileVersion",       DRIVER_VER_STRING
 			VALUE "InternalName",      "packet-ndis6.dll"
-			VALUE "LegalCopyright",    "Copyright(c) ChangeDynamix, Inc., 2018"
+			VALUE "LegalCopyright",    "Copyright(c) Change Dynamix, Inc., 2019"
 			VALUE "LegalTrademarks",   ""
 			VALUE "OriginalFilename",  "packet-ndis6.dll"
 			VALUE "ProductName",       "AEGIS WinPCAP"
