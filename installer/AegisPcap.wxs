@@ -3,13 +3,13 @@
 	<Product Name="AegisPcap"
 					 Language="1033"
 					 Version="$(var.ProductVersion)"
-					 Manufacturer="ChangeDynamix, LLC"
+					 Manufacturer="Change Dynamix, Inc."
 					 Id="{7F3ADE9E-D317-47f2-9DC8-754887CD242A}"
 					 UpgradeCode="{E9E20FD8-905F-41be-97A7-991F0A0FAB9A}">
 
 		<Package InstallerVersion="200" Compressed="yes" Languages="1033"
 						 Description="Aegis"
-						 Manufacturer="ChangeDynamix, Inc."
+						 Manufacturer="Change Dynamix, Inc."
 						 Platform="x86" />
 
 		<Upgrade Id="{711CA6BE-6851-45fd-976E-C3968900C9AB}">
@@ -87,7 +87,7 @@
 		</Feature>
 
 		<Property Id="ARPCOMMENTS">AegisPcap</Property>
-		<Property Id="ARPCONTACT">ChangeDynamix, LLC</Property>
+		<Property Id="ARPCONTACT">Change Dynamix, Inc.</Property>
 		<Property Id="ARPHELPLINK">https://changedynamix.io/</Property>
 		<Property Id="ARPURLINFOABOUT">https://changedynamix.io/</Property>
 		<Property Id="ARPURLUPDATEINFO">https://changedynamix.io/</Property>
