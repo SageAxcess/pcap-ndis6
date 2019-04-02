@@ -1,7 +1,7 @@
 ;-------------------------------------------------------------------------
 ; pcap-ndis6.inf -- WinPCAP NDIS 6.x Filter Driver
 ;
-; Copyright (c) ChangeDynamix.  All rights reserved.
+; Copyright (c) Change Dynamix, Inc.  All rights reserved.
 ; Based on Windows 10 DDK Example code - Copyright (C) Microsoft
 ;
 ;-------------------------------------------------------------------------
@@ -82,8 +82,8 @@ HKR, Parameters, NdisImPlatformBindingOptions,0x00010001,0 ; Subscribe to defaul
 DelService=PcapNdis6,0x200 ; SPSVCINST_STOPSERVICE
 
 [Strings]
-ProviderString = "ChangeDynamix, Inc."
-ManufacturerName = "ChangeDynamix, Inc."
+ProviderString = "Change Dynamix, Inc."
+ManufacturerName = "Change Dynamix, Inc."
 PcapNdis6_Desc = "AEGIS WinPCAP"
 PcapNdis6_HelpText = "Captures packets for WinPcap"
 

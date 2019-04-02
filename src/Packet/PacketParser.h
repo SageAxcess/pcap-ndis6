@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2019 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
