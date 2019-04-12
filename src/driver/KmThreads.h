@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2017 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -21,9 +21,13 @@
 typedef struct _KM_THREAD
 {
     PKM_MEMORY_MANAGER  MemoryManager;
+
     PETHREAD            ThreadObject;
+
     KEVENT              StopEvent;
+
     PVOID               Context;
+
 } KM_THREAD, *PKM_THREAD;
 
 typedef void __stdcall _KM_THREAD_FUNCTION(
