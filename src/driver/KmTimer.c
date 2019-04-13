@@ -31,7 +31,7 @@ NTSTATUS __stdcall KmTimer_Allocate(
     NewTimer = Km_MM_AllocMemTypedWithTag(
         MemoryManager,
         KM_TIMER,
-        KM_TIMER_MEMORY_TAG);
+        KM_TIMER_OBJECT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewTimer),
         STATUS_INSUFFICIENT_RESOURCES);

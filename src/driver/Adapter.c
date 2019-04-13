@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2019 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -28,6 +28,8 @@
 #include "KmConnections.h"
 #include "KmMemoryPool.h"
 #include "KmRulesEngine.h"
+
+#include "KmMemoryTags.h"
 
 #include "..\..\driver_version.h"
 #include "..\shared\CommonDefs.h"
@@ -60,10 +62,11 @@ NTSTATUS __stdcall Adapter_Allocate(
     __in    NDIS_HANDLE             BindContext,
     __out   PADAPTER                *Adapter)
 {
-    NTSTATUS        Status = STATUS_SUCCESS;
-    PADAPTER        NewAdapter = NULL;
-    DWORD           SizeRequired = sizeof(ADAPTER);
-    UNICODE_STRING  TmpStr = RTL_CONSTANT_STRING(DEVICE_STR_W);
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PADAPTER                        NewAdapter = NULL;
+    DWORD                           SizeRequired = sizeof(ADAPTER);
+    UNICODE_STRING                  TmpStr = RTL_CONSTANT_STRING(DEVICE_STR_W);
+    KM_MEMORY_POOL_BLOCK_DEFINITION MPBlockDef;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -75,10 +78,11 @@ NTSTATUS __stdcall Adapter_Allocate(
         Assigned(Adapter),
         STATUS_INVALID_PARAMETER_4);
 
-    NewAdapter = Km_MM_AllocMemTypedWithSize(
+    NewAdapter = Km_MM_AllocMemTypedWithSizeAndTag(
         MemoryManager,
         ADAPTER,
-        SizeRequired);
+        SizeRequired,
+        ADAPTER_OBJECT_MEMORY_TAG);
     RETURN_VALUE_IF_FALSE(
         Assigned(NewAdapter),
         NDIS_STATUS_FAILURE);
@@ -88,11 +92,18 @@ NTSTATUS __stdcall Adapter_Allocate(
     Status = Km_List_Initialize(&NewAdapter->Packets.Allocated);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    RtlZeroMemory(&MPBlockDef, sizeof(MPBlockDef));
+
+    MPBlockDef.BlockSize = CalcRequiredPacketSize(BindParameters->MtuSize);
+    MPBlockDef.Type = LookasideList;
+    MPBlockDef.BlockCount = PACKETS_POOL_INITIAL_SIZE;
+    MPBlockDef.MemoryTag = ADAPTER_PACKET_POOL_MEMORY_TAG;
+
     Status = Km_MP_Initialize(
         MemoryManager,
-        CalcRequiredPacketSize(BindParameters->MtuSize) * 2,
-        PACKETS_POOL_INITIAL_SIZE,
-        FALSE,
+        &MPBlockDef,
+        1,
+        KM_MEMORY_POOL_FLAG_DYNAMIC | KM_MEMORY_POOL_FLAG_LOOKASIDE,
         ADAPTER_PACKET_POOL_MEMORY_TAG,
         &NewAdapter->Packets.Pool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -576,35 +587,11 @@ void __stdcall Adapter_WorkerThreadRoutine(
                                 {
                                     ULARGE_INTEGER  ClientPacketsCount;
                                     PPACKET NewPacket = NULL;
-                                    Status = Km_MP_AllocateCheckSize(
+                                    Status = Km_MP_Allocate(
                                         Adapter->DriverData->Clients.Items[k]->PacketsPool,
-
                                         sizeof(PACKET) + Packet->DataSize - 1,
                                         (PVOID *)&NewPacket);
                                     Cnt++;
-
-                                    if (Status == STATUS_NO_MORE_ENTRIES)
-                                    {
-                                        PLIST_ENTRY TmpEntry = NULL;
-
-                                        DEBUGP(
-                                            DL_WARN,
-                                            "%s: Client packets pool is full. Dropping 1 old packet\n",
-                                            __FUNCTION__);
-
-                                        Status = Km_List_RemoveListHeadEx(
-                                            &Adapter->DriverData->Clients.Items[k]->AllocatedPackets,
-                                            &TmpEntry,
-                                            FALSE,
-                                            TRUE);
-                                        CONTINUE_IF_FALSE(NT_SUCCESS(Status));
-
-                                        NewPacket = CONTAINING_RECORD(TmpEntry, PACKET, Link);
-                                    }
-                                    else
-                                    {
-                                        NewPacket->MaxDataSize = Adapter->MtuSize;
-                                    }
 
                                     CONTINUE_IF_FALSE(NT_SUCCESS(Status));
 
@@ -689,6 +676,8 @@ NTSTATUS Adapter_AllocateAndFillPacket(
     SIZE_T      SizeRequired = sizeof(PACKET) + PacketDataSize - 1;
     PETH_HEADER EthHeader = (PETH_HEADER)PacketData;
 
+    UNREFERENCED_PARAMETER(ProcessId);
+
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Adapter),
         STATUS_INVALID_PARAMETER_1);
@@ -721,16 +710,7 @@ NTSTATUS Adapter_AllocateAndFillPacket(
         goto cleanup;
     }
 
-    /*
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        (EthHeader->EthType == ETH_TYPE_IP) ||
-        (EthHeader->EthType == ETH_TYPE_IP6) ||
-        (EthHeader->EthType == ETH_TYPE_IP_BE) ||
-        (EthHeader->EthType == ETH_TYPE_IP6_BE),
-        STATUS_NOT_SUPPORTED);
-    */
-
-    Status = Km_MP_AllocateCheckSize(
+    Status = Km_MP_Allocate(
         Adapter->Packets.Pool,
         SizeRequired,
         (PVOID *)&NewPacket);
@@ -747,9 +727,8 @@ NTSTATUS Adapter_AllocateAndFillPacket(
         NewPacket,
         SizeRequired);
 
-    NewPacket->MaxDataSize = PacketDataSize;
-
     NewPacket->DataSize = PacketDataSize;
+
     RtlCopyMemory(
         &NewPacket->Timestamp,
         Timestamp,
@@ -1294,9 +1273,6 @@ Protocol_ReceiveNetBufferListsHandler(
                     continue;
                 };
 
-                //  We may loose certain extra-large packets here
-                //  (the ones exceeding the size of the mem pool entry
-
                 Status = Adapter_AllocateAndFillPacket(
                     Adapter,
                     MdlVA + Offset,
@@ -1314,8 +1290,6 @@ Protocol_ReceiveNetBufferListsHandler(
                         Status);
                     continue;
                 }
-
-                CONTINUE_IF_FALSE(NT_SUCCESS(Status));
 
                 InsertTailList(
                     &TmpPacketList,

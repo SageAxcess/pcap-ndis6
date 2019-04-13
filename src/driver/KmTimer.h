@@ -15,8 +15,7 @@
 #define KM_TIMER_H
 
 #include "KmMemoryManager.h"
-
-#define KM_TIMER_MEMORY_TAG 'TMTK'
+#include "KmMemoryTags.h"
 
 typedef struct _KM_TIMER
 {

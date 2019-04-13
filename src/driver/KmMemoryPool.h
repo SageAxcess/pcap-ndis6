@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2018 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -13,6 +13,45 @@
 #pragma once
 
 #include "KmMemoryManager.h"
+
+#define KM_MEMORY_POOL_FLAG_DEFAULT     0x1
+#define KM_MEMORY_POOL_FLAG_DYNAMIC     0x2
+#define KM_MEMORY_POOL_FLAG_LOOKASIDE   0x4
+
+#define Km_MP_ValidateFlags(Value) \
+    ( \
+        ((Value) == KM_MEMORY_POOL_FLAG_DEFAULT) || \
+        ((Value) == KM_MEMORY_POOL_FLAG_DYNAMIC) || \
+        ((Value) == (KM_MEMORY_POOL_FLAG_DYNAMIC | KM_MEMORY_POOL_FLAG_LOOKASIDE)) \
+    )
+
+typedef struct _KM_MEMORY_POOL_BLOCK_DEFINITION
+{
+    enum _TYPE
+    {
+        Generic = 0x0,
+
+        //  The pool identifies the size of the blocks at the time of first allocation attempt
+        GenericGuessSize = 0x1,
+
+        //  The number of allocations cannot exceed the amount specified in InitialBlockCount field.
+        NonGrowable = 0x2,
+
+        //  Acts as a lookaside list (frees the entries which exceed the value specified in BlockCount field)
+        LookasideList = 0x3,
+
+    } Type;
+
+    //  Size of each memory block in the list
+    SIZE_T  BlockSize;
+
+    //  Number of either initial or initial and maximum block count
+    SIZE_T  BlockCount;
+
+    //  Optional field that specifies the memory tag used to allocate this kind of blocks
+    ULONG   MemoryTag;
+
+} KM_MEMORY_POOL_BLOCK_DEFINITION, *PKM_MEMORY_POOL_BLOCK_DEFINITION;
 
 /*
     Km_MP_Initialize routine.
@@ -24,10 +63,16 @@
         MemoryManager       - Pointer to KM_MEMORY_MANAGER structure
                               representing the memory manager to use.
         BlockSize           - Size of each block in the pool in bytes.
+        SmartBlockSize      - Boolean value representing whether the pool
+                              shoud guess the size of the memory blocks
+                              upon first allocation.
+        MultipleSizeBlocks  - Boolean value representing whether the pool
+                              can contain blocks of different sizes.
         InitialBlockCount   - Number of blocks to allocate in the new pool.
         FixedSize           - Boolean value representing whether the pool
                               can grow in size if there're not enough free
                               entries.
+
         InstanceHandle      - Pointer to the variable to receive new 
                               pool instance handle.
 
@@ -35,17 +80,17 @@
         STATUS_SUCCESS                  - The routine succeeded.
         STATUS_INVALID_PARAMETER_1      - The MemoryManager parameter is NULL.
         STATUS_INVALID_PARAMETER_2      - The BlockSize is 0.
-        STATUS_INVALID_PARAMETER_5      - The InstanceHandle parameter is NULL.
+        STATUS_INVALID_PARAMETER_8      - The InstanceHandle parameter is NULL.
         STATUS_INVALID_PARAMETER_MIX    - The FixedSize parameter is TRUE and the
                                           InitialBlockCount parameter is zero.
 */
 NTSTATUS __stdcall Km_MP_Initialize(
-    __in        PKM_MEMORY_MANAGER  MemoryManager,
-    __in        ULONG               BlockSize,
-    __in        ULONG               InitialBlockCount,
-    __in        BOOLEAN             FixedSize,
-    __in_opt    ULONG               Tag,
-    __out       PHANDLE             InstanceHandle);
+    __in                PKM_MEMORY_MANAGER                  MemoryManager,
+    __in_opt    const   PKM_MEMORY_POOL_BLOCK_DEFINITION    BlockDefinitions,
+    __in        const   ULONG                               NumberOfDefinitions,
+    __in        const   ULONG                               Flags,
+    __in_opt    const   ULONG                               Tag,
+    __out               PHANDLE                             InstanceHandle);
 
 /*
     Km_MP_Finalize routine.
@@ -92,38 +137,8 @@ NTSTATUS __stdcall Km_MP_Finalize(
 */
 NTSTATUS __stdcall Km_MP_Allocate(
     __in    HANDLE  Instance,
-    __out   PVOID   *Block);
-
-/*
-    Km_MP_AllocateCheckSize routine.
-
-    Purpose:
-        Checks whether a block of requested size can
-        be allocated from the pool and allocates it.
-        
-    Parameters:
-        Instance    - Handle to a memory pool instance.
-        Block       - Pointer to the variable to recieve the allocated
-    memory block.
-
-    Return values:
-        STATUS_SUCCESS                  - The routine succeeded.
-        STATUS_INVALID_PARAMETER_1      - The Instance parameter is NULL.
-        STATUS_INVALID_PARAMETER_2      - The Size parameter is 0.
-        STATUS_INVALID_PARAMETER_3      - The Block parameter is NULL.
-        STATUS_INSUFFICIENT_RESOURCES   - Low resources situation.
-                                          The pool failed to allocated a new block.
-        STATUS_BUFFER_TOO_SMALL         - The size requested is more than the size
-                                          of the elements in the pool.
-        STATUS_NO_MORE_ENTRIES          - The pool does not have any more available entries.
-                                          This can happen if the pool is not growable and
-                                          there is no more entries available.
-        STATUS_UNSUCCESSFUL             - Pool allocation failed.
-*/
-NTSTATUS __stdcall Km_MP_AllocateCheckSize(
-    __in    HANDLE  Instance,
     __in    SIZE_T  Size,
-    __out   PVOID   *Block); 
+    __out   PVOID   *Block);
 
 /*
     Km_MP_Release routine.

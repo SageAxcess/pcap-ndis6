@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2018 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -15,8 +15,6 @@
 
 #include "KmMemoryManager.h"
 #include "KmThreads.h"
-
-#define KM_TIMER_THREAD_MEMORY_TAG  'TMTT'
 
 typedef struct _KM_TIMER_THREAD KM_TIMER_THREAD, *PKM_TIMER_THREAD;
 

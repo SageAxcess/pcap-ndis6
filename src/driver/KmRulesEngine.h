@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2018 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -21,9 +21,6 @@
 #define KM_RULE_RESOLUTION_ALLOW    0x1
 #define KM_RULE_RESOLUTION_BLOCK    0x2
 #define KM_RULE_RESOLUTION_SKIP     0x4
-
-#define KM_RULES_ENGINE_MEM_TAG         'TMER'
-#define KM_RULES_ENGINE_RULE_MEM_TAG    'MRER'
 
 typedef enum _KM_RULE_RESOLUTION
 {

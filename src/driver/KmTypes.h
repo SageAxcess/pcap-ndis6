@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2017 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -148,7 +148,7 @@ typedef __declspec(align(1)) struct _ADAPTER
 
 } ADAPTER, *PADAPTER;
 
-typedef struct _PACKET
+typedef __declspec(align(8)) struct _PACKET
 {
     LIST_ENTRY          Link;
 
@@ -156,7 +156,7 @@ typedef struct _PACKET
 
     ULONGLONG           ProcessId;
 
-    ULONG               MaxDataSize;
+//    ULONG               MaxDataSize;
 
     ULONG               DataSize;
 
@@ -165,22 +165,16 @@ typedef struct _PACKET
 } PACKET, *PPACKET;
 
 #define CalcRequiredPacketSize(MTUSize) \
-    ((ULONG)(sizeof(PACKET) + MTUSize - sizeof(UCHAR)))
-
-typedef struct _EVENT
-{
-    char    Name[256];
-    PKEVENT Event;
-    HANDLE  EventHandle;
-} EVENT, *PEVENT;
-
-typedef struct _ADAPTER_CLIENT
-{
-    PDRIVER_DATA    Data;
-    
-    PADAPTER        Adapter;
-
-} ADAPTER_CLIENT, *PADAPTER_CLIENT;
+    ( \
+        (ULONG) \
+            ( \
+                sizeof(PACKET) - \
+                sizeof(UCHAR) + \
+                MTUSize + \
+                sizeof(ETH_HEADER) + \
+                2 \
+            ) \
+    )
 
 typedef struct _DRIVER_CLIENT
 {
@@ -306,14 +300,6 @@ typedef struct _DRIVER_DATA
 } DRIVER_DATA, *PDRIVER_DATA;
 
 #define FILTER_RE_ENUM_BINDINGS_INTERVAL    30000
-
-#define WFP_FLT_MEMORY_TAG                  'fwDC'
-#define NDIS_FLT_MEMORY_TAG                 'nyDC'
-#define ADAPTER_PACKET_POOL_MEMORY_TAG      'MPPA'
-#define CONNECTIONS_MEMORY_POOL_TAG         'TPMC'
-#define CLIENT_PACKET_POOL_MEMORY_TAG       'MPPC'
-#define DRIVER_CLIENTS_POOL_MEMORY_TAG      'MPCD'
-#define DRIVER_CLIENTS_READ_BUFFER_POOL_TAG 'PBRC'
 
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP     6

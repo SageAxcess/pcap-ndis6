@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2018 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -15,6 +15,7 @@
 #include "..\shared\CommonDefs.h"
 #include "KmList.h"
 #include "KmMemoryPool.h"
+#include "KmMemoryTags.h"
 
 #define KM_TIMER_THREAD_WAIT_OBJECTS_COUNT  0x2
 
@@ -86,7 +87,7 @@ NTSTATUS __stdcall KmTimerThread_AllocateUpdateData(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        Status = Km_MP_AllocateCheckSize(
+        Status = Km_MP_Allocate(
             Thread->ParamsUpdate.AvailableItems,
             sizeof(KM_TIMER_THREAD_PARAMS_UPDATE_DATA),
             (PVOID *)&NewData);
@@ -273,8 +274,9 @@ NTSTATUS __stdcall KmTimerThread_Allocate(
     __in_opt    PVOID                       ThreadContext,
     __out       PKM_TIMER_THREAD            *Thread)
 {
-    NTSTATUS            Status = STATUS_SUCCESS;
-    PKM_TIMER_THREAD    NewThread = NULL;
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PKM_TIMER_THREAD                NewThread = NULL;
+    KM_MEMORY_POOL_BLOCK_DEFINITION MPBlockDef;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -289,7 +291,7 @@ NTSTATUS __stdcall KmTimerThread_Allocate(
     NewThread = Km_MM_AllocMemTypedWithTag(
         MemoryManager,
         KM_TIMER_THREAD,
-        KM_TIMER_THREAD_MEMORY_TAG);
+        KM_TIMER_THREAD_OBJECT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewThread),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -303,35 +305,42 @@ NTSTATUS __stdcall KmTimerThread_Allocate(
             MemoryManager,
             KWAIT_BLOCK,
             KM_TIMER_THREAD_WAIT_OBJECTS_COUNT,
-            KM_TIMER_THREAD_MEMORY_TAG);
+            KM_TIMER_THREAD_SVC_MEMORY_TAG);
         LEAVE_IF_FALSE_SET_STATUS(
             Assigned(NewThread->WaitBlocks),
             STATUS_INSUFFICIENT_RESOURCES);
         __try
         {
-            NewThread->Callback = ThreadRoutine;
-            NewThread->MemoryManager = MemoryManager;
-            NewThread->CallbackContext = ThreadContext;
+            RtlZeroMemory(&MPBlockDef, sizeof(MPBlockDef));
 
-            KeInitializeEvent(
-                &NewThread->ParamsUpdate.Event,
-                NotificationEvent,
-                FALSE);
-
-            Status = Km_List_Initialize(&NewThread->ParamsUpdate.AllocatedItems);
-            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+            MPBlockDef.BlockCount = 0;
+            MPBlockDef.BlockSize = (ULONG)sizeof(KM_TIMER_THREAD_PARAMS_UPDATE_DATA);
+            MPBlockDef.MemoryTag = KM_TIMER_THREAD_ITEM_MEMORY_TAG;
+            MPBlockDef.Type = Generic;
 
             Status = Km_MP_Initialize(
                 MemoryManager,
-                (ULONG)sizeof(KM_TIMER_THREAD_PARAMS_UPDATE_DATA),
-                0,
-                FALSE,
-                KM_TIMER_THREAD_MEMORY_TAG,
+                &MPBlockDef,
+                1,
+                KM_MEMORY_POOL_FLAG_DEFAULT,
+                KM_TIMER_THREAD_ITEM_MEMORY_TAG,
                 &NewThread->ParamsUpdate.AvailableItems);
             LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
             __try
             {
+                NewThread->Callback = ThreadRoutine;
+                NewThread->MemoryManager = MemoryManager;
+                NewThread->CallbackContext = ThreadContext;
+
+                KeInitializeEvent(
+                    &NewThread->ParamsUpdate.Event,
+                    NotificationEvent,
+                    FALSE);
+
+                Status = Km_List_Initialize(&NewThread->ParamsUpdate.AllocatedItems);
+                LEAVE_IF_FALSE(NT_SUCCESS(Status));
+
                 Status = KmThreads_CreateThread(
                     MemoryManager,
                     &NewThread->Thread,

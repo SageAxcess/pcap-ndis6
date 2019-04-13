@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2018 ChangeDynamix, LLC
+// Copyright (c) 2018 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -14,6 +14,7 @@
 #include "KmRulesEngine.h"
 #include "KmList.h"
 #include "KmLock.h"
+#include "KmMemoryTags.h"
 
 typedef struct _KM_RULES_ENGINE
 {
@@ -41,8 +42,9 @@ NTSTATUS __stdcall KmRulesEngine_Initialize(
     __in_opt    PVOID                                   MatchingRoutineContext,
     __out       PHANDLE                                 InstanceHandle)
 {
-    NTSTATUS            Status = STATUS_SUCCESS;
-    PKM_RULES_ENGINE    NewEngine = NULL;
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PKM_RULES_ENGINE                NewEngine = NULL;
+    KM_MEMORY_POOL_BLOCK_DEFINITION MPBlockDef;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -57,7 +59,7 @@ NTSTATUS __stdcall KmRulesEngine_Initialize(
     NewEngine = Km_MM_AllocMemTypedWithTag(
         MemoryManager,
         KM_RULES_ENGINE,
-        KM_RULES_ENGINE_MEM_TAG);
+        KM_RULES_ENGINE_OBJECT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewEngine),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -65,16 +67,25 @@ NTSTATUS __stdcall KmRulesEngine_Initialize(
     {
         RtlZeroMemory(NewEngine, sizeof(KM_RULES_ENGINE));
 
+        RtlZeroMemory(&MPBlockDef, sizeof(MPBlockDef));
+
+        MPBlockDef.BlockCount = 1;
+        MPBlockDef.BlockSize = (ULONG)sizeof(KM_RULE);
+        MPBlockDef.Type = Generic;
+        MPBlockDef.MemoryTag = KM_RULES_ENGINE_RULE_MEMORY_TAG;
+
         Status = Km_MP_Initialize(
             MemoryManager,
-            (ULONG)sizeof(KM_RULE),
+            &MPBlockDef,
             1,
-            FALSE,
-            KM_RULES_ENGINE_RULE_MEM_TAG,
+            KM_MEMORY_POOL_FLAG_DEFAULT,
+            KM_RULES_ENGINE_RULE_MEMORY_TAG,
             &NewEngine->Rules.Pool);
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
+            NewEngine->MemoryManager = MemoryManager;
+
             InitializeListHead(&NewEngine->Rules.Rules);
 
             NewEngine->Rules.MatchingRoutine = MatchingRoutine;
@@ -176,7 +187,7 @@ NTSTATUS __stdcall KmRulesEngine_AddRule(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        Status = Km_MP_AllocateCheckSize(
+        Status = Km_MP_Allocate(
             Engine->Rules.Pool,
             sizeof(KM_RULE),
             (PVOID *)&NewRule);

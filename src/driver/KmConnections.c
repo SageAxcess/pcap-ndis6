@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2019 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -14,10 +14,17 @@
 #include "KmConnections.h"
 #include "KmTypes.h"
 #include "KmMemoryPool.h"
+#include "KmThreads.h"
+
+#include "KmMemoryTags.h"
+
+#define KM_CONNECTIONS_ITEM_LIFETIME    300
 
 typedef struct _KM_CONNECTIONS_ITEM
 {
     LIST_ENTRY          Link;
+
+    LARGE_INTEGER       LastAccessTime;
 
     NET_EVENT_INFO      Info;
 
@@ -31,7 +38,109 @@ typedef struct _KM_CONNECTIONS_DATA
 
     HANDLE              MemoryPool;
 
+    PKM_THREAD          TimeoutWatcher;
+
 } KM_CONNECTIONS_DATA, *PKM_CONNECTIONS_DATA;
+
+NTSTATUS __stdcall Km_Connections_CleanupOldEntries(
+    __in    PKM_CONNECTIONS_DATA    Data)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+    LARGE_INTEGER   CurrentTime = { 0 };
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Data),
+        STATUS_INVALID_PARAMETER_1);
+
+    KeQuerySystemTime(&CurrentTime);
+
+    Km_List_Lock(&Data->List);
+    __try
+    {
+        PLIST_ENTRY     Entry;
+        PLIST_ENTRY     NextEntry;
+        LARGE_INTEGER   TimeDiff;
+        LARGE_INTEGER   TimeInSeconds;
+
+        for (Entry = Data->List.Head.Flink, NextEntry = Entry->Flink;
+            Entry != &Data->List.Head;
+            Entry = NextEntry, NextEntry = NextEntry->Flink)
+        {
+            PKM_CONNECTIONS_ITEM    Item = 
+                CONTAINING_RECORD(
+                    Entry, 
+                    KM_CONNECTIONS_ITEM, 
+                    Link);
+
+            TimeDiff = RtlLargeIntegerSubtract(CurrentTime, Item->LastAccessTime);
+
+            //  Note:
+            //  The time difference is not in nanoseconds, but in 100 nanosecond intervals.
+            //  In other word if TimeInSeconds == 1, then it should be treated as 100.
+            TimeInSeconds.QuadPart = NanosecondsToMiliseconds(TimeDiff.QuadPart);
+
+            if (TimeInSeconds.QuadPart > KM_CONNECTIONS_ITEM_LIFETIME)
+            {
+                Km_List_RemoveItemEx(
+                    &Data->List,
+                    Entry,
+                    FALSE,
+                    FALSE);
+                Km_MP_Release(Entry);
+            }
+        }
+    }
+    __finally
+    {
+        Km_List_Unlock(&Data->List);
+    }
+
+cleanup:
+    return Status;
+};
+
+void __stdcall Km_Connections_TimeoutWatcher_ThreadProc(
+    __in    PKM_THREAD  Thread)
+{
+    PKM_CONNECTIONS_DATA    Data = NULL;
+    BOOLEAN                 StopThread = FALSE;
+    NTSTATUS                WaitStatus = STATUS_SUCCESS;
+    LARGE_INTEGER           Timeout;
+
+    GOTO_CLEANUP_IF_FALSE(Assigned(Thread));
+    GOTO_CLEANUP_IF_FALSE(Assigned(Thread->Context));
+
+    Data = (PKM_CONNECTIONS_DATA)Thread->Context;
+
+    //  The interval is in 100-nanoseconds
+    Timeout.QuadPart = (-1) * (MilisecondsToNanoseconds(30000) / 100);
+
+    while (!StopThread)
+    {
+        WaitStatus = KeWaitForSingleObject(
+            &Thread->StopEvent,
+            Executive,
+            KernelMode,
+            FALSE,
+            &Timeout);
+
+        switch (WaitStatus)
+        {
+            case STATUS_TIMEOUT:
+            {
+                Km_Connections_CleanupOldEntries(Data);
+            }break;
+
+            default:
+            {
+                StopThread = TRUE;
+            }break;
+        };
+    }
+
+cleanup:
+    return;
+};
 
 int __stdcall Km_Connections_GetPID_ItemCmpCallback(
     __in    PKM_LIST    List,
@@ -193,7 +302,7 @@ NTSTATUS __stdcall Km_Connections_AllocateItem(
         Assigned(Item),
         STATUS_INVALID_PARAMETER_3);
 
-    Status = Km_MP_AllocateCheckSize(
+    Status = Km_MP_Allocate(
         MemoryPool,
         sizeof(KM_CONNECTIONS_ITEM),
         (PVOID *)&NewItem);
@@ -208,6 +317,8 @@ NTSTATUS __stdcall Km_Connections_AllocateItem(
         Info,
         sizeof(NET_EVENT_INFO));
 
+    KeQuerySystemTime(&NewItem->LastAccessTime);
+
     *Item = NewItem;
 
 cleanup:
@@ -218,8 +329,9 @@ NTSTATUS __stdcall Km_Connections_Initialize(
     __in    PKM_MEMORY_MANAGER  MemoryManager,
     __out   PHANDLE             Instance)
 {
-    NTSTATUS                Status = STATUS_SUCCESS;
-    PKM_CONNECTIONS_DATA    NewData = NULL;
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PKM_CONNECTIONS_DATA            NewData = NULL;
+    KM_MEMORY_POOL_BLOCK_DEFINITION MPBlockDef;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -228,9 +340,10 @@ NTSTATUS __stdcall Km_Connections_Initialize(
         Assigned(Instance),
         STATUS_INVALID_PARAMETER_2);
 
-    NewData = Km_MM_AllocMemTyped(
+    NewData = Km_MM_AllocMemTypedWithTag(
         MemoryManager,
-        KM_CONNECTIONS_DATA);
+        KM_CONNECTIONS_DATA,
+        KM_CONNECTIONS_OBJECT_MEMORY_TAG);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(NewData),
         STATUS_INSUFFICIENT_RESOURCES);
@@ -242,12 +355,28 @@ NTSTATUS __stdcall Km_Connections_Initialize(
     Status = Km_List_Initialize(&NewData->List);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    Status = KmThreads_CreateThread(
+        MemoryManager,
+        &NewData->TimeoutWatcher,
+        Km_Connections_TimeoutWatcher_ThreadProc,
+        NewData);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    RtlZeroMemory(
+        &MPBlockDef,
+        sizeof(MPBlockDef));
+
+    MPBlockDef.BlockSize = (ULONG)sizeof(KM_CONNECTIONS_ITEM);
+    MPBlockDef.BlockCount = KM_CONNECTIONS_INITIAL_POOL_SIZE;
+    MPBlockDef.Type = LookasideList;
+    MPBlockDef.MemoryTag = KM_CONNECTIONS_MEMORY_POOL_TAG;
+
     Status = Km_MP_Initialize(
         MemoryManager,
-        (ULONG)sizeof(KM_CONNECTIONS_ITEM),
-        KM_CONNECTIONS_INITIAL_POOL_SIZE,
-        FALSE,
-        CONNECTIONS_MEMORY_POOL_TAG,
+        &MPBlockDef,
+        1,
+        KM_MEMORY_POOL_FLAG_DEFAULT,
+        KM_CONNECTIONS_MEMORY_POOL_TAG,
         &NewData->MemoryPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
@@ -261,6 +390,18 @@ cleanup:
     {
         if (Assigned(NewData))
         {
+            if (NewData->MemoryPool != NULL)
+            {
+                Km_MP_Finalize(NewData->MemoryPool);
+            }
+
+            if (Assigned(NewData->TimeoutWatcher))
+            {
+                KmThreads_StopThread(NewData->TimeoutWatcher, (ULONG)(-1));
+                KmThreads_WaitForThread(NewData->TimeoutWatcher);
+                KmThreads_DestroyThread(NewData->TimeoutWatcher);
+            }
+
             Km_MM_FreeMem(
                 MemoryManager,
                 NewData);
@@ -316,6 +457,13 @@ NTSTATUS __stdcall Km_Connections_Finalize(
     if (Data->MemoryPool != NULL)
     {
         Km_MP_Finalize(Data->MemoryPool);
+    }
+
+    if (Assigned(Data->TimeoutWatcher))
+    {
+        KmThreads_StopThread(Data->TimeoutWatcher, (ULONG)(-1));
+        KmThreads_WaitForThread(Data->TimeoutWatcher);
+        KmThreads_DestroyThread(Data->TimeoutWatcher);
     }
 
     Km_MM_FreeMem(Data->MemoryManager, Data);
@@ -470,6 +618,7 @@ NTSTATUS __stdcall Km_Connections_GetPIDForPacket(
         {
             ConnItem = CONTAINING_RECORD(FoundItem, KM_CONNECTIONS_ITEM, Link);
             *ProcessId = ConnItem->Info.Process.Id;
+            KeQuerySystemTime(&ConnItem->LastAccessTime);
         }
     }
     __finally

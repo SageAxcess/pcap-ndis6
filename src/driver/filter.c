@@ -3,7 +3,7 @@
 // Description: WinPCAP fork with NDIS6.x support 
 // License: MIT License, read LICENSE file in project root for details
 //
-// Copyright (c) 2017 ChangeDynamix, LLC
+// Copyright (c) 2019 Change Dynamix, Inc.
 // All Rights Reserved.
 // 
 // https://changedynamix.io/
@@ -29,6 +29,7 @@
 #include "KmMemoryPool.h"
 #include "KmProcessWatcher.h"
 #include "KmRulesEngine.h"
+#include "KmMemoryTags.h"
 
 #include "..\shared\win_bpf.h"
 
@@ -304,9 +305,9 @@ NTSTATUS __stdcall Filter_CreateClient(
 
     Status = Km_MP_Initialize(
         &Data->Ndis.MemoryManager,
-        CalcRequiredPacketSize(Adapter->MtuSize) * 2,
-        PACKETS_POOL_INITIAL_SIZE,
-        TRUE,
+        NULL,
+        0,
+        KM_MEMORY_POOL_FLAG_DYNAMIC | KM_MEMORY_POOL_FLAG_LOOKASIDE,
         CLIENT_PACKET_POOL_MEMORY_TAG,
         &NewClient->PacketsPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
@@ -626,7 +627,7 @@ NTSTATUS __stdcall Filter_CloseClientsByPID(
 
         LEAVE_IF_FALSE(ClientsCount > 0);
 
-        Status = Km_MP_AllocateCheckSize(
+        Status = Km_MP_Allocate(
             Data->Clients.ServicePool,
             sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
             (PVOID *)&Clients);
@@ -803,7 +804,7 @@ NTSTATUS __stdcall Filter_ReadPackets(
             Client->OwnerProcessId == ProcessId,
             STATUS_ACCESS_DENIED);
 
-        Status = Km_MP_AllocateCheckSize(
+        Status = Km_MP_Allocate(
             Data->Clients.ReadBuffersPool,
             ADAPTER_READ_BUFFER_SIZE,
             &ReadBuffer);
@@ -1217,8 +1218,10 @@ DriverEntry(
     PDRIVER_OBJECT      DriverObject,
     PUNICODE_STRING     RegistryPath)
 {
-    NTSTATUS        Status = STATUS_SUCCESS;
-    UNICODE_STRING  FilterDeviceName = RTL_CONSTANT_STRING(FILTER_DEVICE_NAME_W);
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    UNICODE_STRING                  FilterDeviceName = RTL_CONSTANT_STRING(FILTER_DEVICE_NAME_W);
+    KM_MEMORY_POOL_BLOCK_DEFINITION DriverClientsSVCMpDef;
+    KM_MEMORY_POOL_BLOCK_DEFINITION DriverClientsReadMpDef;
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -1256,20 +1259,30 @@ DriverEntry(
     Status = Km_Lock_Initialize(&DriverData.Clients.Lock);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    DriverClientsSVCMpDef.BlockCount = 1;
+    DriverClientsSVCMpDef.BlockSize = sizeof(DRIVER_CLIENT) * DRIVER_MAX_CLIENTS;
+    DriverClientsSVCMpDef.MemoryTag = DRIVER_CLIENTS_POOL_MEMORY_TAG;
+    DriverClientsSVCMpDef.Type = Generic;
+
     Status = Km_MP_Initialize(
         &DriverData.Ndis.MemoryManager,
-        sizeof(PDRIVER_CLIENT) * DRIVER_MAX_CLIENTS,
-        DRIVER_SVC_CLIENTS_POOL_SIZE,
-        FALSE,
+        &DriverClientsSVCMpDef,
+        1,
+        KM_MEMORY_POOL_FLAG_DEFAULT,
         DRIVER_CLIENTS_POOL_MEMORY_TAG,
         &DriverData.Clients.ServicePool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
+    DriverClientsReadMpDef.BlockCount = 1;
+    DriverClientsReadMpDef.BlockSize = ADAPTER_READ_BUFFER_SIZE;
+    DriverClientsReadMpDef.MemoryTag = DRIVER_CLIENTS_READ_BUFFER_POOL_TAG;
+    DriverClientsReadMpDef.Type = Generic;
+
     Status = Km_MP_Initialize(
         &DriverData.Ndis.MemoryManager,
-        ADAPTER_READ_BUFFER_SIZE,
+        &DriverClientsReadMpDef,
         1,
-        FALSE,
+        KM_MEMORY_POOL_FLAG_DEFAULT,
         DRIVER_CLIENTS_READ_BUFFER_POOL_TAG,
         &DriverData.Clients.ReadBuffersPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));

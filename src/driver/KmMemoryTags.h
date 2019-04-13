@@ -64,4 +64,7 @@
 #define KM_MEMORY_POOL_OBJECT_MEMORY_TAG    '15DC'
 #define KM_MEMORY_POOL_SVC_MEMORY_TAG       '16DC'
 
+#define KM_TIMER_OBJECT_MEMORY_TAG          '17DC'
+#define KM_TIMER_SVC_MEMORY_TAG             '18DC'
+
 #endif
