@@ -36,7 +36,9 @@ typedef __declspec(align(8)) struct _KM_MEMORY_POOL_BLOCK_HEADER
     //  Data start
     unsigned char           Data;
 
-} KM_MEMORY_POOL_BLOCK_HEADER, *PKM_MEMORY_POOL_BLOCK_HEADER;
+} KM_MEMORY_POOL_BLOCK_HEADER;
+
+typedef KM_MEMORY_POOL_BLOCK_HEADER *PKM_MEMORY_POOL_BLOCK_HEADER;
 
 typedef struct _KM_MEMORY_POOL_SITE
 {

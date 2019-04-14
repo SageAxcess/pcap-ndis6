@@ -78,3 +78,51 @@ NTSTATUS __stdcall Km_MM_Finalize(
 cleanup:
     return Status;
 };
+
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+NTSTATUS __stdcall Km_MM_FillDebugInfoHeader(
+    __in        PKM_MM_DEBUG_INFO_HEADER    Header,
+    __in_opt    char                        *FileName,
+    __in_opt    SIZE_T                      FileNameLength,
+    __in_opt    int                         LineNumber,
+    __in_opt    char                        *FunctionName,
+    __in_opt    SIZE_T                      FunctionNameLength)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Header),
+        STATUS_INVALID_PARAMETER_1);
+
+    RtlZeroMemory(
+        Header, 
+        sizeof(KM_MM_DEBUG_INFO_HEADER));
+
+    if ((Assigned(FileName)) &&
+        (FileNameLength > 0))
+    {
+        RtlCopyMemory(
+            Header->FileName,
+            FileName,
+            FileNameLength > KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH ?
+            KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH :
+            FileNameLength);
+    }
+
+    if ((Assigned(FunctionName)) &&
+        (FunctionNameLength > 0))
+    {
+        RtlCopyMemory(
+            Header->FunctionName,
+            FunctionName,
+            FunctionNameLength > KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH ?
+            KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH :
+            FunctionNameLength);
+    }
+
+    Header->LineNumber = LineNumber;
+
+cleanup:
+    return Status;
+};
+#endif

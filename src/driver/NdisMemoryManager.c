@@ -46,15 +46,19 @@ typedef struct _NDIS_MM
 
 typedef struct _NDIS_MM_MEM_BLOCK_HEADER
 {
-    LIST_ENTRY  Link;
+    #ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+    KM_MM_DEBUG_INFO_HEADER DebugInfoHeader;
+    #endif
 
-    PNDIS_MM    MemoryManager;
+    LIST_ENTRY              Link;
 
-    SIZE_T      Size;
+    PNDIS_MM                MemoryManager;
 
-    SIZE_T      MaxSize;
+    SIZE_T                  Size;
 
-    ULONG       Tag;
+    SIZE_T                  MaxSize;
+
+    ULONG                   Tag;
 
 } NDIS_MM_MEM_BLOCK_HEADER, *PNDIS_MM_MEM_BLOCK_HEADER;
 
@@ -171,10 +175,22 @@ cleanup:
     return Status;
 };
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+PVOID __stdcall Ndis_MM_AllocMem(
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag,
+    __in_opt    char                *FileName,
+    __in_opt    SIZE_T              FileNameLength,
+    __in_opt    int                 LineNumber,
+    __in_opt    char                *FunctionName,
+    __in_opt    SIZE_T              FunctionNameLength)
+#else
 PVOID __stdcall Ndis_MM_AllocMem(
     __in        PKM_MEMORY_MANAGER  Manager,
     __in        SIZE_T              Size,
     __in_opt    ULONG               Tag)
+#endif
 {
     PVOID       Result = NULL;
     PNDIS_MM    NdisMM = NULL;
@@ -211,6 +227,16 @@ PVOID __stdcall Ndis_MM_AllocMem(
         if (Assigned(NewBlock))
         {
             PNDIS_MM_MEM_BLOCK_HEADER Header = (PNDIS_MM_MEM_BLOCK_HEADER)NewBlock;
+
+            #ifdef KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH
+            Km_MM_FillDebugInfoHeader(
+                &Header->DebugInfoHeader,
+                FileName,
+                FileNameLength,
+                LineNumber,
+                FunctionName,
+                FunctionNameLength);
+            #endif
 
             Header->Size = Header->MaxSize = Size;
             Header->MemoryManager = NdisMM;

@@ -38,18 +38,21 @@ typedef struct _WFP_MM
 
 typedef struct _WFP_MM_MEM_BLOCK_HEADER
 {
-    LIST_ENTRY          Link;
+    #ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+    KM_MM_DEBUG_INFO_HEADER DebugInfoHeader;
+    #endif
 
-    PKM_MEMORY_MANAGER  MemoryManager;
+    LIST_ENTRY              Link;
 
-    SIZE_T              Size;
+    PKM_MEMORY_MANAGER      MemoryManager;
 
-    SIZE_T              MaxSize;
+    SIZE_T                  Size;
 
-    ULONG               Tag;
+    SIZE_T                  MaxSize;
+
+    ULONG                   Tag;
 
 } WFP_MM_MEM_BLOCK_HEADER, *PWFP_MM_MEM_BLOCK_HEADER;
-
 
 NTSTATUS Wfp_MM_Init(
     __in    PKM_MEMORY_MANAGER  Manager,
@@ -157,10 +160,22 @@ cleanup:
     return Status;
 };
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+PVOID __stdcall Wfp_MM_AllocMem(
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag,
+    __in_opt    char                *FileName,
+    __in_opt    SIZE_T              FileNameLength,
+    __in_opt    int                 LineNumber,
+    __in_opt    char                *FunctionName,
+    __in_opt    SIZE_T              FunctionNameLength)
+#else
 PVOID __stdcall Wfp_MM_AllocMem(
     __in        PKM_MEMORY_MANAGER  Manager,
     __in        SIZE_T              Size,
     __in_opt    ULONG               Tag)
+#endif
 {
     PVOID       Result = NULL;
     PWFP_MM     WfpMM = NULL;
@@ -185,7 +200,7 @@ PVOID __stdcall Wfp_MM_AllocMem(
     __try
     {
         PVOID   NewBlock;
-        
+
         MemTag = Tag == 0 ? Manager->MemoryTag : Tag;
 
         NewBlock = ExAllocatePoolWithTagPriority(
@@ -197,6 +212,16 @@ PVOID __stdcall Wfp_MM_AllocMem(
         if (Assigned(NewBlock))
         {
             PWFP_MM_MEM_BLOCK_HEADER Header = (PWFP_MM_MEM_BLOCK_HEADER)NewBlock;
+
+            #ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+            Km_MM_FillDebugInfoHeader(
+                &Header->DebugInfoHeader,
+                FileName,
+                FileNameLength,
+                LineNumber,
+                FunctionName,
+                FunctionNameLength);
+            #endif
 
             Header->Size = Header->MaxSize = Size;
             Header->MemoryManager = Manager;

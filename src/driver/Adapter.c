@@ -777,63 +777,76 @@ NTSTATUS Adapters_Unbind(
             NotificationEvent,
             FALSE);
 
-        Status = Km_List_Lock(AdaptersList);
-        LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
-            Km_List_GetCountEx(AdaptersList, &Count, FALSE, FALSE);
 
-            if (Count.QuadPart > 0)
-            {
-                AdaptersArray = Km_MM_AllocArray(
-                    MemoryManager,
-                    PADAPTER,
-                    (SIZE_T)Count.QuadPart);
-                LEAVE_IF_FALSE_SET_STATUS(
-                    Assigned(AdaptersArray),
-                    STATUS_INSUFFICIENT_RESOURCES);
-
-                RtlZeroMemory(
-                    AdaptersArray, 
-                    (SIZE_T)(sizeof(PADAPTER) * Count.QuadPart));
-
-                for (TmpEntry = AdaptersList->Head.Flink, k = 0;
-                    TmpEntry != &AdaptersList->Head;
-                    TmpEntry = TmpEntry->Flink, k++)
-                {
-                    AdaptersArray[k] = CONTAINING_RECORD(TmpEntry, ADAPTER, Link);
-                }
-            }
-
-            Km_List_ClearEx(AdaptersList, NULL, FALSE, FALSE);
-        }
-        __finally
-        {
-            Km_List_Unlock(AdaptersList);
-        }
-
-        for (k = 0; k < Count.QuadPart; k++)
-        {
-            Km_Lock_Acquire(&AdaptersArray[k]->Lock);
+            Status = Km_List_Lock(AdaptersList);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
             __try
             {
-                AdaptersArray[k]->AdapterUnbindCompletionEvent = CompletionEvent;
+                Km_List_GetCountEx(AdaptersList, &Count, FALSE, FALSE);
+
+                if (Count.QuadPart > 0)
+                {
+                    AdaptersArray = Km_MM_AllocArray(
+                        MemoryManager,
+                        PADAPTER,
+                        (SIZE_T)Count.QuadPart);
+                    LEAVE_IF_FALSE_SET_STATUS(
+                        Assigned(AdaptersArray),
+                        STATUS_INSUFFICIENT_RESOURCES);
+
+                    RtlZeroMemory(
+                        AdaptersArray,
+                        (SIZE_T)(sizeof(PADAPTER) * Count.QuadPart));
+
+                    for (TmpEntry = AdaptersList->Head.Flink, k = 0;
+                        TmpEntry != &AdaptersList->Head;
+                        TmpEntry = TmpEntry->Flink, k++)
+                    {
+                        AdaptersArray[k] = CONTAINING_RECORD(TmpEntry, ADAPTER, Link);
+                    }
+                }
+
+                Km_List_ClearEx(AdaptersList, NULL, FALSE, FALSE);
             }
             __finally
             {
-                Km_Lock_Release(&AdaptersArray[k]->Lock);
+                Km_List_Unlock(AdaptersList);
             }
 
-            NdisUnbindAdapter(AdaptersArray[k]->AdapterHandle);
+            for (k = 0; k < Count.QuadPart; k++)
+            {
+                Km_Lock_Acquire(&AdaptersArray[k]->Lock);
+                __try
+                {
+                    AdaptersArray[k]->AdapterUnbindCompletionEvent = CompletionEvent;
+                }
+                __finally
+                {
+                    Km_Lock_Release(&AdaptersArray[k]->Lock);
+                }
 
-            KeWaitForSingleObject(
-                CompletionEvent,
-                Executive,
-                KernelMode,
-                FALSE,
-                NULL);
+                NdisUnbindAdapter(AdaptersArray[k]->AdapterHandle);
 
-            KeClearEvent(CompletionEvent);
+                KeWaitForSingleObject(
+                    CompletionEvent,
+                    Executive,
+                    KernelMode,
+                    FALSE,
+                    NULL);
+
+                KeClearEvent(CompletionEvent);
+            }
+        }
+        __finally
+        {
+            if (Assigned(AdaptersArray))
+            {
+                Km_MM_FreeMem(
+                    MemoryManager,
+                    AdaptersArray);
+            }
         }
     }
     __finally

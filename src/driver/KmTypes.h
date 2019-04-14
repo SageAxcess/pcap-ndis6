@@ -162,7 +162,9 @@ typedef __declspec(align(8)) struct _PACKET
 
     UCHAR               Data[1];
 
-} PACKET, *PPACKET;
+} PACKET;
+
+typedef PACKET  *PPACKET;
 
 #define CalcRequiredPacketSize(MTUSize) \
     ( \

@@ -13,6 +13,8 @@
 
 #pragma once
 
+// #define KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO   0x1
+
 #include <ntddk.h>
 
 #include "..\shared\CommonDefs.h"
@@ -27,12 +29,30 @@ typedef struct _KM_MM_ALLOCATION_STATS
 
 } KM_MM_ALLOCATION_STATS, *PKM_MM_ALLOCATION_STATS;
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+
+#define KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH    0x40
+
+typedef struct __declspec(align(8)) _KM_MM_DEBUG_INFO_HEADER
+{
+    //  Name of the source file a particular allocation was requested from
+    char    FileName[KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH];
+
+    //  Line number in the file represented by FileName field
+    int     LineNumber;
+
+    //  Name of the function a particular allocation was requested from
+    char    FunctionName[KM_MEMORY_MANAGER_DBG_INFO_STR_MAX_LENGTH];
+
+} KM_MM_DEBUG_INFO_HEADER, *PKM_MM_DEBUG_INFO_HEADER;
+#endif
+
 #define KM_MM_STATS_FLAG_NONE                               0x0
 #define KM_MM_STATS_FLAG_CURRENT_ALLOCATION_STATS_PRESENT   0x1
 
 typedef struct _KM_MM_STATS
 {
-    unsigned long   Flags;
+    unsigned long           Flags;
 
     KM_MM_ALLOCATION_STATS  CurrentAllocations;
 
@@ -41,10 +61,22 @@ typedef struct _KM_MM_STATS
 typedef struct _KM_MEMORY_MANAGER KM_MEMORY_MANAGER;
 typedef KM_MEMORY_MANAGER *PKM_MEMORY_MANAGER;
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+typedef PVOID(__stdcall _KM_MM_ALLOC_MEM_ROUTINE)(
+    __in        PKM_MEMORY_MANAGER  Manager,
+    __in        SIZE_T              Size,
+    __in_opt    ULONG               Tag,
+    __in_opt    char                *FileName,
+    __in_opt    SIZE_T              FileNameLength,
+    __in_opt    int                 LineNumber,
+    __in_opt    char                *FunctionName,
+    __in_opt    SIZE_T              FunctionNameLength);
+#else
 typedef PVOID(__stdcall _KM_MM_ALLOC_MEM_ROUTINE)(
     __in        PKM_MEMORY_MANAGER  Manager,
     __in        SIZE_T              Size,
     __in_opt    ULONG               Tag);
+#endif
 typedef _KM_MM_ALLOC_MEM_ROUTINE KM_MM_ALLOC_MEM_ROUTINE, *PKM_MM_ALLOC_MEM_ROUTINE;
 
 typedef NTSTATUS(__stdcall _KM_MM_FREE_MEM_ROUTINE)(
@@ -98,7 +130,22 @@ NTSTATUS __stdcall Km_MM_Initialize(
 NTSTATUS __stdcall Km_MM_Finalize(
     __in    PKM_MEMORY_MANAGER  Manager);
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+NTSTATUS __stdcall Km_MM_FillDebugInfoHeader(
+    __in        PKM_MM_DEBUG_INFO_HEADER    Header,
+    __in_opt    char                        *FileName,
+    __in_opt    SIZE_T                      FileNameLength,
+    __in_opt    int                         LineNumber,
+    __in_opt    char                        *FunctionName,
+    __in_opt    SIZE_T                      FunctionNameLength);
+#endif
+
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+#define Km_MM_AllocMemWithTag(Manager, Size, Tag)                   (Assigned((Manager)->AllocMemRoutine) ? (Manager)->AllocMemRoutine((Manager), (Size), (Tag), __FILE__, sizeof(__FILE__), __LINE__, __FUNCTION__, sizeof(__FUNCTION__)) : NULL)
+#else
 #define Km_MM_AllocMemWithTag(Manager, Size, Tag)                   (Assigned((Manager)->AllocMemRoutine) ? (Manager)->AllocMemRoutine((Manager), (Size), (Tag)) : NULL)
+#endif
+
 #define Km_MM_AllocMem(Manager, Size)                               Km_MM_AllocMemWithTag((Manager), (Size), 0)
 #define Km_MM_AllocMemTypedWithSizeAndTag(Manager, Type, Size, Tag) (Type *)Km_MM_AllocMemWithTag((Manager), (Size), (Tag))
 #define Km_MM_AllocMemTypedWithSize(Manager, Type, Size)            Km_MM_AllocMemTypedWithSizeAndTag((Manager), Type, (Size), 0)
