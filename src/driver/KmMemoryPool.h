@@ -14,6 +14,22 @@
 
 #include "KmMemoryManager.h"
 
+#ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+
+#define KM_MEMORY_POOL_EXTENDED_DEBUG_INFO  0x1
+
+#else
+
+#define KM_MEMORY_POOL_EXTENDED_DEBUG_INFO  0x0
+
+#endif
+
+#if (KM_MEMORY_POOL_EXTENDED_DEBUG_INFO && !defined(KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO))
+
+#error("Error: Invalid flags mix. KM_MEMORY_POOL_EXTENDED_DEBUG_INFO flag requires KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO flag to be defined.")
+
+#endif
+
 #define KM_MEMORY_POOL_FLAG_DEFAULT     0x1
 #define KM_MEMORY_POOL_FLAG_DYNAMIC     0x2
 #define KM_MEMORY_POOL_FLAG_LOOKASIDE   0x4
@@ -135,10 +151,34 @@ NTSTATUS __stdcall Km_MP_Finalize(
                                           there is no more entries available.
         STATUS_UNSUCCESSFUL             - Pool allocation failed.
 */
+#if KM_MEMORY_POOL_EXTENDED_DEBUG_INFO
+NTSTATUS __stdcall Km_MP_AllocateEx(
+    __in        HANDLE  Instance,
+    __in        SIZE_T  Size,
+    __out       PVOID   *Block,
+    __in_opt    char    *FileName,
+    __in_opt    SIZE_T  FileNameLength,
+    __in_opt    int     LineNumber,
+    __in_opt    char    *FunctionName,
+    __in_opt    int     FunctionNameLength);
+
+#define Km_MP_Allocate(Instance, Size, BlockPtr) \
+    Km_MP_AllocateEx( \
+        (Instance), \
+        (Size), \
+        (BlockPtr), \
+        __FILE__, \
+        sizeof(__FILE__), \
+        __LINE__, \
+        __FUNCTION__, \
+        sizeof(__FUNCTION__))
+
+#else
 NTSTATUS __stdcall Km_MP_Allocate(
     __in    HANDLE  Instance,
     __in    SIZE_T  Size,
     __out   PVOID   *Block);
+#endif
 
 /*
     Km_MP_Release routine.

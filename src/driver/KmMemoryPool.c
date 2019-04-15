@@ -21,6 +21,10 @@ typedef struct _KM_MEMORY_POOL_SITE KM_MEMORY_POOL_SITE, *PKM_MEMORY_POOL_SITE;
 
 typedef __declspec(align(8)) struct _KM_MEMORY_POOL_BLOCK_HEADER
 {
+    #ifdef KM_MEMORY_MANAGER_EXTENDED_DEBUG_INFO
+    KM_MM_DEBUG_INFO_HEADER DebugInfoHeader;
+    #endif
+
     //  List link
     LIST_ENTRY              Link;
 
@@ -469,10 +473,22 @@ cleanup:
     return Status;
 };
 
+#if KM_MEMORY_POOL_EXTENDED_DEBUG_INFO
+NTSTATUS __stdcall Km_MP_AllocateEx(
+    __in        HANDLE  Instance,
+    __in        SIZE_T  Size,
+    __out       PVOID   *Block,
+    __in_opt    char    *FileName,
+    __in_opt    SIZE_T  FileNameLength,
+    __in_opt    int     LineNumber,
+    __in_opt    char    *FunctionName,
+    __in_opt    int     FunctionNameLength)
+#else
 NTSTATUS __stdcall Km_MP_Allocate(
     __in    HANDLE  Instance,
     __in    SIZE_T  Size,
     __out   PVOID   *Block)
+#endif
 {
     NTSTATUS                        Status = STATUS_SUCCESS;
     PKM_MEMORY_POOL                 Pool = NULL;
@@ -675,6 +691,16 @@ NTSTATUS __stdcall Km_MP_Allocate(
 
         if (Assigned(BlockHeader))
         {
+            #if KM_MEMORY_POOL_EXTENDED_DEBUG_INFO
+            Km_MM_FillDebugInfoHeader(
+                &BlockHeader->DebugInfoHeader,
+                FileName,
+                FileNameLength,
+                LineNumber,
+                FunctionName,
+                FunctionNameLength);
+            #endif
+
             InsertTailList(
                 &AllocationSite->Allocated.Items,
                 &BlockHeader->Link);
