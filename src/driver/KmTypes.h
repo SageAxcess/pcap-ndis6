@@ -156,8 +156,6 @@ typedef __declspec(align(8)) struct _PACKET
 
     ULONGLONG           ProcessId;
 
-//    ULONG               MaxDataSize;
-
     ULONG               DataSize;
 
     UCHAR               Data[1];
