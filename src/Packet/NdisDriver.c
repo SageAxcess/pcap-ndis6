@@ -242,13 +242,14 @@ BOOL NdisDriver_ControlDevice(
         OutBufferSize,
         BytesReturned,
         nullptr);
-    if (Assigned(ErrorCode))
+    if ((Assigned(ErrorCode)) &&
+        (!Result))
     {
         *ErrorCode = GetLastError();
     }
 
     LOG::LogMessageFmt(
-        L"%S: DeviceIoControl(%p, %x, %p, %d, %p, %d, %p, nullptr) --> %s(%x)\n",
+        L"%S: DeviceIoControl(%p, %x, %p, %d, %p, %d, %p, nullptr) --> %s(0x%x)\n",
         __FUNCTION__,
         DeviceHandle,
         static_cast<int>(ControlCode),
