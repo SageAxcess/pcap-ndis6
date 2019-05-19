@@ -434,6 +434,7 @@
     <ClCompile Include="KmLock.c" />
     <ClCompile Include="KmMemoryManager.c" />
     <ClCompile Include="KmMemoryPool.c" />
+    <ClCompile Include="KmMREWLock.c" />
     <ClCompile Include="KmProcessWatcher.c" />
     <ClCompile Include="KmRulesEngine.c" />
     <ClCompile Include="KmThreads.c" />
@@ -466,6 +467,7 @@
     <ClInclude Include="KmMemoryManager.h" />
     <ClInclude Include="KmMemoryPool.h" />
     <ClInclude Include="KmMemoryTags.h" />
+    <ClInclude Include="KmMREWLock.h" />
     <ClInclude Include="KmProcessWatcher.h" />
     <ClInclude Include="KmRulesEngine.h" />
     <ClInclude Include="KmThreads.h" />

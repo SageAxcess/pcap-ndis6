@@ -23,6 +23,7 @@
     <ClCompile Include="KmTimerThread.c" />
     <ClCompile Include="KmRulesEngine.c" />
     <ClCompile Include="KmTree.c" />
+    <ClCompile Include="KmMREWLock.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adapter.h" />
@@ -50,6 +51,7 @@
     <ClInclude Include="KmRulesEngine.h" />
     <ClInclude Include="KmTree.h" />
     <ClInclude Include="KmMemoryTags.h" />
+    <ClInclude Include="KmMREWLock.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="filter.rc" />
