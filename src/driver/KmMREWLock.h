@@ -16,8 +16,25 @@
 
 #include <ntddk.h>
 
-//  Multi-read/exclusive-write lock object
-typedef struct _KM_MREW_LOCK    KM_MREW_LOCK, *PKM_MREW_LOCK;
+typedef struct _KM_MREW_LOCK
+{
+    //  Spin lock
+    EX_SPIN_LOCK    SpinLock;
+
+    //  Interrupt request level.
+    //  This field is used to store the original IRQL the 
+    //  SpinLock was acquired at.
+    KIRQL           Irql;
+
+    //  Boolean flag that indicates whether the spinlock
+    //  was acquired at IRQL >= DISPATCH_LEVEL
+    BOOLEAN         AcquiredAtDispatchOrHigher;
+
+    //  Multi-read/exclusive-write lock object
+    //  Used for synchronizing shared and exclusive access
+    //  to other objects/resources.
+} KM_MREW_LOCK, *PKM_MREW_LOCK;
+
 
 /*
     Km_MREW_Lock_Initialize routine.
