@@ -17,6 +17,16 @@
 #include "KmMemoryPool.h"
 #include "..\shared\CommonDefs.h"
 
+typedef struct _KM_TREE_ITEM
+{
+    //  Client-supplied pointer
+    PVOID   Data;
+
+    //  Size of client-supplied data pointed to by "Data" field.
+    ULONG   Size;
+
+} KM_TREE_ITEM, *PKM_TREE_ITEM;
+
 typedef struct _KM_TREE
 {
     struct _MEMORY
@@ -24,8 +34,6 @@ typedef struct _KM_TREE
         PKM_MEMORY_MANAGER  Manager;
 
         HANDLE              ItemMemPool;
-
-        ULONG               ItemTag;
 
         ULONG               ServiceTag;
 
@@ -45,23 +53,17 @@ typedef struct _KM_TREE
 
     PKM_LOCK                            Lock;
 
+    KM_TREE_ITEM                        TempItem;
+
 } KM_TREE, *PKM_TREE;
-
-typedef struct _KM_TREE_ITEM
-{
-    //  Client-supplied pointer
-    PVOID   Data;
-
-    //  Size of client-supplied data pointed to by "Data" field.
-    ULONG   Size;
-
-} KM_TREE_ITEM, *PKM_TREE_ITEM;
 
 PVOID KmTree_AVLAllocateRoutine(
     __in    PRTL_AVL_TABLE  Table,
     __in    ULONG           ByteSize)
 {
     PKM_TREE    Tree = NULL;
+    PVOID       NewItem = NULL;
+    NTSTATUS    Status = STATUS_SUCCESS;
 
     RETURN_VALUE_IF_FALSE(
         Assigned(Table),
@@ -72,10 +74,15 @@ PVOID KmTree_AVLAllocateRoutine(
 
     Tree = (PKM_TREE)Table->TableContext;
 
-    return Km_MM_AllocMemWithTag(
-        Tree->Memory.Manager,
+    Status = Km_MP_Allocate(
+        Tree->Memory.ItemMemPool,
         ByteSize,
-        Tree->Memory.ItemTag);
+        &NewItem);
+    RETURN_VALUE_IF_FALSE(
+        NT_SUCCESS(Status),
+        NULL);
+
+    return NewItem;
 };
 
 void KmTree_AVLFreeRoutine(
@@ -103,9 +110,7 @@ void KmTree_AVLFreeRoutine(
             Item->Size);
     }
 
-    Km_MM_FreeMem(
-        Tree->Memory.Manager,
-        Buffer);
+    Km_MP_Release(Buffer);
 };
 
 RTL_GENERIC_COMPARE_RESULTS KmTree_AVLCompareRoutine(
@@ -114,7 +119,6 @@ RTL_GENERIC_COMPARE_RESULTS KmTree_AVLCompareRoutine(
     __in    PVOID           Item2)
 {
     PKM_TREE        Tree = NULL;
-    int             CmpRes = 0;
     PKM_TREE_ITEM   TreeItem1 = NULL;
     PKM_TREE_ITEM   TreeItem2 = NULL;
 
@@ -142,107 +146,13 @@ RTL_GENERIC_COMPARE_RESULTS KmTree_AVLCompareRoutine(
     TreeItem1 = (PKM_TREE_ITEM)Item1;
     TreeItem2 = (PKM_TREE_ITEM)Item2;
 
-    CmpRes = Tree->Callbacks.ItemComparison(
+    return Tree->Callbacks.ItemComparison(
         Tree,
         Tree->TreeContext,
         TreeItem1->Data,
         TreeItem1->Size,
         TreeItem2->Data,
         TreeItem2->Size);
-    
-    return
-        CmpRes == 0 ? GenericEqual :
-        CmpRes < 0 ? GenericLessThan :
-        GenericGreaterThan;
-};
-
-NTSTATUS __stdcall KmTree_Initialize(
-    __in        PKM_MEMORY_MANAGER                  MemoryManager,
-    __in        PKM_TREE_ITEM_COMPARISON_CALLBACK   ComparisonRoutine,
-    __in_opt    BOOLEAN                             ThreadSafe,
-    __in_opt    ULONG                               ItemMemoryTag,
-    __in_opt    PVOID                               TreeContext,
-    __out       PKM_TREE                            *Tree)
-{
-	NTSTATUS	Status = STATUS_SUCCESS;
-    PKM_TREE    NewTree = NULL;
-
-	GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-		Assigned(MemoryManager),
-		STATUS_INVALID_PARAMETER_1);
-	GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-		Assigned(ComparisonRoutine),
-		STATUS_INVALID_PARAMETER_2);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(Tree),
-        STATUS_INVALID_PARAMETER_4);
-
-    NewTree = (PKM_TREE)Km_MM_AllocMemTypedWithTag(
-        MemoryManager,
-        KM_TREE,
-        KM_TREE_SVC_MEMORY_TAG);
-    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
-        Assigned(NewTree),
-        STATUS_INSUFFICIENT_RESOURCES);
-    __try
-    {
-        RtlZeroMemory(
-            NewTree,
-            sizeof(KM_TREE));
-
-        NewTree->Memory.ItemTag = ItemMemoryTag == 0 ? KM_TREE_ITEM_MEMORY_TAG : ItemMemoryTag;
-        NewTree->Memory.Manager = MemoryManager;
-
-        NewTree->Callbacks.ItemComparison = ComparisonRoutine;
-
-        NewTree->TreeContext = TreeContext;
-        
-        if (ThreadSafe)
-        {
-            NewTree->Lock = Km_MM_AllocMemTyped(
-                MemoryManager,
-                KM_LOCK);
-            LEAVE_IF_FALSE_SET_STATUS(
-                Assigned(NewTree->Lock),
-                STATUS_INSUFFICIENT_RESOURCES);
-            __try
-            {
-                Status = Km_Lock_Initialize(NewTree->Lock);
-            }
-            __finally
-            {
-                if (!NT_SUCCESS(Status))
-                {
-                    Km_MM_FreeMem(
-                        MemoryManager,
-                        NewTree->Lock);
-                }
-            }
-        }
-
-        RtlInitializeGenericTableAvl(
-            &NewTree->AvlTable,
-            KmTree_AVLCompareRoutine,
-            KmTree_AVLAllocateRoutine,
-            KmTree_AVLFreeRoutine,
-            NewTree);
-    }
-    __finally
-    {
-        if (!NT_SUCCESS(Status))
-        {
-            Km_MM_FreeMem(
-                MemoryManager,
-                NewTree);
-        }
-        else
-        {
-            *Tree = NewTree;
-        }
-    }
-
-cleanup:
-	return Status;
 };
 
 NTSTATUS __stdcall KmTree_InitializeEx(
@@ -250,15 +160,13 @@ NTSTATUS __stdcall KmTree_InitializeEx(
     __in        PKM_TREE_ITEM_COMPARISON_CALLBACK   ItemComparisonCallback,
     __in_opt    PKM_TREE_ITEM_REMOVE_CALLBACK       ItemRemoveCallback,
     __in_opt    BOOLEAN                             ThreadSafe,
-    __in_opt    ULONG                               ItemMemoryTag,
     __in_opt    PVOID                               TreeContext,
     __in_opt    ULONG                               InitialCapacity,
     __out       PKM_TREE                            *Tree)
 {
-    NTSTATUS                            Status = STATUS_SUCCESS;
-    PKM_TREE                            NewTree = NULL;
-    ULONG                               ItemMT = ItemMemoryTag == 0 ? KM_TREE_ITEM_MEMORY_TAG : ItemMemoryTag;
-    PKM_MEMORY_POOL_BLOCK_DEFINITION    MemoryPoolBlockDefs = NULL;
+    NTSTATUS                        Status = STATUS_SUCCESS;
+    PKM_TREE                        NewTree = NULL;
+    KM_MEMORY_POOL_BLOCK_DEFINITION MemoryPoolBlockDefs;
 
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(MemoryManager),
@@ -268,7 +176,7 @@ NTSTATUS __stdcall KmTree_InitializeEx(
         STATUS_INVALID_PARAMETER_2);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Tree),
-        STATUS_INVALID_PARAMETER_9);
+        STATUS_INVALID_PARAMETER_7);
 
     NewTree = (PKM_TREE)Km_MM_AllocMemTypedWithTag(
         MemoryManager,
@@ -283,89 +191,71 @@ NTSTATUS __stdcall KmTree_InitializeEx(
             NewTree,
             sizeof(KM_TREE));
 
-        MemoryPoolBlockDefs = Km_MM_AllocMemTypedWithTag(
-            MemoryManager,
-            KM_MEMORY_POOL_BLOCK_DEFINITION,
-            KM_TREE_SVC_MEMORY_TAG);
+        RtlZeroMemory(
+            &MemoryPoolBlockDefs,
+            sizeof(KM_MEMORY_POOL_BLOCK_DEFINITION));
 
-        LEAVE_IF_FALSE_SET_STATUS(
-            Assigned(MemoryPoolBlockDefs),
-            STATUS_INSUFFICIENT_RESOURCES);
+        MemoryPoolBlockDefs.BlockCount = InitialCapacity;
+        MemoryPoolBlockDefs.Type = GenericGuessSize;
+        MemoryPoolBlockDefs.MemoryTag = KM_TREE_ITEM_MEMORY_TAG;
+        MemoryPoolBlockDefs.BlockSize = 0;
+
+        Status = Km_MP_Initialize(
+            MemoryManager,
+            &MemoryPoolBlockDefs,
+            1,
+            KM_MEMORY_POOL_FLAG_DEFAULT,
+            KM_TREE_SVC_MEMORY_TAG,
+            &NewTree->Memory.ItemMemPool);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
-            RtlZeroMemory(
-                MemoryPoolBlockDefs,
-                sizeof(KM_MEMORY_POOL_BLOCK_DEFINITION));
+            NewTree->Memory.Manager = MemoryManager;
+            NewTree->Callbacks.ItemRemove = ItemRemoveCallback;
 
-            MemoryPoolBlockDefs->BlockCount = InitialCapacity;
-            MemoryPoolBlockDefs->Type = GenericGuessSize;
-            MemoryPoolBlockDefs->MemoryTag = ItemMT;
-            MemoryPoolBlockDefs->BlockSize = 0;
+            NewTree->Memory.ServiceTag = KM_TREE_SVC_MEMORY_TAG;
 
-            Status = Km_MP_Initialize(
-                MemoryManager,
-                MemoryPoolBlockDefs,
-                1,
-                KM_MEMORY_POOL_FLAG_DEFAULT,
-                ItemMT,
-                &NewTree->Memory.ItemMemPool);
-            LEAVE_IF_FALSE(NT_SUCCESS(Status));
-            __try
+            NewTree->Callbacks.ItemComparison = ItemComparisonCallback;
+
+            NewTree->TreeContext = TreeContext;
+
+            if (ThreadSafe)
             {
-                NewTree->Memory.ItemTag = ItemMemoryTag == 0 ? KM_TREE_ITEM_MEMORY_TAG : ItemMemoryTag;
-                NewTree->Memory.Manager = MemoryManager;
-                NewTree->Callbacks.ItemRemove = ItemRemoveCallback;
-
-                NewTree->Memory.ServiceTag = KM_TREE_SVC_MEMORY_TAG;
-
-                NewTree->Callbacks.ItemComparison = ItemComparisonCallback;
-
-                NewTree->TreeContext = TreeContext;
-
-                if (ThreadSafe)
+                NewTree->Lock = Km_MM_AllocMemTypedWithTag(
+                    MemoryManager,
+                    KM_LOCK,
+                    NewTree->Memory.ServiceTag);
+                LEAVE_IF_FALSE_SET_STATUS(
+                    Assigned(NewTree->Lock),
+                    STATUS_INSUFFICIENT_RESOURCES);
+                __try
                 {
-                    NewTree->Lock = Km_MM_AllocMemTypedWithTag(
-                        MemoryManager,
-                        KM_LOCK,
-                        NewTree->Memory.ServiceTag);
-                    LEAVE_IF_FALSE_SET_STATUS(
-                        Assigned(NewTree->Lock),
-                        STATUS_INSUFFICIENT_RESOURCES);
-                    __try
+                    Status = Km_Lock_Initialize(NewTree->Lock);
+                }
+                __finally
+                {
+                    if (!NT_SUCCESS(Status))
                     {
-                        Status = Km_Lock_Initialize(NewTree->Lock);
-                    }
-                    __finally
-                    {
-                        if (!NT_SUCCESS(Status))
-                        {
-                            Km_MM_FreeMem(
-                                MemoryManager,
-                                NewTree->Lock);
-                        }
+                        Km_MM_FreeMem(
+                            MemoryManager,
+                            NewTree->Lock);
                     }
                 }
+            }
 
-                RtlInitializeGenericTableAvl(
-                    &NewTree->AvlTable,
-                    KmTree_AVLCompareRoutine,
-                    KmTree_AVLAllocateRoutine,
-                    KmTree_AVLFreeRoutine,
-                    NewTree);
-            }
-            __finally
-            {
-                if (!NT_SUCCESS(Status))
-                {
-                    Km_MP_Finalize(NewTree->Memory.ItemMemPool);
-                }
-            }
+            RtlInitializeGenericTableAvl(
+                &NewTree->AvlTable,
+                KmTree_AVLCompareRoutine,
+                KmTree_AVLAllocateRoutine,
+                KmTree_AVLFreeRoutine,
+                NewTree);
         }
         __finally
         {
-            Km_MM_FreeMem(
-                MemoryManager,
-                MemoryPoolBlockDefs);
+            if (!NT_SUCCESS(Status))
+            {
+                Km_MP_Finalize(NewTree->Memory.ItemMemPool);
+            }
         }
     }
     __finally
@@ -569,6 +459,7 @@ cleanup:
 NTSTATUS __stdcall KmTree_FindItemEx(
     __in        PKM_TREE    Tree,
     __in        PVOID       Buffer,
+    __in        ULONG       BufferSize,
     __out_opt   PVOID       *FoundBuffer,
     __out_opt   PULONG      FoundBufferSize,
     __in        BOOLEAN     CheckParams,
@@ -596,8 +487,11 @@ NTSTATUS __stdcall KmTree_FindItemEx(
     __try
     {
         PKM_TREE_ITEM   TreeItem = NULL;
+
+        Tree->TempItem.Data = Buffer;
+        Tree->TempItem.Size = BufferSize;
         
-        TreeItem = (PKM_TREE_ITEM)RtlLookupElementGenericTableAvl(&Tree->AvlTable, Buffer);
+        TreeItem = (PKM_TREE_ITEM)RtlLookupElementGenericTableAvl(&Tree->AvlTable, &Tree->TempItem);
 
         LEAVE_IF_FALSE_SET_STATUS(
             Assigned(TreeItem),
@@ -657,6 +551,52 @@ NTSTATUS __stdcall KmTree_GetCountEx(
     __try
     {
         *Count = RtlNumberGenericTableElementsAvl(&Tree->AvlTable);
+    }
+    __finally
+    {
+        if ((Assigned(Tree->Lock)) &&
+            (LockTree))
+        {
+            Km_Lock_Release(Tree->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall KmTree_EnumerateEntriesEx(
+    __in    PKM_TREE    Tree,
+    __inout PVOID       *Item,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockTree)
+{
+    NTSTATUS    Status = STATUS_SUCCESS;
+
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Tree),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Item),
+            STATUS_INVALID_PARAMETER_2);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            ((Assigned(Tree->Lock)) && (LockTree)) ||
+            (!LockTree),
+            STATUS_INVALID_PARAMETER_MIX);
+    }
+
+    if ((Assigned(Tree->Lock)) &&
+        (LockTree))
+    {
+        Status = Km_Lock_Acquire(Tree->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        *Item = RtlEnumerateGenericTableAvl(&Tree->AvlTable, *Item == NULL);
     }
     __finally
     {

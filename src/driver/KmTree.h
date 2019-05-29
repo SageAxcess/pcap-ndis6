@@ -36,20 +36,11 @@ typedef int(__stdcall _KM_TREE_ITEM_COMPARISON_CALLBACK)(
 
 typedef _KM_TREE_ITEM_COMPARISON_CALLBACK KM_TREE_ITEM_COMPARISON_CALLBACK, *PKM_TREE_ITEM_COMPARISON_CALLBACK;
 
-NTSTATUS __stdcall KmTree_Initialize(
-    __in        PKM_MEMORY_MANAGER                  MemoryManager,
-    __in        PKM_TREE_ITEM_COMPARISON_CALLBACK   ComparisonRoutine,
-    __in_opt    BOOLEAN                             ThreadSafe,
-    __in_opt    ULONG                               ItemMemoryTag,
-    __in_opt    PVOID                               TreeContext,
-    __out       PKM_TREE                            *Tree);
-
 NTSTATUS __stdcall KmTree_InitializeEx(
-    __in        PKM_MEMORY_MANAGER  MemoryManager,
+    __in        PKM_MEMORY_MANAGER                  MemoryManager,
     __in        PKM_TREE_ITEM_COMPARISON_CALLBACK   ItemComparisonCallback,
     __in_opt    PKM_TREE_ITEM_REMOVE_CALLBACK       ItemRemoveCallback,
     __in_opt    BOOLEAN                             ThreadSafe,
-    __in_opt    ULONG                               ItemMemoryTag,
     __in_opt    PVOID                               TreeContext,
     __in_opt    ULONG                               InitialCapacity,
     __out       PKM_TREE                            *Tree);
@@ -78,6 +69,7 @@ NTSTATUS __stdcall KmTree_DeleteItemEx(
 NTSTATUS __stdcall KmTree_FindItemEx(
     __in        PKM_TREE    Tree,
     __in        PVOID       Buffer,
+    __in        ULONG       BufferSize,
     __out_opt   PVOID       *FoundBuffer,
     __out_opt   PULONG      FoundBufferSize,
     __in        BOOLEAN     CheckParams,
@@ -89,15 +81,33 @@ NTSTATUS __stdcall KmTree_GetCountEx(
     __in    BOOLEAN     CheckParams,
     __in    BOOLEAN     LockTree);
 
-#define KmTree_Clear(Tree)                                                          KmTree_ClearEx((Tree), TRUE, TRUE)
-#define KmTree_Clear_NoLock(Tree)                                                   KmTree_ClearEx((Tree), TRUE, FALSE)
-#define KmTree_AddItem(Tree, Buffer, BufferSize)                                    KmTree_AddItemEx((Tree), (Buffer), (BufferSize), TRUE, TRUE)
-#define KmTree_AddItem_NoLock(Tree, Buffer, BufferSize)                             KmTree_AddItemEx((Tree), (Buffer), (BufferSize), TRUE, FALSE)
-#define KmTree_DeleteItem(Tree, Buffer)                                             KmTree_DeleteItemEx((Tree), (Buffer), TRUE, TRUE)
-#define KmTree_DeleteItem_NoLock(Tree, Buffer)                                      KmTree_DeleteItemEx((Tree), (Buffer), TRUE, FALSE)
-#define KmTree_FindItem(Tree, Buffer, FoundBufferPtr, FoundBufferSizePtr)           KmTree_FindItemEx((Tree), (Buffer), (FoundBufferPtr), (FoundBufferSizePtr), TRUE, TRUE)
-#define KmTree_FindItem_NoLock(Tree, Buffer, FoundBufferPtr, FoundBufferSizePtr)    KmTree_FindItemEx((Tree), (Buffer), (FoundBufferPtr), (FoundBufferSizePtr), TRUE, FALSE)
-#define KmTree_GetCount(Tree, Count)                                                KmTree_GetCountEx((Tree), (Count), TRUE, TRUE)
-#define KmTree_GetCount_NoLock(Tree, Count)                                         KmTree_GetCountEx((Tree), (Count), TRUE, FALSE)
+NTSTATUS __stdcall KmTree_EnumerateEntriesEx(
+    __in    PKM_TREE    Tree,
+    __inout PVOID       *Item,
+    __in    BOOLEAN     CheckParams,
+    __in    BOOLEAN     LockTree);
+
+#define KmTree_Clear(Tree)                                                                      KmTree_ClearEx((Tree), TRUE, TRUE)
+#define KmTree_Clear_NoLock(Tree)                                                               KmTree_ClearEx((Tree), TRUE, FALSE)
+#define KmTree_AddItem(Tree, Buffer, BufferSize)                                                KmTree_AddItemEx((Tree), (Buffer), (BufferSize), TRUE, TRUE)
+#define KmTree_AddItem_NoLock(Tree, Buffer, BufferSize)                                         KmTree_AddItemEx((Tree), (Buffer), (BufferSize), TRUE, FALSE)
+#define KmTree_DeleteItem(Tree, Buffer)                                                         KmTree_DeleteItemEx((Tree), (Buffer), TRUE, TRUE)
+#define KmTree_DeleteItem_NoLock(Tree, Buffer)                                                  KmTree_DeleteItemEx((Tree), (Buffer), TRUE, FALSE)
+#define KmTree_FindItem(Tree, Buffer, BufferSize, FoundBufferPtr, FoundBufferSizePtr)           KmTree_FindItemEx((Tree), (Buffer), (BufferSize), (FoundBufferPtr), (FoundBufferSizePtr), TRUE, TRUE)
+#define KmTree_FindItem_NoLock(Tree, Buffer, BufferSize, FoundBufferPtr, FoundBufferSizePtr)    KmTree_FindItemEx((Tree), (Buffer), (BufferSize), (FoundBufferPtr), (FoundBufferSizePtr), TRUE, FALSE)
+#define KmTree_GetCount(Tree, Count)                                                            KmTree_GetCountEx((Tree), (Count), TRUE, TRUE)
+#define KmTree_GetCount_NoLock(Tree, Count)                                                     KmTree_GetCountEx((Tree), (Count), TRUE, FALSE)
+#define KmTree_EnumerateEntries(Tree, ItemPtr)                                                  KmTree_EnumerateEntriesEx((Tree), (ItemPtr), TRUE, TRUE)
+#define KmTree_EnumerateEntries_NoLock(Tree, ItemPtr)                                           KmTree_EnumerateEntriesEx((Tree), (ItemPtr), TRUE, FALSE)
+
+#define KmTree_CompareValues(Value1, Value2) \
+    ((Value1) > (Value2) ? GenericGreaterThan : \
+     (Value1) < (Value2) ? GenericLessThan : \
+     GenericEqual)
+
+#define KmTree_StdCmpResToGeneric(Value) \
+    ((Value) > 0 ? GenericGreaterThan : \
+     (Value) < 0 ? GenericLessThan : \
+     GenericEqual)
 
 #endif
