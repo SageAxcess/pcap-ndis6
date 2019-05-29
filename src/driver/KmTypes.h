@@ -329,4 +329,12 @@ typedef struct _DRIVER_DATA
 #define AF_INET6    23
 #endif
 
+#ifndef IPPROTO_MAX
+#define IPPROTO_MAX 0xFF
+#endif
+
+#ifndef IPPROTO_COUNT
+#define IPPROTO_COUNT   256
+#endif
+
 #endif
