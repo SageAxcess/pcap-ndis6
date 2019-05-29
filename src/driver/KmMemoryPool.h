@@ -53,7 +53,7 @@ typedef struct _KM_MEMORY_POOL_BLOCK_DEFINITION
         //  The number of allocations cannot exceed the amount specified in InitialBlockCount field.
         NonGrowable = 0x2,
 
-        //  Acts as a lookaside list (frees the entries which exceed the value specified in BlockCount field)
+        //  Acts as a lookaside list (frees the entries which exceed the value specified in BlockCount field upon release)
         LookasideList = 0x3,
 
     } Type;
