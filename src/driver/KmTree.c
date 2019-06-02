@@ -27,6 +27,16 @@ typedef struct _KM_TREE_ITEM
 
 } KM_TREE_ITEM, *PKM_TREE_ITEM;
 
+typedef struct _KM_TREE_ITEM_MEMORY_BLOCK
+{
+    //  Tree item pointer
+    PKM_TREE_ITEM   TreeItem;
+
+    //  Start of the data
+    unsigned long   Data;
+
+} KM_TREE_ITEM_MEMORY_BLOCK, *PKM_TREE_ITEM_MEMORY_BLOCK;
+
 typedef struct _KM_TREE
 {
     struct _MEMORY
@@ -61,9 +71,10 @@ PVOID KmTree_AVLAllocateRoutine(
     __in    PRTL_AVL_TABLE  Table,
     __in    ULONG           ByteSize)
 {
-    PKM_TREE    Tree = NULL;
-    PVOID       NewItem = NULL;
-    NTSTATUS    Status = STATUS_SUCCESS;
+    PKM_TREE                    Tree = NULL;
+    PKM_TREE_ITEM_MEMORY_BLOCK  NewBlock = NULL;
+    NTSTATUS                    Status = STATUS_SUCCESS;
+    SIZE_T                      SizeRequired;
 
     RETURN_VALUE_IF_FALSE(
         Assigned(Table),
@@ -74,23 +85,30 @@ PVOID KmTree_AVLAllocateRoutine(
 
     Tree = (PKM_TREE)Table->TableContext;
 
+    SizeRequired =
+        sizeof(KM_TREE_ITEM_MEMORY_BLOCK) -
+        FIELD_SIZE(KM_TREE_ITEM_MEMORY_BLOCK, Data) +
+        ByteSize;
+
     Status = Km_MP_Allocate(
         Tree->Memory.ItemMemPool,
         ByteSize,
-        &NewItem);
+        &NewBlock);
     RETURN_VALUE_IF_FALSE(
         NT_SUCCESS(Status),
         NULL);
 
-    return NewItem;
+    NewBlock->TreeItem = (PKM_TREE_ITEM)(((PUCHAR)&NewBlock->Data) + ByteSize - sizeof(KM_TREE_ITEM));
+        
+    return &NewBlock->Data;
 };
 
 void KmTree_AVLFreeRoutine(
     __in    PRTL_AVL_TABLE  Table,
     __in    PVOID           Buffer)
 {
-    PKM_TREE        Tree = NULL;
-    PKM_TREE_ITEM   Item = NULL;
+    PKM_TREE                    Tree = NULL;
+    PKM_TREE_ITEM_MEMORY_BLOCK  MemoryBlock = NULL;
 
     RETURN_IF_FALSE(
         (Assigned(Table)) &&
@@ -99,18 +117,22 @@ void KmTree_AVLFreeRoutine(
     
     Tree = (PKM_TREE)Table->TableContext;
 
-    Item = (PKM_TREE_ITEM)Buffer;
-    
+    MemoryBlock = CONTAINING_RECORD(Buffer, KM_TREE_ITEM_MEMORY_BLOCK, Data);
+
     if (Assigned(Tree->Callbacks.ItemRemove))
     {
+        /*
+            Actual item pointer is at block address + block size - sizeof(KM_TREE_ITEM)
+        */
+
         Tree->Callbacks.ItemRemove(
             Tree,
             Tree->TreeContext,
-            Item->Data,
-            Item->Size);
+            MemoryBlock->TreeItem->Data,
+            MemoryBlock->TreeItem->Size);
     }
 
-    Km_MP_Release(Buffer);
+    Km_MP_Release(MemoryBlock);
 };
 
 RTL_GENERIC_COMPARE_RESULTS KmTree_AVLCompareRoutine(
@@ -434,9 +456,12 @@ NTSTATUS __stdcall KmTree_DeleteItemEx(
     }
     __try
     {
+        Tree->TempItem.Data = Buffer;
+        Tree->TempItem.Size = 0;
+
         if (!RtlDeleteElementGenericTableAvl(
             &Tree->AvlTable,
-            Buffer))
+            &Tree->TempItem))
         {
             Status = STATUS_UNSUCCESSFUL;
         }
