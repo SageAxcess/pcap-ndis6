@@ -24,6 +24,8 @@
 #ifndef _FILTDEBUG__H
 #define _FILTDEBUG__H
 
+#include "KmTypes.h"
+
 //
 // Message verbosity: lower values indicate higher urgency
 //
@@ -82,6 +84,13 @@ extern unsigned long FILTER_DEBUG_LEVEL;
 void DbgPrintHexDump(
     __in    PUCHAR  Buffer,
     __in    ULONG   BufferSize);
+
+void DbgPrintMACAddress(
+    __in    PUCHAR  Address);
+
+void DbgPrintIPAddress(
+    __in    PIP_ADDRESS Address,
+    __in    USHORT      EthType);
 
 #else
 

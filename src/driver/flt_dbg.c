@@ -88,5 +88,63 @@ Return Value:
         DbgPrint("\n");
     }
 }
+
+void DbgPrintMACAddress(
+    __in    PUCHAR  Address)
+{
+    if (Address == NULL)
+    {
+        return;
+    }
+
+    DbgPrint(
+        "[%02x:%02x:%02x:%02x:%02x:%02x]",
+        Address[0],
+        Address[1],
+        Address[2],
+        Address[3],
+        Address[4],
+        Address[5]);
+};
+
+void DbgPrintIPAddress(
+    __in    PIP_ADDRESS Address,
+    __in    USHORT      EthType)
+{
+    if (Address == NULL)
+    {
+        return;
+    }
+
+    switch (EthType)
+    {
+        case ETH_TYPE_IP:
+        case ETH_TYPE_IP_BE:
+        {
+            DbgPrint(
+                "%d.%d.%d.%d",
+                Address->Address.v4.ip.b[0],
+                Address->Address.v4.ip.b[1],
+                Address->Address.v4.ip.b[2],
+                Address->Address.v4.ip.b[3]);
+        }break;
+
+        case ETH_TYPE_IP6:
+        case ETH_TYPE_IP6_BE:
+        {
+            DbgPrint(
+                "%4x:%4x:%4x:%4x:%4x:%4x:%4x:%4x",
+                Address->Address.v6.ip.s[0],
+                Address->Address.v6.ip.s[1],
+                Address->Address.v6.ip.s[2],
+                Address->Address.v6.ip.s[3],
+                Address->Address.v6.ip.s[4],
+                Address->Address.v6.ip.s[5],
+                Address->Address.v6.ip.s[6],
+                Address->Address.v6.ip.s[7]);
+        }break;
+    };
+};
+
 #endif // DBG
 
