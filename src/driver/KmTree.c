@@ -233,6 +233,7 @@ NTSTATUS __stdcall KmTree_InitializeEx(
         __try
         {
             NewTree->Memory.Manager = MemoryManager;
+
             NewTree->Callbacks.ItemRemove = ItemRemoveCallback;
 
             NewTree->Memory.ServiceTag = KM_TREE_SVC_MEMORY_TAG;
