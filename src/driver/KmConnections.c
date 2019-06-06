@@ -283,6 +283,11 @@ NTSTATUS __stdcall Km_Connections_CleanupOldEntries(
                 if (TimeInSeconds.QuadPart > KM_CONNECTIONS_ITEM_LIFETIME)
                 {
                     KmTree_DeleteItem_NoLock(Tree, Item);
+
+                    //  We need this to restart the enumeration, since the
+                    //  item we delete here will still be listed inside the
+                    //  avl tree object internally.
+                    Item = NULL;
                 }
             }
         }
