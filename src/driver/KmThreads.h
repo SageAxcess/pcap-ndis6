@@ -18,6 +18,8 @@
 
 #pragma pack(push, 1)
 
+#define KM_THREAD_STD_STOP_WAIT_INTERVAL    5000
+
 typedef struct _KM_THREAD
 {
     PKM_MEMORY_MANAGER  MemoryManager;

@@ -162,8 +162,13 @@ NTSTATUS __stdcall KmThreads_StopThread(
     __in    ULONG       WaitTimeout)
 
 {
-    NTSTATUS    Status = STATUS_SUCCESS;
+    NTSTATUS        Status = STATUS_SUCCESS;
+    KIRQL           Irql = KeGetCurrentIrql();
+    LARGE_INTEGER   Timeout;
 
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Irql <= DISPATCH_LEVEL,
+        STATUS_UNSUCCESSFUL);
     GOTO_CLEANUP_IF_FALSE_SET_STATUS(
         Assigned(Thread),
         STATUS_INVALID_PARAMETER_1);
@@ -178,13 +183,12 @@ NTSTATUS __stdcall KmThreads_StopThread(
 
     if (WaitTimeout != MAXULONG)
     {
-        LARGE_INTEGER   Timeout;
-        KIRQL           Irql = KeGetCurrentIrql();
         GOTO_CLEANUP_IF_FALSE_SET_STATUS(
             Irql <= APC_LEVEL,
             STATUS_UNSUCCESSFUL);
 
         Timeout.QuadPart = (-1) * WaitTimeout;
+
         Status = KeWaitForSingleObject(
             Thread->ThreadObject,
             Executive,
@@ -194,12 +198,29 @@ NTSTATUS __stdcall KmThreads_StopThread(
     }
     else
     {
-        Status = KeWaitForSingleObject(
-            Thread->ThreadObject,
-            Executive,
-            KernelMode,
-            FALSE,
-            NULL);
+        if (Irql <= APC_LEVEL)
+        {
+            Status = KeWaitForSingleObject(
+                Thread->ThreadObject,
+                Executive,
+                KernelMode,
+                FALSE,
+                NULL);
+        }
+        else
+        {
+            Timeout.QuadPart = (-1) * KM_THREAD_STD_STOP_WAIT_INTERVAL;
+            do
+            {
+                Status = KeWaitForSingleObject(
+                    Thread->ThreadObject,
+                    Executive,
+                    KernelMode,
+                    FALSE,
+                    &Timeout);
+
+            } while (Status == STATUS_TIMEOUT);
+        }
     }
 
 cleanup:
