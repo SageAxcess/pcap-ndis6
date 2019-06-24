@@ -230,6 +230,45 @@ cleanup:
     return Status;
 };
 
+NTSTATUS __stdcall Km_Connections_OldEntriesCleanup_MatchRoutine(
+    __in    PKM_TREE    Tree,
+    __in    PVOID       TreeContext,
+    __in    PVOID       Buffer,
+    __in    PVOID       MatchParam)
+{
+    NTSTATUS                Status = STATUS_SUCCESS;
+    PLARGE_INTEGER          CurrentTime = NULL;
+    PKM_CONNECTIONS_ITEM    Item = NULL;
+    LARGE_INTEGER           TimeDiff;
+    LARGE_INTEGER           TimeInSeconds;
+
+    UNREFERENCED_PARAMETER(Tree);
+    UNREFERENCED_PARAMETER(TreeContext);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        (Assigned(Buffer)) &&
+        (Assigned(MatchParam)),
+        STATUS_NO_MORE_ENTRIES);
+
+    CurrentTime = (PLARGE_INTEGER)MatchParam;
+    Item = CONTAINING_RECORD(Buffer, KM_CONNECTIONS_ITEM, Info);
+
+    TimeDiff = RtlLargeIntegerSubtract(*CurrentTime, Item->LastAccessTime);
+
+    //  Note:
+    //  The time difference is not in nanoseconds, but in 100 nanosecond intervals.
+    //  In other word if TimeInSeconds == 1, then it should be treated as 100.
+    TimeInSeconds.QuadPart = NanosecondsToMiliseconds(TimeDiff.QuadPart);
+
+    if (TimeInSeconds.QuadPart < KM_CONNECTIONS_ITEM_LIFETIME)
+    {
+        Status = STATUS_NO_MATCH;
+    }
+
+cleanup:
+    return Status;
+};
+
 NTSTATUS __stdcall Km_Connections_CleanupOldEntries(
     __in    PKM_CONNECTIONS_DATA    Data)
 {
@@ -246,13 +285,10 @@ NTSTATUS __stdcall Km_Connections_CleanupOldEntries(
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
     __try
     {
-        PKM_CONNECTIONS_ITEM        ConnItem;
-        LARGE_INTEGER               TimeDiff;
-        LARGE_INTEGER               TimeInSeconds;
         PLIST_ENTRY                 Entry = NULL;
-        PVOID                       Item = NULL;
         PKM_CONNECTIONS_TREE_INDEX  IndexItem = NULL;
         PKM_TREE                    Tree;
+        PKM_TREE_SEARCH_RECORD      SearchRec = NULL;
 
         for (Entry = Data->Trees.Indexes.List.Flink;
             Entry != &Data->Trees.Indexes.List;
@@ -267,28 +303,28 @@ NTSTATUS __stdcall Km_Connections_CleanupOldEntries(
 
             CONTINUE_IF_FALSE(Assigned(Tree));
 
-            for (Status = KmTree_EnumerateEntries_NoLock(Tree, &Item);
-                NT_SUCCESS(Status) && (Item != NULL);
-                Status = KmTree_EnumerateEntries_NoLock(Tree, &Item))
+            Status = KmTree_FindFirst_NoLock(
+                Tree,
+                Km_Connections_OldEntriesCleanup_MatchRoutine,
+                &CurrentTime,
+                &SearchRec);
+            CONTINUE_IF_FALSE(NT_SUCCESS(Status));
+            __try
             {
-                ConnItem = CONTAINING_RECORD(Item, KM_CONNECTIONS_ITEM, Info);
-
-                TimeDiff = RtlLargeIntegerSubtract(CurrentTime, ConnItem->LastAccessTime);
-
-                //  Note:
-                //  The time difference is not in nanoseconds, but in 100 nanosecond intervals.
-                //  In other word if TimeInSeconds == 1, then it should be treated as 100.
-                TimeInSeconds.QuadPart = NanosecondsToMiliseconds(TimeDiff.QuadPart);
-
-                if (TimeInSeconds.QuadPart > KM_CONNECTIONS_ITEM_LIFETIME)
+                do
                 {
-                    KmTree_DeleteItem_NoLock(Tree, Item);
+                    BREAK_IF_FALSE(NT_SUCCESS(SearchRec->Status));
 
-                    //  We need this to restart the enumeration, since the
-                    //  item we delete here will still be listed inside the
-                    //  avl tree object internally.
-                    Item = NULL;
-                }
+                    KmTree_DeleteItem_NoLock(Tree, SearchRec->FindResult.Buffer);
+
+                    Status = KmTree_FindNext_NoLock(SearchRec);
+                    BREAK_IF_FALSE(NT_SUCCESS(Status));
+
+                } while (NT_SUCCESS(Status));
+            }
+            __finally
+            {
+                KmTree_FindClose_NoLock(SearchRec);
             }
         }
     }
@@ -620,8 +656,8 @@ NTSTATUS __stdcall Km_Connections_Add(
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
 
         Status = KmTree_AddItem_NoLock(
-            Tree, 
-            &NewItem->Info, 
+            Tree,
+            &NewItem->Info,
             sizeof(NET_EVENT_INFO));
         if (!NT_SUCCESS(Status))
         {
