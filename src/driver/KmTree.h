@@ -18,6 +18,27 @@
 
 typedef struct _KM_TREE KM_TREE, *PKM_TREE;
 
+typedef struct _KM_TREE_SEARCH_RECORD
+{
+    NTSTATUS    Status;
+
+    struct _FIND_RESULT
+    {
+        PVOID   Buffer;
+
+        ULONG   BufferSize;
+
+    } FindResult;
+
+} KM_TREE_SEARCH_RECORD, *PKM_TREE_SEARCH_RECORD;
+
+typedef NTSTATUS(__stdcall _KM_TREE_MATCH_ROUTINE)(
+    __in    PKM_TREE    Tree,
+    __in    PVOID       TreeContext,
+    __in    PVOID       Buffer,
+    __in    PVOID       MatchParam);
+typedef _KM_TREE_MATCH_ROUTINE  KM_TREE_MATCH_ROUTINE, *PKM_TREE_MATCH_ROUTINE;
+
 typedef void(__stdcall _KM_TREE_ITEM_REMOVE_CALLBACK)(
     __in    PKM_TREE    Tree,
     __in    PVOID       TreeContext,
@@ -87,6 +108,23 @@ NTSTATUS __stdcall KmTree_EnumerateEntriesEx(
     __in    BOOLEAN     CheckParams,
     __in    BOOLEAN     LockTree);
 
+NTSTATUS __stdcall KmTree_FindFirstEx(
+    __in        PKM_TREE                Tree,
+    __in_opt    PKM_TREE_MATCH_ROUTINE  MatchRoutine,
+    __in_opt    PVOID                   MatchRoutineData,
+    __out       PKM_TREE_SEARCH_RECORD  *SearchRecord,
+    __in        BOOLEAN                 CheckParams,
+    __in        BOOLEAN                 LockTree);
+
+NTSTATUS __stdcall KmTree_FindNextEx(
+    __in    PKM_TREE_SEARCH_RECORD  SearchRecord,
+    __in    BOOLEAN                 CheckParams,
+    __in    BOOLEAN                 LockTree);
+
+NTSTATUS __stdcall KmTree_FindCloseEx(
+    __in    PKM_TREE_SEARCH_RECORD  SearchRecord,
+    __in    BOOLEAN                 LockTree);
+
 #define KmTree_Clear(Tree)                                                                      KmTree_ClearEx((Tree), TRUE, TRUE)
 #define KmTree_Clear_NoLock(Tree)                                                               KmTree_ClearEx((Tree), TRUE, FALSE)
 #define KmTree_AddItem(Tree, Buffer, BufferSize)                                                KmTree_AddItemEx((Tree), (Buffer), (BufferSize), TRUE, TRUE)
@@ -99,6 +137,12 @@ NTSTATUS __stdcall KmTree_EnumerateEntriesEx(
 #define KmTree_GetCount_NoLock(Tree, Count)                                                     KmTree_GetCountEx((Tree), (Count), TRUE, FALSE)
 #define KmTree_EnumerateEntries(Tree, ItemPtr)                                                  KmTree_EnumerateEntriesEx((Tree), (ItemPtr), TRUE, TRUE)
 #define KmTree_EnumerateEntries_NoLock(Tree, ItemPtr)                                           KmTree_EnumerateEntriesEx((Tree), (ItemPtr), TRUE, FALSE)
+#define KmTree_FindFirst(Tree, MatchRoutine, MatchRoutineData, SearchRecordPtrPtr)              KmTree_FindFirstEx((Tree), (MatchRoutine), (MatchRoutineData), (SearchRecordPtrPtr), TRUE, TRUE)
+#define KmTree_FindFirst_NoLock(Tree, MatchRoutine, MatchRoutineData, SearchRecordPtrPtr)       KmTree_FindFirstEx((Tree), (MatchRoutine), (MatchRoutineData), (SearchRecordPtrPtr), TRUE, FALSE)
+#define KmTree_FindNext(SearchRecordPtr)                                                        KmTree_FindNextEx((SearchRecordPtr), TRUE, TRUE)
+#define KmTree_FindNext_NoLock(SearchRecordPtr)                                                 KmTree_FindNextEx((SearchRecordPtr), TRUE, FALSE)
+#define KmTree_FindClose(SearchRecordPtr)                                                       KmTree_FindCloseEx((SearchRecordPtr), TRUE)
+#define KmTree_FindClose_NoLock(SearchRecordPtr)                                                KmTree_FindCloseEx((SearchRecordPtr), FALSE)
 
 #define KmTree_CompareValues(Value1, Value2) \
     ((Value1) > (Value2) ? GenericGreaterThan : \

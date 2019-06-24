@@ -17,6 +17,32 @@
 #include "KmMemoryPool.h"
 #include "..\shared\CommonDefs.h"
 
+typedef struct _KM_TREE_FIND_MATCH_DATA
+{
+    PVOID                   MatchData;
+
+    PKM_TREE_MATCH_ROUTINE  MatchRoutine;
+
+} KM_TREE_FIND_MATCH_DATA, *PKM_TREE_FIND_MATCH_DATA;
+
+typedef struct _KM_TREE_FIND_DATA
+{
+    PKM_TREE                Tree;
+
+    ULONG                   NextFlag;
+
+    PVOID                   RestartKey;
+
+    ULONG                   DeleteCount;
+
+    PVOID                   Buffer;
+
+    KM_TREE_SEARCH_RECORD   SearchRecord;
+
+    KM_TREE_FIND_MATCH_DATA MatchData;
+
+} KM_TREE_FIND_DATA, *PKM_TREE_FIND_DATA;
+
 typedef struct _KM_TREE_ITEM
 {
     //  Client-supplied pointer
@@ -46,6 +72,8 @@ typedef struct _KM_TREE
         HANDLE              ItemMemPool;
 
         ULONG               ServiceTag;
+
+        HANDLE              FindDataMemPool;
 
     } Memory;
 
@@ -232,46 +260,70 @@ NTSTATUS __stdcall KmTree_InitializeEx(
         LEAVE_IF_FALSE(NT_SUCCESS(Status));
         __try
         {
-            NewTree->Memory.Manager = MemoryManager;
+            MemoryPoolBlockDefs.BlockCount = 1;
+            MemoryPoolBlockDefs.Type = LookasideList;
+            MemoryPoolBlockDefs.MemoryTag = KM_TREE_SVC_MEMORY_TAG;
+            MemoryPoolBlockDefs.BlockSize = sizeof(KM_TREE_FIND_DATA);
 
-            NewTree->Callbacks.ItemRemove = ItemRemoveCallback;
-
-            NewTree->Memory.ServiceTag = KM_TREE_SVC_MEMORY_TAG;
-
-            NewTree->Callbacks.ItemComparison = ItemComparisonCallback;
-
-            NewTree->TreeContext = TreeContext;
-
-            if (ThreadSafe)
+            Status = Km_MP_Initialize(
+                MemoryManager,
+                &MemoryPoolBlockDefs,
+                1,
+                KM_MEMORY_POOL_FLAG_DEFAULT,
+                KM_TREE_SVC_MEMORY_TAG,
+                &NewTree->Memory.FindDataMemPool);
+            LEAVE_IF_FALSE(NT_SUCCESS(Status));
+            __try
             {
-                NewTree->Lock = Km_MM_AllocMemTypedWithTag(
-                    MemoryManager,
-                    KM_LOCK,
-                    NewTree->Memory.ServiceTag);
-                LEAVE_IF_FALSE_SET_STATUS(
-                    Assigned(NewTree->Lock),
-                    STATUS_INSUFFICIENT_RESOURCES);
-                __try
+
+                NewTree->Memory.Manager = MemoryManager;
+
+                NewTree->Callbacks.ItemRemove = ItemRemoveCallback;
+
+                NewTree->Memory.ServiceTag = KM_TREE_SVC_MEMORY_TAG;
+
+                NewTree->Callbacks.ItemComparison = ItemComparisonCallback;
+
+                NewTree->TreeContext = TreeContext;
+
+                if (ThreadSafe)
                 {
-                    Status = Km_Lock_Initialize(NewTree->Lock);
-                }
-                __finally
-                {
-                    if (!NT_SUCCESS(Status))
+                    NewTree->Lock = Km_MM_AllocMemTypedWithTag(
+                        MemoryManager,
+                        KM_LOCK,
+                        NewTree->Memory.ServiceTag);
+                    LEAVE_IF_FALSE_SET_STATUS(
+                        Assigned(NewTree->Lock),
+                        STATUS_INSUFFICIENT_RESOURCES);
+                    __try
                     {
-                        Km_MM_FreeMem(
-                            MemoryManager,
-                            NewTree->Lock);
+                        Status = Km_Lock_Initialize(NewTree->Lock);
+                    }
+                    __finally
+                    {
+                        if (!NT_SUCCESS(Status))
+                        {
+                            Km_MM_FreeMem(
+                                MemoryManager,
+                                NewTree->Lock);
+                        }
                     }
                 }
-            }
 
-            RtlInitializeGenericTableAvl(
-                &NewTree->AvlTable,
-                KmTree_AVLCompareRoutine,
-                KmTree_AVLAllocateRoutine,
-                KmTree_AVLFreeRoutine,
-                NewTree);
+                RtlInitializeGenericTableAvl(
+                    &NewTree->AvlTable,
+                    KmTree_AVLCompareRoutine,
+                    KmTree_AVLAllocateRoutine,
+                    KmTree_AVLFreeRoutine,
+                    NewTree);
+            }
+            __finally
+            {
+                if (!NT_SUCCESS(Status))
+                {
+                    Km_MP_Finalize(NewTree->Memory.FindDataMemPool);
+                }
+            }
         }
         __finally
         {
@@ -309,6 +361,12 @@ NTSTATUS __stdcall KmTree_Finalize(
         STATUS_INVALID_PARAMETER_1);
 
     Status = KmTree_Clear(Tree);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_MP_Finalize(Tree->Memory.ItemMemPool);
+    GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+
+    Status = Km_MP_Finalize(Tree->Memory.FindDataMemPool);
     GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
 
     if (Assigned(Tree->Lock))
@@ -628,6 +686,257 @@ NTSTATUS __stdcall KmTree_EnumerateEntriesEx(
     {
         if ((Assigned(Tree->Lock)) &&
             (LockTree))
+        {
+            Km_Lock_Release(Tree->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall KmTree_FindX_MatchFunction(
+    __in    PRTL_AVL_TABLE  Table,
+    __in    PVOID           UserData,
+    __in    PVOID           MatchData)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PKM_TREE_FIND_DATA  FindData = NULL;
+    PKM_TREE_ITEM       Item = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(Table),
+        STATUS_NO_MORE_MATCHES);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(UserData),
+        STATUS_NO_MORE_MATCHES);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(MatchData),
+        STATUS_NO_MORE_MATCHES);
+
+    FindData = (PKM_TREE_FIND_DATA)MatchData;
+    
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(FindData->MatchData.MatchRoutine),
+        STATUS_SUCCESS);
+
+    Item = (PKM_TREE_ITEM)UserData;
+    
+    Status = FindData->MatchData.MatchRoutine(
+        FindData->Tree,
+        FindData->Tree->TreeContext,
+        Item->Data,
+        FindData->MatchData.MatchData);
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall KmTree_FindFirstEx(
+    __in        PKM_TREE                Tree,
+    __in_opt    PKM_TREE_MATCH_ROUTINE  MatchRoutine,
+    __in_opt    PVOID                   MatchRoutineData,
+    __out       PKM_TREE_SEARCH_RECORD  *SearchRecord,
+    __in        BOOLEAN                 CheckParams,
+    __in        BOOLEAN                 LockTree)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PKM_TREE_FIND_DATA  NewFindData = NULL;
+    PKM_TREE_ITEM       TreeItem = NULL;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(Tree),
+            STATUS_INVALID_PARAMETER_1);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(SearchRecord),
+            STATUS_INVALID_PARAMETER_4);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            ((Assigned(Tree->Lock)) && (LockTree)) ||
+            (!LockTree),
+            STATUS_INVALID_PARAMETER_MIX);
+    }
+
+    if ((LockTree) &&
+        (Assigned(Tree->Lock)))
+    {
+        Status = Km_Lock_Acquire(Tree->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        Status = Km_MP_Allocate(
+            Tree->Memory.FindDataMemPool,
+            sizeof(KM_TREE_FIND_DATA),
+            &NewFindData);
+        LEAVE_IF_FALSE(NT_SUCCESS(Status));
+        __try
+        {
+            RtlZeroMemory(
+                NewFindData,
+                sizeof(KM_TREE_FIND_DATA));
+
+            NewFindData->Tree = Tree;
+            NewFindData->MatchData.MatchData = MatchRoutineData;
+            NewFindData->MatchData.MatchRoutine = MatchRoutine;
+
+            TreeItem = (PKM_TREE_ITEM)RtlEnumerateGenericTableLikeADirectory(
+                &Tree->AvlTable,
+                KmTree_FindX_MatchFunction,
+                NewFindData,
+                NewFindData->NextFlag,
+                &NewFindData->RestartKey,
+                &NewFindData->DeleteCount,
+                NewFindData->Buffer);
+
+            if (Assigned(TreeItem))
+            {
+                NewFindData->SearchRecord.FindResult.Buffer = TreeItem->Data;
+                NewFindData->SearchRecord.FindResult.BufferSize = TreeItem->Size;
+                NewFindData->SearchRecord.Status = STATUS_SUCCESS;
+            }
+            else
+            {
+                NewFindData->SearchRecord.Status = STATUS_NO_MATCH;
+            }
+
+            *SearchRecord = &NewFindData->SearchRecord;
+        }
+        __finally
+        {
+            if (!NT_SUCCESS(Status))
+            {
+                Km_MP_Release(NewFindData);
+            }
+        }
+    }
+    __finally
+    {
+        if ((LockTree) &&
+            (Assigned(Tree->Lock)))
+        {
+            Km_Lock_Release(Tree->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall KmTree_FindNextEx(
+    __in    PKM_TREE_SEARCH_RECORD  SearchRecord,
+    __in    BOOLEAN                 CheckParams,
+    __in    BOOLEAN                 LockTree)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PKM_TREE            Tree = NULL;
+    PKM_TREE_FIND_DATA  FindData = NULL;
+    PKM_TREE_ITEM       Item = NULL;
+
+    if (CheckParams)
+    {
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(SearchRecord),
+            STATUS_INVALID_PARAMETER_1);
+
+        FindData = CONTAINING_RECORD(SearchRecord, KM_TREE_FIND_DATA, SearchRecord);
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            Assigned(FindData->Tree),
+            STATUS_INVALID_PARAMETER_1);
+
+        Tree = FindData->Tree;
+
+        GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+            ((Assigned(Tree->Lock)) && (LockTree)) ||
+            (!LockTree),
+            STATUS_INVALID_PARAMETER_MIX);
+    }
+    else
+    {
+        FindData = CONTAINING_RECORD(SearchRecord, KM_TREE_FIND_DATA, SearchRecord);
+        Tree = FindData->Tree;
+    }
+
+    if ((LockTree) &&
+        (Assigned(Tree->Lock)))
+    {
+        Status = Km_Lock_Acquire(Tree->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        FindData->NextFlag = TRUE;
+
+        Item = (PKM_TREE_ITEM)RtlEnumerateGenericTableLikeADirectory(
+            &Tree->AvlTable,
+            &KmTree_FindX_MatchFunction,
+            FindData,
+            FindData->NextFlag,
+            &FindData->RestartKey,
+            &FindData->DeleteCount,
+            FindData->Buffer);
+        if (Assigned(Item))
+        {
+            FindData->SearchRecord.Status = STATUS_SUCCESS;
+            FindData->SearchRecord.FindResult.Buffer = Item->Data;
+            FindData->SearchRecord.FindResult.BufferSize = Item->Size;
+        }
+        else
+        {
+            FindData->SearchRecord.Status = STATUS_NO_MORE_ENTRIES;
+            Status = STATUS_NO_MORE_ENTRIES;
+        }
+    }
+    __finally
+    {
+        if ((LockTree) &&
+            (Assigned(Tree->Lock)))
+        {
+            Km_Lock_Release(Tree->Lock);
+        }
+    }
+
+cleanup:
+    return Status;
+};
+
+NTSTATUS __stdcall KmTree_FindCloseEx(
+    __in    PKM_TREE_SEARCH_RECORD  SearchRecord,
+    __in    BOOLEAN                 LockTree)
+{
+    NTSTATUS            Status = STATUS_SUCCESS;
+    PKM_TREE            Tree = NULL;
+    PKM_TREE_FIND_DATA  FindData = NULL;
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(SearchRecord),
+        STATUS_INVALID_PARAMETER_1);
+
+    FindData = CONTAINING_RECORD(SearchRecord, KM_TREE_FIND_DATA, SearchRecord);
+
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        Assigned(FindData->Tree),
+        STATUS_INVALID_PARAMETER_1);
+    GOTO_CLEANUP_IF_FALSE_SET_STATUS(
+        ((Assigned(FindData->Tree->Lock)) && (LockTree)) ||
+        (!LockTree),
+        STATUS_INVALID_PARAMETER_MIX);
+
+    Tree = FindData->Tree;
+
+    if (LockTree)
+    {
+        Status = Km_Lock_Acquire(Tree->Lock);
+        GOTO_CLEANUP_IF_FALSE(NT_SUCCESS(Status));
+    }
+    __try
+    {
+        Km_MP_Release(FindData);
+    }
+    __finally
+    {
+        if (LockTree)
         {
             Km_Lock_Release(Tree->Lock);
         }
